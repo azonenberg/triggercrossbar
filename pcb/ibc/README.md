@@ -41,28 +41,23 @@ AT30TS74 temperature sensor (at least one, possibly two)
 
 AD8218 current shunt monitor on input and output rails
 
-Internal STM32L031 ADC is 12 bits, Vref 1.65 to 3.6V
-Say we go with 2.5V, 12 bits gives 0.61 mV/LSB
+Internal STM32L031 ADC is 12 bits
 
 ### Input shunt
 
 25 milliohms gives 500 mV/A, so 805 mV full scale range. At 1.61A will dissipate 80.5 mW
 
-With 0.61 mV LSB this gives 1.22 mA resolution (without oversampling)
-
 ### Input voltage divider
 
-30:1 divider gives 1.6V nominal, 18.3 mV resolution
+30:1 divider gives 1.6V nominal
 
 ### Output shunt
 
 5 milliohms gives 100 mV/A so 800 mV full scale range. At 8A will dissipate 320 mW
 
-With 0.61 mV LSB this gives 6.1 mA resolution (without oversampling)
-
 ### Output voltage divider
 
-5:1 divider gives 2.4V nominal, 3.05 mV resolution
+5:1 divider gives 2.4V nominal
 
 # General design notes
 
