@@ -33,8 +33,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdfix.h>
 #include <stm32.h>
 
+#include <peripheral/ADC.h>
 #include <peripheral/GPIO.h>
 #include <peripheral/I2C.h>
 #include <peripheral/RCC.h>
