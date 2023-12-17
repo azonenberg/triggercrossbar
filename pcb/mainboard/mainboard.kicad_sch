@@ -2565,10 +2565,10 @@
       (reference "R113") (unit 1) (value "33") (footprint "")
     )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/144a541c-730f-4a2e-aee5-d4cb17edfe58"
-      (reference "R114") (unit 1) (value "R") (footprint "")
+      (reference "R114") (unit 1) (value "33K") (footprint "")
     )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/f0a6ee81-7fb9-4762-a12e-44de515c3308"
-      (reference "R115") (unit 1) (value "R") (footprint "")
+      (reference "R115") (unit 1) (value "8.06K") (footprint "")
     )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/c52fdf6e-be55-4a98-a57e-6dafabd43e9e"
       (reference "R116") (unit 1) (value "R") (footprint "")

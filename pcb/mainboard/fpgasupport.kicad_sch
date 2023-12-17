@@ -4,6 +4,14 @@
 
   (paper "A3")
 
+  (title_block
+    (title "Trigger Crossbar")
+    (date "2023-12-17")
+    (rev "0.1")
+    (company "Antikernel Labs")
+    (comment 1 "Andrew D. Zonenberg")
+  )
+
   (lib_symbols
     (symbol "XC7KxT-FBG484_1" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
       (property "Reference" "U" (id 0) (at 0 -2.54 0)

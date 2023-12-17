@@ -4,6 +4,14 @@
 
   (paper "A2")
 
+  (title_block
+    (title "Trigger Crossbar")
+    (date "2023-12-17")
+    (rev "0.1")
+    (company "Antikernel Labs")
+    (comment 1 "Andrew D. Zonenberg")
+  )
+
   (lib_symbols
     (symbol "MYMGK00504ERSR_1" (in_bom yes) (on_board yes)
       (property "Reference" "U" (id 0) (at 0 -2.54 0)
@@ -4545,7 +4553,7 @@
     (property "Reference" "R114" (id 0) (at 41.148 326.8253 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Value" "R" (id 1) (at 41.148 329.3622 0)
+    (property "Value" "33K" (id 1) (at 41.148 329.3622 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Footprint" "" (id 2) (at 37.592 327.66 90)
@@ -6826,7 +6834,7 @@
     (property "Reference" "R115" (id 0) (at 41.148 338.2553 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Value" "R" (id 1) (at 41.148 340.7922 0)
+    (property "Value" "8.06K" (id 1) (at 41.148 340.7922 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
     (property "Footprint" "" (id 2) (at 37.592 339.09 90)
