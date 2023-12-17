@@ -438,6 +438,14 @@
     [
       "5b4b4ab9-8593-42c0-88f4-24ffada17426",
       "Output"
+    ],
+    [
+      "173b3009-1fd2-43d9-b377-76176fc50dc2",
+      "1000base-T PHY"
+    ],
+    [
+      "7c65c52b-1969-4c40-b7c6-8a11cf92a46e",
+      "Connectors"
     ]
   ],
   "text_variables": {}
