@@ -6,7 +6,7 @@
 
   (title_block
     (title "Trigger Crossbar")
-    (date "2023-12-17")
+    (date "2023-12-18")
     (rev "0.1")
     (company "Antikernel Labs")
     (comment 1 "Andrew D. Zonenberg")
@@ -5538,7 +5538,7 @@
     (property "Value" "ECS-1612MV-250-CN" (id 1) (at 74.295 260.8326 0)
       (effects (font (size 1.524 1.524)))
     )
-    (property "Footprint" "" (id 2) (at 74.93 265.43 0)
+    (property "Footprint" "azonenberg_pcb:OSCILLATOR_1.6x1.2" (id 2) (at 74.93 265.43 0)
       (effects (font (size 1.524 1.524)) hide)
     )
     (property "Datasheet" "" (id 3) (at 74.93 265.43 0)
