@@ -47,6 +47,8 @@ uint16_t ReadThermalSensor(uint8_t addr = 0x90);
 uint16_t GetOutputVoltage();
 uint16_t GetSenseVoltage();
 uint16_t GetInputVoltage();
+uint16_t GetInputCurrent();
+uint16_t GetOutputCurrent();
 
 GPIOPin* g_fault_led = nullptr;
 GPIOPin* g_ok_led = nullptr;
@@ -75,44 +77,72 @@ int main()
 	GPIOPin ok_led(&GPIOA, 11, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	GPIOPin fault_led(&GPIOA, 12, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 
+	//12V output enable (for now, we control it since we don't have a client device hooked up
+	GPIOPin out_en(&GPIOA, 4, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+
 	ok_led = 0;
 	fault_led = 0;
+	out_en = 0;
 
 	//Save pointers to all the rails for use in other functions
 	g_ok_led = &ok_led;
 	g_fault_led = &fault_led;
 
-	//Wait 5 seconds in case something goes wrong during first power up
-	g_log("5 second delay\n");
-	g_logTimer->Sleep(50000);
+	//Wait 2 seconds in case something goes wrong during first power up
+	g_log("2 second delay\n");
+	g_logTimer->Sleep(20000);
 
 	ok_led = 1;
+	out_en = 1;
 
  	//Poll for problems
 	while(1)
 	{
-		g_log("CSV-NAME,BoardTemp,MCUTemp,InVoltage,OutVoltage,SenseVoltage\n");
-		g_log("CSV-UNIT,°C,°C,V,V,V\n");
+		g_log("CSV-NAME,BoardTemp,MCUTemp,InVoltage,OutVoltage,SenseVoltage,InCurrent,OutCurrent\n");
+		g_log("CSV-UNIT,°C,°C,V,V,V,A,A\n");
 
 		for(int i=0; i<50; i++)
 		{
-			auto btemp = ReadThermalSensor();
+			//wait 100ms
+			g_logTimer->Sleep(1000);
+
+			//Take a bunch of averages of the voltages to reduce noise
+			int navg = 32;
+			int vin = 0;
+			int vout = 0;
+			int vsense = 0;
+			for(int i=0; i<navg; i++)
+			{
+				vin += GetInputVoltage();
+				vout += GetOutputVoltage();
+				vsense += GetSenseVoltage();
+			}
+			vin /= navg;
+			vout /= navg;
+			vsense /= navg;
+
+			//Use short sampling window for currents then average
+			//Total conversion time is 1.5 + 12.5 = 14 clocks @ 8 MHz = 1.75 us = 571 kHz sampling rate?
+			g_adc->SetSampleTime(3);
+			auto iin = GetInputCurrent();
+			auto iout = GetOutputCurrent();
+
+			//Don't bother averaging temperatures
+			//Use longer sampling time here
+			g_adc->SetSampleTime(159);
 			auto mtemp = g_adc->GetTemperature();
-			auto vin = GetInputVoltage();
-			auto vout = GetOutputVoltage();
-			auto vsense = GetSenseVoltage();
+			auto btemp = ReadThermalSensor();
 
 			g_log(
-				"CSV-DATA,%uhk,%uhk,%d.%03d,%d.%03d,%d.%03d\n",
+				"CSV-DATA,%uhk,%uhk,%d.%03d,%d.%03d,%d.%03d,%d.%03d,%d.%03d\n",
 				btemp,
 				mtemp,
 				vin/1000, vin % 1000,
 				vout/1000, vout % 1000,
-				vsense/1000, vsense % 1000
+				vsense/1000, vsense % 1000,
+				iin/1000, iin % 1000,
+				iout/1000, iout % 1000
 				);
-
-			//wait 50ms
-			g_logTimer->Sleep(500);
 		}
 	}
 	return 0;
@@ -240,9 +270,7 @@ void InitADC()
 	LogIndenter li(g_log);
 
 	//Enable ADC to run at PCLK/2 (8 MHz)
-	//10us sampling time (80 ADC clocks) required for reading the temp sensor
-	//79.5 is close enough
-	static ADC adc(&ADC1, 2, 159);
+	static ADC adc(&ADC1, 2);
 
 	g_log("Zero calibration: %d\n", ADC1.CALFACT);
 	g_log("Temp cal 1: %d\n", TSENSE_CAL1);
@@ -252,6 +280,9 @@ void InitADC()
 	//adc17 is vrefint (vcc)
 
 	//Read the temperature
+	//10us sampling time (80 ADC clocks) required for reading the temp sensor
+	//79.5 is close enough
+	adc.SetSampleTime(159);
 	auto temp = adc.GetTemperature();
 	g_log("MCU temperature: %uhk C\n", temp);
 	g_log("Supply voltage:  %d mV\n", adc.GetSupplyVoltage());
@@ -284,21 +315,66 @@ void InitSensors()
 	auto vsense = GetSenseVoltage();
 	g_log("Output sense:   %d.%03d V\n", vsense/1000, vsense % 1000);
 
+	auto iin = GetInputCurrent();
+	g_log("Input current:   %d.%03d A\n", iin/1000, iin % 1000);
+
+	auto iout = GetOutputCurrent();
+	g_log("Output current:  %d.%03d A\n", iout/1000, iout % 1000);
+
+}
+
+uint16_t GetInputCurrent()
+{
 	//Input shunt is 1A / 500 mV on ADC_IN1
-	//(but amplifier has 80 mV offset! subtract 99 codes)
-	//so one LSB = 1.612 mA??
-	auto rval = g_adc->ReadChannel(1);
-	auto iin = rval * 1612 / 1000;
-	g_log("raw input = %d\n", rval);
-	g_log("Input current: %d mA\n", iin);
+	//(but amplifier has ~80 mV offset)
+	//2 mA / mV, so one LSB = 1.612 mA??
+	//Integrate a lot of samples to account for noise in output at switching frequency
+	//(next board rev should have LPF or something?)
+	const int navg = 32;
 
+	//sum first to avoid delays during acquisition so we sample somewhat evenly
+	//TODO: use hardware averaging mode to avoid the need for this
+	int64_t iin = 0;
+	for(int i=0; i<navg; i++)
+		iin += g_adc->ReadChannel(1);
+
+	//Convert raw adc counts to uV
+	iin = (iin * 806) / navg;
+
+	//Subtract zero offset
+	iin -= 80000;
+
+	//Now we have shunt voltage in uV
+	//1 amp / 500000 uV
+	//so 1000 mA / 500000 uV
+	//or 1 mA / 500 uV
+	//(Not sure where the 10 mA offset is creeping in, but seems to match R&S PSU better that way)
+	return (iin / 500) + 10;
+}
+
+uint16_t GetOutputCurrent()
+{
 	//Output shunt is 1A / 100 mV on ADC_IN7
-	//i.e. 10 mA/mV, or 8.058 mV/code
-	auto oval = g_adc->ReadChannel(7);
-	g_log("raw output = %d\n", oval);
-	auto iout = oval * 8058 / 1000;
-	g_log("Output current: %d mA\n", iout);
+	//i.e. 10 mA/mV, or 8.058 mA/code
+	const int navg = 32;
 
+	//sum first to avoid delays during acquisition so we sample somewhat evenly
+	//TODO: use hardware averaging mode to avoid the need for this
+	int64_t iout = 0;
+	for(int i=0; i<navg; i++)
+		iout += g_adc->ReadChannel(7);
+
+	//Convert raw adc counts to uV
+	iout = (iout * 806) / navg;
+
+	//Subtract zero offset
+	iout -= 80000;
+
+	//Now we have shunt voltage in uV
+	//1 amp / 100000 uV
+	//so 1000 mA / 100000 uV
+	//or 1 mA / 100 uV
+	return iout / 100;
 }
 
 uint16_t GetInputVoltage()

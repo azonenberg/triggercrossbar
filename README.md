@@ -16,7 +16,7 @@ This system is intended in part as a testbed to de-risk several future projects 
 
 # Trigger ports
 
-The input ports will be 50 ohm bulkhead BNC, tentatively Amphenol RF 242181-10, connected via hand formable SMA-SMA cables to SMA connectors on the internal logic board. This will allow easy replacement of damaged connectors, or adapting to other connector types as required.
+Koaxis AL62-CC086F-RL10-6.00-MK (6" CC086F hand formable FEP jacket SMA - SMPM), length open to change based on final mechanical and board design.
 
 ## Input range
 
@@ -41,3 +41,7 @@ Representative instrument trigger input specs:
 * Siglent SSG5000X (bidirectional): 5V TTL for trigger, 3.3V CMOS for pulse
 * Siglent SDG7000A: 5V TTL (Vih = 2 to 5.5V)
 * Teledyne LeCroy (all recent models): adjustable threshold up to +/- 400 mV or +/- 4V in 1x / 10x mode respectively
+
+# Input buffer design
+
+We need a total of seven inputs today, plan for at least ten to provide some margin

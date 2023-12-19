@@ -6,7 +6,7 @@
 
   (title_block
     (title "Trigger Crossbar")
-    (date "2023-12-18")
+    (date "2023-12-19")
     (rev "0.1")
     (company "Antikernel Labs")
     (comment 1 "Andrew D. Zonenberg")
@@ -287,6 +287,10 @@
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 0d5deb59-3d43-445c-9d79-109e3120cec7)
   )
+  (label "SOFT_POWER" (at 135.89 115.57 180)
+    (effects (font (size 1.27 1.27)) (justify right bottom))
+    (uuid 1b04e35b-dbeb-4806-870b-033834e97577)
+  )
   (label "FPGA_DONE" (at 81.28 54.61 0)
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 2004f8c2-f0d3-4f57-b2d0-8bcc2b0dc459)
@@ -306,6 +310,10 @@
   (label "3V3" (at 207.01 71.12 180)
     (effects (font (size 1.27 1.27)) (justify right bottom))
     (uuid 2a67a650-53cb-403e-921e-ad35480d7314)
+  )
+  (label "1V8" (at 93.98 74.93 180)
+    (effects (font (size 1.27 1.27)) (justify right bottom))
+    (uuid 30a1fbc5-24bb-4514-a2e1-e03c3d485974)
   )
   (label "DAC_MISO" (at 133.35 77.47 180)
     (effects (font (size 1.27 1.27)) (justify right bottom))
@@ -342,10 +350,6 @@
   (label "SUPER_SPI_SCK" (at 173.99 72.39 0)
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 4fff4402-70d6-4b1e-963a-650b5055cf88)
-  )
-  (label "1V8" (at 93.98 74.93 180)
-    (effects (font (size 1.27 1.27)) (justify right bottom))
-    (uuid 58c1dceb-6d7e-4d98-b9ca-cb438dfa0c6e)
   )
   (label "SOFT_RESET" (at 43.18 49.53 180)
     (effects (font (size 1.27 1.27)) (justify right bottom))
@@ -387,6 +391,10 @@
     (effects (font (size 1.27 1.27)) (justify right bottom))
     (uuid 7c33239b-ab39-404a-a966-6bf783b4e14e)
   )
+  (label "1V8" (at 26.67 100.33 180)
+    (effects (font (size 1.27 1.27)) (justify right bottom))
+    (uuid 7f814143-defa-4fca-b40b-8202fb044ae2)
+  )
   (label "TX_DAC_CS_N" (at 26.67 82.55 180)
     (effects (font (size 1.27 1.27)) (justify right bottom))
     (uuid 7fb4aaa4-3039-4bcf-a1bb-6c3e2237d8fd)
@@ -402,6 +410,10 @@
   (label "MCU_RST_N" (at 43.18 36.83 180)
     (effects (font (size 1.27 1.27)) (justify right bottom))
     (uuid 88609445-5ea8-412d-bce0-b4190b308232)
+  )
+  (label "SOFT_RESET" (at 135.89 113.03 180)
+    (effects (font (size 1.27 1.27)) (justify right bottom))
+    (uuid 8ba294ff-9616-4502-b7bb-7bfd2ae15a3c)
   )
   (label "SUPER_SPI_MOSI" (at 43.18 29.21 180)
     (effects (font (size 1.27 1.27)) (justify right bottom))
@@ -495,10 +507,6 @@
     (effects (font (size 1.27 1.27)) (justify right bottom))
     (uuid f68d2343-bf03-4183-8350-ee53798b60c7)
   )
-  (label "1V8" (at 26.67 100.33 180)
-    (effects (font (size 1.27 1.27)) (justify right bottom))
-    (uuid ff7a75f8-34a1-4a30-a899-1be69e0f4e34)
-  )
 
   (sheet (at 152.4 24.13) (size 17.78 7.62) (fields_autoplaced)
     (stroke (width 0.1524) (type solid) (color 0 0 0 0))
@@ -524,14 +532,14 @@
     )
   )
 
-  (sheet (at 135.89 68.58) (size 38.1 40.64) (fields_autoplaced)
+  (sheet (at 135.89 68.58) (size 38.1 48.26) (fields_autoplaced)
     (stroke (width 0.1524) (type solid) (color 0 0 0 0))
     (fill (color 0 0 0 0.0000))
     (uuid 21b6a12b-d0d3-486b-ae28-812475c71b31)
     (property "Sheet name" "Management" (id 0) (at 135.89 67.8684 0)
       (effects (font (size 1.27 1.27)) (justify left bottom))
     )
-    (property "Sheet file" "mgmt.kicad_sch" (id 1) (at 135.89 109.8046 0)
+    (property "Sheet file" "mgmt.kicad_sch" (id 1) (at 135.89 117.4246 0)
       (effects (font (size 1.27 1.27)) (justify left top))
     )
     (pin "GND" input (at 135.89 92.71 180)
@@ -629,6 +637,14 @@
     (pin "3V3_SB" input (at 135.89 90.17 180)
       (effects (font (size 1.27 1.27)) (justify left))
       (uuid ec6787f5-73f2-46e4-a520-afd2ff1f0336)
+    )
+    (pin "SOFT_RESET" output (at 135.89 113.03 180)
+      (effects (font (size 1.27 1.27)) (justify left))
+      (uuid 7caf8a42-3740-4cd2-a9d6-da2348ca2d9f)
+    )
+    (pin "SOFT_POWER" output (at 135.89 115.57 180)
+      (effects (font (size 1.27 1.27)) (justify left))
+      (uuid 52cd0725-a7bc-4254-9feb-e9062b41eef7)
     )
   )
 
@@ -798,10 +814,6 @@
       (effects (font (size 1.27 1.27)) (justify left))
       (uuid 8e83d2fc-e2ff-4a92-919a-8e5c6ffd2ff2)
     )
-    (pin "1V8" input (at 26.67 100.33 180)
-      (effects (font (size 1.27 1.27)) (justify left))
-      (uuid 974605bd-cfb9-4929-9c49-d11c402e0a76)
-    )
     (pin "DAC_MISO" output (at 26.67 87.63 180)
       (effects (font (size 1.27 1.27)) (justify left))
       (uuid 11b8d2a2-b0e4-43a4-8d8c-7fdd29f19aab)
@@ -853,6 +865,10 @@
     (pin "OE10B" output (at 53.34 125.73 0)
       (effects (font (size 1.27 1.27)) (justify right))
       (uuid e0357f68-83c2-4321-8853-0680e3b183fc)
+    )
+    (pin "1V8" input (at 26.67 100.33 180)
+      (effects (font (size 1.27 1.27)) (justify left))
+      (uuid 60f3e590-ab0e-42d1-9617-50ecc0d14f68)
     )
   )
 
@@ -1126,10 +1142,6 @@
       (effects (font (size 1.27 1.27)) (justify left))
       (uuid 5cfffbb6-9ddd-4fbb-97ec-3f45a3ecc018)
     )
-    (pin "1V8" input (at 93.98 74.93 180)
-      (effects (font (size 1.27 1.27)) (justify left))
-      (uuid b1258ca4-844c-4271-9d09-2ee8c8a3be02)
-    )
     (pin "RX_DAC0_CS_N" input (at 120.65 69.85 0)
       (effects (font (size 1.27 1.27)) (justify right))
       (uuid 98070801-7266-4e5e-8b0e-dbad517355b4)
@@ -1165,6 +1177,10 @@
     (pin "5V0" input (at 93.98 69.85 180)
       (effects (font (size 1.27 1.27)) (justify left))
       (uuid 549512a2-d5a9-4f23-be6c-14b80ae5070b)
+    )
+    (pin "1V8" input (at 93.98 74.93 180)
+      (effects (font (size 1.27 1.27)) (justify left))
+      (uuid 27b5543f-a73f-4a66-850a-2d54c1131d6f)
     )
   )
 
@@ -1942,6 +1958,12 @@
     (path "/b4c7f767-ec4b-4626-9f45-989006f8cd76/332704b4-7596-4a79-b0d7-2a3940126c64"
       (reference "C235") (unit 1) (value "100 pF") (footprint "azonenberg_pcb:EIA_0402_CAP_NOSILK")
     )
+    (path "/173b3009-1fd2-43d9-b377-76176fc50dc2/6521a903-8d08-4589-8a92-f143146f3c76"
+      (reference "C236") (unit 1) (value "4.7 uF") (footprint "azonenberg_pcb:EIA_0603_CAP_NOSILK")
+    )
+    (path "/173b3009-1fd2-43d9-b377-76176fc50dc2/fb278aea-2812-485a-af7c-52d16cb00508"
+      (reference "C237") (unit 1) (value "4.7 uF") (footprint "azonenberg_pcb:EIA_0603_CAP_NOSILK")
+    )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/4d839fa6-e064-4264-af9f-504d3a98f2f2"
       (reference "D1") (unit 1) (value "GREEN") (footprint "azonenberg_pcb:EIA_0603_LED")
     )
@@ -2085,6 +2107,9 @@
     )
     (path "/173b3009-1fd2-43d9-b377-76176fc50dc2/2a43a853-b456-46d5-b5f1-77a746e3965e"
       (reference "FB9") (unit 1) (value "MI0603J601R-10") (footprint "azonenberg_pcb:EIA_0603_INDUCTOR_NOSILK")
+    )
+    (path "/173b3009-1fd2-43d9-b377-76176fc50dc2/1dcdfee3-21a6-447a-affd-0f6552a20cac"
+      (reference "FB10") (unit 1) (value "MI0603J601R-10") (footprint "azonenberg_pcb:EIA_0603_INDUCTOR_NOSILK")
     )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/1af6578c-cfd3-41cd-9aa9-c2073883ef3d"
       (reference "J1") (unit 1) (value "CONN_PCIE_PWR_8PIN") (footprint "azonenberg_pcb:CONN_MOLEX_MINIFITJR_8POS_0039291087")
@@ -2776,6 +2801,9 @@
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/cac1a9b3-cab3-4e20-a358-d7b0bb1133f8"
       (reference "TP9") (unit 1) (value "U.FL") (footprint "azonenberg_pcb:CONN_U.FL_TE_1909763-1")
     )
+    (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/d729bfdc-6dea-48dc-bac8-f7e546fd4fe9"
+      (reference "TP10") (unit 1) (value "CONN_01X05") (footprint "azonenberg_pcb:CONN_HEADER_2.54MM_1x5")
+    )
     (path "/21b6a12b-d0d3-486b-ae28-812475c71b31/4a9faf34-79e6-428b-a217-407f458bdcff"
       (reference "TP11") (unit 1) (value "U.FL") (footprint "azonenberg_pcb:CONN_U.FL_TE_1909763-1")
     )
@@ -2817,6 +2845,27 @@
     )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/b2025d1e-ae86-4621-9a0b-99214050ad17"
       (reference "TP24") (unit 1) (value "U.FL") (footprint "azonenberg_pcb:CONN_U.FL_TE_1909763-1")
+    )
+    (path "/21b6a12b-d0d3-486b-ae28-812475c71b31/e9668f87-2a1f-44d0-b790-8103c04ff394"
+      (reference "TP25") (unit 1) (value "CONN_01X05") (footprint "azonenberg_pcb:CONN_HEADER_2.54MM_1x5")
+    )
+    (path "/21b6a12b-d0d3-486b-ae28-812475c71b31/3eb34529-5963-44f6-a87e-9149bf3bf938"
+      (reference "TP26") (unit 1) (value "CONN_01X08") (footprint "azonenberg_pcb:CONN_HEADER_2.54MM_1x8")
+    )
+    (path "/21b6a12b-d0d3-486b-ae28-812475c71b31/9718ebc7-defd-44c8-8434-943621cf74f2"
+      (reference "TP27") (unit 1) (value "CONN_01X08") (footprint "azonenberg_pcb:CONN_HEADER_2.54MM_1x8")
+    )
+    (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/5e5a2120-14b2-4e37-be28-b79bd239ebdb"
+      (reference "TP28") (unit 1) (value "TESTCLIP") (footprint "azonenberg_pcb:TESTPOINT_SMT_KEYSTONE_5016")
+    )
+    (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/76a85bdf-e5c8-443f-81ec-8d11588abd27"
+      (reference "TP29") (unit 1) (value "TESTCLIP") (footprint "azonenberg_pcb:TESTPOINT_SMT_KEYSTONE_5016")
+    )
+    (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/f3cad332-298a-49d1-8ab2-f807ff239925"
+      (reference "TP30") (unit 1) (value "TESTCLIP") (footprint "azonenberg_pcb:TESTPOINT_SMT_KEYSTONE_5016")
+    )
+    (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/febc95e4-d470-4ead-b90d-94893acebcde"
+      (reference "TP31") (unit 1) (value "TESTCLIP") (footprint "azonenberg_pcb:TESTPOINT_SMT_KEYSTONE_5016")
     )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/bae58205-2ef8-4c0f-830d-7fda92ba52ee"
       (reference "U1") (unit 1) (value "STM32L031C6U6") (footprint "azonenberg_pcb:QFN_48_0.5MM_7x7MM")
