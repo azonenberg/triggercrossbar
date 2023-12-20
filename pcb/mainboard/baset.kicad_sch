@@ -6,7 +6,7 @@
 
   (title_block
     (title "Trigger Crossbar")
-    (date "2023-12-19")
+    (date "2023-12-20")
     (rev "0.1")
     (company "Antikernel Labs")
     (comment 1 "Andrew D. Zonenberg")
@@ -3583,7 +3583,7 @@
     (effects (font (size 1.27 1.27)) (justify right bottom))
     (uuid 01766d7b-deec-475c-bda7-103909380268)
   )
-  (label "1V8_IO" (at 222.25 83.82 0)
+  (label "3V3" (at 222.25 83.82 0)
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 03ea9bbf-0518-4f45-8873-e3f3c3c92f5a)
   )
@@ -3659,7 +3659,7 @@
     (effects (font (size 1.27 1.27)) (justify right bottom))
     (uuid 254a57eb-f4d4-4be9-9bcb-5dba7ed696fb)
   )
-  (label "1V8_IO" (at 223.52 40.64 0)
+  (label "3V3" (at 223.52 40.64 0)
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 2a0dbbce-02b9-4b75-8b96-06c031f2b03c)
   )
