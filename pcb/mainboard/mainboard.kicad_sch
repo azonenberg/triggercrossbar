@@ -2118,6 +2118,9 @@
     (path "/173b3009-1fd2-43d9-b377-76176fc50dc2/fb278aea-2812-485a-af7c-52d16cb00508"
       (reference "C237") (unit 1) (value "4.7 uF") (footprint "azonenberg_pcb:EIA_0603_CAP_NOSILK")
     )
+    (path "/173b3009-1fd2-43d9-b377-76176fc50dc2/a0025888-b162-4db9-871f-5d3c145791c2"
+      (reference "C238") (unit 1) (value "0.47 uF") (footprint "azonenberg_pcb:EIA_0402_CAP_NOSILK")
+    )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/4d839fa6-e064-4264-af9f-504d3a98f2f2"
       (reference "D1") (unit 1) (value "GREEN") (footprint "azonenberg_pcb:EIA_0603_LED")
     )
@@ -3050,6 +3053,9 @@
     )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/febc95e4-d470-4ead-b90d-94893acebcde"
       (reference "TP31") (unit 1) (value "TESTCLIP") (footprint "azonenberg_pcb:TESTPOINT_SMT_KEYSTONE_5016")
+    )
+    (path "/173b3009-1fd2-43d9-b377-76176fc50dc2/5ac669c1-df5e-4df0-bfa2-368546b75d64"
+      (reference "TP32") (unit 1) (value "U.FL") (footprint "azonenberg_pcb:CONN_U.FL_TE_1909763-1")
     )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/bae58205-2ef8-4c0f-830d-7fda92ba52ee"
       (reference "U1") (unit 1) (value "STM32L031C6U6") (footprint "azonenberg_pcb:QFN_48_0.5MM_7x7MM")
