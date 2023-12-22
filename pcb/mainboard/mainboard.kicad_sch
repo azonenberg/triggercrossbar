@@ -6,7 +6,7 @@
 
   (title_block
     (title "Trigger Crossbar")
-    (date "2023-12-20")
+    (date "2023-12-22")
     (rev "0.1")
     (company "Antikernel Labs")
     (comment 1 "Andrew D. Zonenberg")
@@ -2187,16 +2187,16 @@
     (path "/8080da96-82c9-4dfa-b029-c33b279bce56/241563ad-bc57-4342-a72a-abe1fa4e6c45"
       (reference "D10") (unit 1) (value "SZESD7471N2T5G") (footprint "azonenberg_pcb:SOD882")
     )
-    (path "/8080da96-82c9-4dfa-b029-c33b279bce56/9aada64f-9055-459f-b24f-9758b5578673"
+    (path "/7c65c52b-1969-4c40-b7c6-8a11cf92a46e/9f61d9c5-444f-4ec0-a58c-eed12d55604b"
       (reference "D11") (unit 1) (value "SZESD7471N2T5G") (footprint "azonenberg_pcb:SOD882")
     )
-    (path "/8080da96-82c9-4dfa-b029-c33b279bce56/1d815f06-1cae-41c1-9283-7b31f463f0f3"
+    (path "/7c65c52b-1969-4c40-b7c6-8a11cf92a46e/da945ad6-9373-4be3-ad4c-ec490c11330f"
       (reference "D12") (unit 1) (value "SZESD7471N2T5G") (footprint "azonenberg_pcb:SOD882")
     )
-    (path "/8080da96-82c9-4dfa-b029-c33b279bce56/96a5d250-e442-406e-8952-81f31c2e7ba0"
+    (path "/7c65c52b-1969-4c40-b7c6-8a11cf92a46e/5349b71f-6de4-43bd-af25-ceb0d6750786"
       (reference "D13") (unit 1) (value "SZESD7471N2T5G") (footprint "azonenberg_pcb:SOD882")
     )
-    (path "/8080da96-82c9-4dfa-b029-c33b279bce56/3ab9ce30-10ee-41c0-a4e5-4cafe7713570"
+    (path "/7c65c52b-1969-4c40-b7c6-8a11cf92a46e/29b8741d-4293-45d8-b7cd-7411361352ed"
       (reference "D14") (unit 1) (value "SZESD7471N2T5G") (footprint "azonenberg_pcb:SOD882")
     )
     (path "/21b6a12b-d0d3-486b-ae28-812475c71b31/d644d73f-8da9-41d0-919b-7d5fce34b3ab"
@@ -3015,6 +3015,9 @@
     (path "/21b6a12b-d0d3-486b-ae28-812475c71b31/dc6f007a-a37c-4997-a685-30aaac37f23a"
       (reference "R164") (unit 1) (value "470") (footprint "azonenberg_pcb:EIA_0402_RES_NOSILK")
     )
+    (path "/21b6a12b-d0d3-486b-ae28-812475c71b31/a4d232c7-640a-4ee8-a85c-58add5c49e46"
+      (reference "R165") (unit 1) (value "4.7K") (footprint "azonenberg_pcb:EIA_0402_RES_NOSILK")
+    )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/248d615a-45d4-49c6-ba6d-b7d7f1fc7357"
       (reference "SW1") (unit 1) (value "SWITCH") (footprint "azonenberg_pcb:SWITCH_RAFI_MICON_5")
     )
@@ -3156,22 +3159,22 @@
     (path "/6412f360-5e05-42ff-8fc8-9c5463436626/1e2aec0b-c4d5-4dd6-8a02-319a84ec486d"
       (reference "U8") (unit 2) (value "XC7K70T-2FBG484C") (footprint "azonenberg_pcb:BGA_484_22x22_FULLARRAY_1MM")
     )
-    (path "/6412f360-5e05-42ff-8fc8-9c5463436626/78c41377-a34c-4132-8519-323e8b25a758"
+    (path "/5b4b4ab9-8593-42c0-88f4-24ffada17426/3e297471-4dcb-4c6e-b474-eeae79955779"
       (reference "U8") (unit 3) (value "XC7K70T-2FBG484C") (footprint "azonenberg_pcb:BGA_484_22x22_FULLARRAY_1MM")
     )
     (path "/21b6a12b-d0d3-486b-ae28-812475c71b31/0d9492f2-ff59-4489-b3e0-6bcc5d805391"
       (reference "U8") (unit 4) (value "XC7K70T-2FBG484C") (footprint "azonenberg_pcb:BGA_484_22x22_FULLARRAY_1MM")
     )
-    (path "/5b4b4ab9-8593-42c0-88f4-24ffada17426/3e297471-4dcb-4c6e-b474-eeae79955779"
+    (path "/6412f360-5e05-42ff-8fc8-9c5463436626/78c41377-a34c-4132-8519-323e8b25a758"
       (reference "U8") (unit 5) (value "XC7K70T-2FBG484C") (footprint "azonenberg_pcb:BGA_484_22x22_FULLARRAY_1MM")
     )
     (path "/173b3009-1fd2-43d9-b377-76176fc50dc2/c7b4e6c1-5df7-4f3a-b30f-ecc2869f2e39"
       (reference "U8") (unit 6) (value "XC7K70T-2FBG484C") (footprint "azonenberg_pcb:BGA_484_22x22_FULLARRAY_1MM")
     )
-    (path "/5b4b4ab9-8593-42c0-88f4-24ffada17426/55ab4f2c-5a90-4915-bfba-c0d638f29299"
+    (path "/8080da96-82c9-4dfa-b029-c33b279bce56/dfb0600c-e8cc-4f8c-a0f2-88d60c7f4d04"
       (reference "U8") (unit 7) (value "XC7K70T-2FBG484C") (footprint "azonenberg_pcb:BGA_484_22x22_FULLARRAY_1MM")
     )
-    (path "/8080da96-82c9-4dfa-b029-c33b279bce56/dfb0600c-e8cc-4f8c-a0f2-88d60c7f4d04"
+    (path "/5b4b4ab9-8593-42c0-88f4-24ffada17426/55ab4f2c-5a90-4915-bfba-c0d638f29299"
       (reference "U8") (unit 8) (value "XC7K70T-2FBG484C") (footprint "azonenberg_pcb:BGA_484_22x22_FULLARRAY_1MM")
     )
     (path "/b4c7f767-ec4b-4626-9f45-989006f8cd76/4ca73cc2-bd01-4dba-b3a0-e471a4d8bbdf"

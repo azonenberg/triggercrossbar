@@ -6,7 +6,7 @@
 
   (title_block
     (title "Trigger Crossbar")
-    (date "2023-12-20")
+    (date "2023-12-22")
     (rev "0.1")
     (company "Antikernel Labs")
     (comment 1 "Andrew D. Zonenberg")
@@ -4149,7 +4149,7 @@
     (pin "2" (uuid 3faf9027-2c76-46d7-baeb-565d54b29d65))
   )
 
-  (symbol (lib_id "xilinx-azonenberg:XC7KxT-FBG484") (at 354.33 151.13 0) (unit 5)
+  (symbol (lib_id "xilinx-azonenberg:XC7KxT-FBG484") (at 354.33 151.13 0) (unit 3)
     (in_bom yes) (on_board yes)
     (uuid 3e297471-4dcb-4c6e-b474-eeae79955779)
     (property "Reference" "U8" (id 0) (at 355.6 154.94 0)
@@ -4764,7 +4764,7 @@
     (pin "2" (uuid 95be27f6-bb1c-4962-960b-f2a66e22817b))
   )
 
-  (symbol (lib_id "xilinx-azonenberg:XC7KxT-FBG484") (at 74.93 151.13 0) (unit 7)
+  (symbol (lib_id "xilinx-azonenberg:XC7KxT-FBG484") (at 74.93 151.13 0) (unit 8)
     (in_bom yes) (on_board yes)
     (uuid 55ab4f2c-5a90-4915-bfba-c0d638f29299)
     (property "Reference" "U8" (id 0) (at 76.2 154.94 0)
