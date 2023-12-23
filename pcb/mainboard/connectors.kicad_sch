@@ -2056,7 +2056,7 @@
   )
 
   (symbol (lib_id "device:C") (at 182.88 119.38 0) (unit 1)
-    (in_bom yes) (on_board yes) (fields_autoplaced)
+    (in_bom yes) (on_board yes)
     (uuid c1df6426-31b1-48a7-8f8c-625a4442b735)
     (property "Reference" "C216" (id 0) (at 185.801 118.5453 0)
       (effects (font (size 1.27 1.27)) (justify left))
