@@ -6,7 +6,7 @@
 
   (title_block
     (title "Trigger Crossbar")
-    (date "2023-12-22")
+    (date "2023-12-25")
     (rev "0.1")
     (company "Antikernel Labs")
     (comment 1 "Andrew D. Zonenberg")
@@ -2544,17 +2544,8 @@
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/d67f32aa-c027-45ca-b77f-6dad79d5bf97"
       (reference "R7") (unit 1) (value "100K") (footprint "azonenberg_pcb:EIA_0402_RES_NOSILK")
     )
-    (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/7f55f2c2-109f-40e6-b0fe-5166e83d04d7"
-      (reference "R8") (unit 1) (value "0") (footprint "azonenberg_pcb:EIA_0402_RES_NOSILK")
-    )
-    (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/b8d499a6-be4a-4126-a6cf-43c1110ef97a"
-      (reference "R9") (unit 1) (value "0") (footprint "azonenberg_pcb:EIA_0402_RES_NOSILK")
-    )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/f4c98ed3-4b7e-45a2-acc6-86b2bc73d0ef"
       (reference "R10") (unit 1) (value "0") (footprint "azonenberg_pcb:EIA_0402_RES_NOSILK")
-    )
-    (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/55a7b50f-6185-46d7-855a-2364ea219a9e"
-      (reference "R11") (unit 1) (value "0") (footprint "azonenberg_pcb:EIA_0402_RES_NOSILK")
     )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/3b4edc27-a407-48be-b36f-2e32138daad8"
       (reference "R12") (unit 1) (value "0") (footprint "azonenberg_pcb:EIA_0402_RES_NOSILK")
@@ -2588,15 +2579,6 @@
     )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/7cdd1a22-1170-4b7c-b497-f55663fdc716"
       (reference "R22") (unit 1) (value "0") (footprint "azonenberg_pcb:EIA_0402_RES_NOSILK")
-    )
-    (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/8b00fd83-ba4b-42ef-88d2-54e437adb4ad"
-      (reference "R23") (unit 1) (value "0") (footprint "azonenberg_pcb:EIA_0402_RES_NOSILK")
-    )
-    (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/7b885de5-92c9-43cf-9147-713d2bcbbd91"
-      (reference "R24") (unit 1) (value "0") (footprint "azonenberg_pcb:EIA_0402_RES_NOSILK")
-    )
-    (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/4e977c01-2049-43cf-a79c-71f920e3216f"
-      (reference "R25") (unit 1) (value "0") (footprint "azonenberg_pcb:EIA_0402_RES_NOSILK")
     )
     (path "/3921899c-e822-4b0b-b0c1-b63fbde0e17d/040eea12-ef11-4317-8a92-0a97d76ceedc"
       (reference "R26") (unit 1) (value "DNP") (footprint "azonenberg_pcb:EIA_0402_RES_NOSILK")
