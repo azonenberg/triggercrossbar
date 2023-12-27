@@ -32,27 +32,6 @@ Impedances
     Layer 8 differential stripline (ref to layer 7/9 ground).
         79 μm trace / 91 μm space = 100 ohm
 
-Propagation velocities and vias (for reference only)
-    Outer SE: 6.15 ps/mm
-    Outer diff: 5.7 ps/mm
-    Inner SE: 6.5 ps/mm
-    Inner diff: 6.6 ps/mm
-        TODO RECALCULATE VIA SIZES
-
-        0.45mm pad, 0.25mm drill, 0.65mm antipad (0.1mm internal plane clearance)
-            stitching vias above/below as close as possible
-            Good match to 50 ohm
-            L1-L3:  x ps
-            L1-L6:  x ps
-            L1-L8:  x ps
-
-        0.45mm pad, 0.25mm drill, 0.65mm antipad (0.1mm plane clearance), 0.6mm center to center via spacing
-            stitching vias above/below as close as possible
-            Good match to 100 ohm
-            L1-L3: x ps
-            L1-L6: x ps
-            L1-L8: x ps
-
 Suggested stackup
     1    35 μm (1 oz) copper            Signal
          71 μm TU872SLK (1x 1080)
