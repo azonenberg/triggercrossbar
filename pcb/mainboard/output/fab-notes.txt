@@ -34,11 +34,11 @@ Impedances
 
 Suggested stackup
     1    35 μm (1 oz) copper            Signal
-         71 μm TU872SLK (1x 1080)
+         71 μm TU872SLK
     2    35 μm (1 oz) copper            Ground
         100 μm TU872SLK
     3    17 μm (0.5 oz) copper          Signal
-        118 μm TU872SLK (1080 + 106)
+        118 μm TU872SLK
     4    35 μm (1 oz) copper            Ground
         100 μm S1000-2M
     5    35 μm (1 oz) copper            Power
@@ -46,11 +46,11 @@ Suggested stackup
     6    35 μm (1 oz) copper            Power
         100 μm S1000-2M
     7    35 μm (1 oz) copper            Ground
-        118 μm TU872SLK (1080 + 106)
+        118 μm TU872SLK
     8    17 μm (0.5 oz) copper          Signal
         100 μm TU872SLK
     9    35 μm (1 oz) copper            Ground
-         71 μm TU872SLK (1x 1080)
+         71 μm TU872SLK
     10   35 μm (1 oz) copper            Signal
 
 File naming
