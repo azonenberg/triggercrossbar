@@ -11,6 +11,7 @@ General fabrication notes
     * Place UL mark and date code in the area marked on the "F. Fab" gerber layer.
     * Boards to be rotated 10 degrees on panel, to reduce fiber weave effect
     * Vias to be filled with nonconductive epoxy and plated over.
+    * All prepregs and cores to use spread glass (e.g. 1067 rather than 106)
 
 Impedances
 
