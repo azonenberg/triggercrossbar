@@ -9,7 +9,6 @@ General fabrication notes
     * Pad finish is ENIG.
     * Finished board thickness is 1.6 mm.
     * Place UL mark and date code in the area marked on the "F. Fab" gerber layer.
-    * Boards to be rotated 10 degrees on panel, to reduce fiber weave effect
     * Vias to be filled with nonconductive epoxy and plated over.
     * All prepregs and cores to use spread glass (e.g. 1067 rather than 106)
 
@@ -35,7 +34,7 @@ Impedances
 
 Suggested stackup
     1    35 μm (1 oz) copper            Signal
-         71 μm TU872SLK
+         73 μm TU872SLK 1078
     2    35 μm (1 oz) copper            Ground
         100 μm TU872SLK
     3    17 μm (0.5 oz) copper          Signal
@@ -51,7 +50,7 @@ Suggested stackup
     8    17 μm (0.5 oz) copper          Signal
         100 μm TU872SLK
     9    35 μm (1 oz) copper            Ground
-         71 μm TU872SLK
+         73 μm TU872SLK 1078
     10   35 μm (1 oz) copper            Signal
 
 File naming
