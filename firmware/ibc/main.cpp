@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * LATENTPACKET v0.1                                                                                                    *
 *                                                                                                                      *
-* Copyright (c) 2023 Andrew D. Zonenberg and contributors                                                              *
+* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -77,29 +77,45 @@ int main()
 	GPIOPin ok_led(&GPIOA, 11, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	GPIOPin fault_led(&GPIOA, 12, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 
-	//12V output enable (for now, we control it since we don't have a client device hooked up
-	GPIOPin out_en(&GPIOA, 4, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	//12V output enable (input, echo enable status to LED)
+	GPIOPin out_en(&GPIOA, 4, GPIOPin::MODE_INPUT, 0, false);
 
 	ok_led = 0;
 	fault_led = 0;
-	out_en = 0;
+	//out_en = 0;
 
 	//Save pointers to all the rails for use in other functions
 	g_ok_led = &ok_led;
 	g_fault_led = &fault_led;
 
 	//Wait 2 seconds in case something goes wrong during first power up
-	g_log("2 second delay\n");
-	g_logTimer->Sleep(20000);
+	//g_log("2 second delay\n");
+	//g_logTimer->Sleep(20000);
 
-	ok_led = 1;
-	out_en = 1;
+	//ok_led = 1;
+	//out_en = 1;
 
  	//Poll for problems
+ 	g_log("Output disabled\n");
+ 	bool out_was_en = false;
 	while(1)
 	{
-		g_log("CSV-NAME,BoardTemp,MCUTemp,InVoltage,OutVoltage,SenseVoltage,InCurrent,OutCurrent\n");
-		g_log("CSV-UNIT,°C,°C,V,V,V,A,A\n");
+		//Log enable status
+		if(out_en && !out_was_en)
+		{
+			g_log("Output enabled by host board\n");
+			ok_led = true;
+			out_was_en = 1;
+		}
+		else if(!out_en && out_was_en)
+		{
+			g_log("Output disabled by host board\n");
+			ok_led = false;
+			out_was_en = 0;
+		}
+
+		//g_log("CSV-NAME,BoardTemp,MCUTemp,InVoltage,OutVoltage,SenseVoltage,InCurrent,OutCurrent\n");
+		//g_log("CSV-UNIT,°C,°C,V,V,V,A,A\n");
 
 		for(int i=0; i<50; i++)
 		{
@@ -133,6 +149,7 @@ int main()
 			auto mtemp = g_adc->GetTemperature();
 			auto btemp = ReadThermalSensor();
 
+			/*
 			g_log(
 				"CSV-DATA,%uhk,%uhk,%d.%03d,%d.%03d,%d.%03d,%d.%03d,%d.%03d\n",
 				btemp,
@@ -143,6 +160,7 @@ int main()
 				iin/1000, iin % 1000,
 				iout/1000, iout % 1000
 				);
+			*/
 		}
 	}
 	return 0;
