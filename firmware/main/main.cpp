@@ -75,11 +75,11 @@ int main()
 	//Set up the quad SPI and connect to the FPGA
 	InitQSPI();
 	InitFPGA();
-
+	*/
 	//Get our MAC address
 	InitI2C();
 	InitEEPROM();
-
+	/*
 	//Bring up sensors
 	InitSensors();
 

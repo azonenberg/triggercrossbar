@@ -262,7 +262,7 @@ void InitQSPI()
 	static DeviceFPGAInterface fpga;
 	g_fpga = &fpga;
 }
-
+*/
 void InitI2C()
 {
 	g_log("Initializing I2C interfaces\n");
@@ -275,7 +275,7 @@ void InitI2C()
 	//Divide by 40 after that to get 100 kHz
 	static I2C mac_i2c(&I2C4, 16, 40);
 	g_macI2C = &mac_i2c;
-
+	/*
 	static GPIOPin temp_i2c_scl(&GPIOB, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
 	static GPIOPin temp_i2c_sda(&GPIOB, 7, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
 
@@ -293,6 +293,7 @@ void InitI2C()
 	//Divide by 40 after that to get 100 kHz
 	static I2C sfp_i2c(&I2C2, 16, 40);
 	g_sfpI2C = &sfp_i2c;
+	*/
 }
 
 void InitEEPROM()
@@ -327,7 +328,7 @@ void InitEEPROM()
 			serial[8], serial[9], serial[10], serial[11], serial[12], serial[13], serial[14], serial[15]);
 	}
 }
-*/
+
 /**
 	@brief Initialize sensors and log starting values for each
  */

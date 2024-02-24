@@ -88,3 +88,8 @@ UART* g_cliUART = nullptr;
 	@brief Digital temperature sensor
  */
 DigitalTempSensor* g_dts = nullptr;
+
+/**
+	@brief MAC address I2C EEPROM
+ */
+I2C* g_macI2C = nullptr;

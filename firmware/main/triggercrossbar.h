@@ -68,6 +68,7 @@ extern EthernetInterface* g_ethIface;
 extern MACAddress g_macAddress;
 extern IPv4Config g_ipConfig;
 extern EthernetProtocol* g_ethProtocol;
+extern I2C* g_macI2C;
 
 extern UART* g_cliUART;
 extern OctoSPI* g_qspi;
@@ -88,8 +89,10 @@ void InitLog(CharacterDevice* logdev, Timer* timer);
 void InitDTS();
 void InitQSPI();
 void InitFPGA();
+*/
 void InitI2C();
 void InitEEPROM();
+/*
 void InitSensors();
 void InitSFP();
 void PollSFP();
