@@ -34,12 +34,12 @@ UART* g_uart = NULL;
 Logger g_log;
 
 Timer* g_logTimer;
-/*
+
 void InitClocks();
 void InitUART();
 void InitLog();
 void DetectHardware();
-
+/*
 void StartRail(GPIOPin& en, GPIOPin& pgood, uint32_t timeout, const char* name);
 void StartSubRail(GPIOPin& en, GPIOPin& pgood, uint32_t timeout, const char* name);
 void MonitorRail(GPIOPin& pgood, const char* name);
@@ -72,15 +72,13 @@ int main()
 	//Enable SYSCFG before changing any settings on it
 	//RCCHelper::EnableSyscfg();
 
-	/*
 	//Hardware setup
 	InitClocks();
 	InitUART();
 	InitLog();
 	DetectHardware();
-
+	/*
 	//Initalize our GPIOs and make sure all rails are off
-	GPIOPin gpio_led(&GPIOB, 8, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	GPIOPin en_12v0(&GPIOA, 12, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	GPIOPin en_1v0(&GPIOA, 5, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	GPIOPin en_1v2(&GPIOB, 1, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
@@ -94,9 +92,10 @@ int main()
 	GPIOPin pgood_1v8(&GPIOA, 9, GPIOPin::MODE_INPUT, 0, false);
 	GPIOPin pgood_2v5(&GPIOA, 10, GPIOPin::MODE_INPUT, 0, false);
 	GPIOPin pgood_3v3(&GPIOA, 8, GPIOPin::MODE_INPUT, 0, false);
-	GPIOPin fail_led(&GPIOC, 15, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	GPIOPin pwr_ok_led(&GPIOA, 0, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	GPIOPin all_ok_led(&GPIOC, 14, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	*/
+	GPIOPin fail_led(&GPIOH, 1, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	GPIOPin ok_led(&GPIOH, 0, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	/*
 
 	GPIOPin fpga_done(&GPIOB, 2, GPIOPin::MODE_INPUT, 0, false);
 	GPIOPin mcu_rst_n(&GPIOB, 0, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
@@ -110,12 +109,13 @@ int main()
 	en_vtt = 0;
 	en_2v5 = 0;
 	en_3v3 = 0;
-	gpio_led = 0;
-	all_ok_led = 0;
-	pwr_ok_led = 0;
 	mcu_rst_n = 0;
 	fpga_rst_n = 0;
+	*/
+	fail_led = 0;
+	ok_led = 1;
 
+	/*
 	//Save pointers to all the rails for use in other functions
 	g_en_12v0 = &en_12v0;
 	g_en_1v0 = &en_1v0;
@@ -176,8 +176,10 @@ int main()
 
 	//Poll inputs and check to see if anything ever went out of spec
 	//TODO: support warm reset and/or hard power cycle on request
+	*/
 	while(1)
 	{
+		/*
 		//Check for overflows on our log message timer
 		g_log.UpdateOffset(60000);
 
@@ -188,8 +190,8 @@ int main()
 		MonitorRail(pgood_1v8, "1V8");
 		MonitorRail(pgood_1v2, "1V2");
 		MonitorRail(pgood_1v0, "1V0");
+		*/
 	}
-	*/
 
 	return 0;
 }
@@ -303,7 +305,7 @@ void StartSubRail(GPIOPin& en, GPIOPin& pgood, uint32_t timeout, const char* nam
 		g_logTimer->Sleep(1);
 	}
 }
-
+*/
 void InitClocks()
 {
 	//No need to mess with flash wait states
@@ -314,8 +316,8 @@ void InitClocks()
 		1,	//AHB at 16 MHz (max 32)
 		1,	//APB2 at 16 MHz (max 32)
 		1);	//APB1 at 16 MHz (max 32)
-}*/
-/*
+}
+
 void InitUART()
 {
 	//Initialize the UART for local console: 115.2 Kbps using PB6 for USART2 transmit and PB7 for USART2 receive
@@ -334,8 +336,8 @@ void InitUART()
 
 	//Clear screen and move cursor to X0Y0
 	uart.Printf("\x1b[2J\x1b[0;0H");
-}*/
-/*
+}
+
 void InitLog()
 {
 	//APB1 is 32 MHz
@@ -402,4 +404,4 @@ void DetectHardware()
 	}
 	else
 		g_log(Logger::WARNING, "Unknown device (0x%06x)\n", device);
-}*/
+}
