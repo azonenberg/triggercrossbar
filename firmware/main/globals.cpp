@@ -93,3 +93,8 @@ DigitalTempSensor* g_dts = nullptr;
 	@brief MAC address I2C EEPROM
  */
 I2C* g_macI2C = nullptr;
+
+/**
+	@brief GPIO LEDs
+ */
+GPIOPin* g_leds[4] = {0};

@@ -27,106 +27,33 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef triggercrossbar_h
-#define triggercrossbar_h
+/**
+	@file
+	@author	Andrew D. Zonenberg
+	@brief	Declaration of OctalDAC
+ */
+#ifndef OctalDAC_h
+#define OctalDAC_h
 
-#include "stm32.h"
-#include <peripheral/DTS.h>
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
-#include <peripheral/OctoSPI.h>
-#include <peripheral/OctoSPIManager.h>
-#include <peripheral/Power.h>
-#include <peripheral/RCC.h>
-#include <peripheral/SPI.h>
-#include <peripheral/Timer.h>
-#include <peripheral/UART.h>
-#include <cli/UARTOutputStream.h>
+/**
+	@brief DACx0508 driver
+ */
+class OctalDAC
+{
+public:
+	OctalDAC(SPI& spi, GPIOPin& csn);
 
-#include "LogSink.h"
+	void SetChannelValue(uint8_t channel, uint16_t code);
 
-#include <microkvs/kvs/KVS.h>
+	void SetChannelMillivolts(uint8_t channel, uint16_t mv)
+	{
+		//Use 16 bit code values even though LSBs are dont care for DAC70508 / 60508
+		SetChannelValue(channel, 0xffff * mv / 5000);
+	}
 
-#include <util/Logger.h>
-#include <util/StringBuffer.h>
-
-#include <staticnet-config.h>
-#include <staticnet/stack/staticnet.h>
-
-//#include "net/ManagementTCPProtocol.h"
-#include "FPGAInterface.h"
-#include "OctalDAC.h"
-
-#define MAX_LOG_SINKS SSH_TABLE_SIZE
-
-extern KVS* g_kvs;
-extern LogSink<MAX_LOG_SINKS>* g_logSink;
-extern Logger g_log;
-extern FPGAInterface* g_fpga;
-extern Timer* g_logTimer;
-extern EthernetInterface* g_ethIface;
-extern MACAddress g_macAddress;
-extern IPv4Config g_ipConfig;
-extern EthernetProtocol* g_ethProtocol;
-extern I2C* g_macI2C;
-
-extern UART* g_cliUART;
-extern OctoSPI* g_qspi;
-
-extern DigitalTempSensor* g_dts;
-
-extern GPIOPin* g_leds[4];
-
-extern const IPv4Address g_defaultIP;
-extern const IPv4Address g_defaultNetmask;
-extern const IPv4Address g_defaultBroadcast;
-extern const IPv4Address g_defaultGateway;
-
-void InitClocks();
-void InitLEDs();
-void InitTimer();
-void InitUART();
-void InitLog(CharacterDevice* logdev, Timer* timer);
-
-/*
-void InitDTS();
-void InitQSPI();
-void InitFPGA();
-*/
-void InitI2C();
-void InitEEPROM();
-void InitDACs();
-/*
-void InitSensors();
-void InitSFP();
-void PollSFP();
-void InitManagementPHY();
-void InitSGMIIPHYs();
-void InitQSGMIIPHY();
-void PollFPGA();
-void PollPHYs();
-
-uint16_t ReadThermalSensor(uint8_t addr);
-uint16_t GetFanRPM(uint8_t channel);
-uint16_t GetFPGATemperature();
-uint16_t GetFPGAVCCINT();
-uint16_t GetFPGAVCCAUX();
-uint16_t GetFPGAVCCBRAM();
-uint16_t GetVSC8512Temperature();
-uint16_t GetSFPTemperature();
-*/
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-/*
-void InitFPGAInterface();
-void InitFPGA();
-void InitInterfaces();
-void ConfigureInterfaces();
-void InitEthernet();
-void InitIP();
-void ConfigureIP();
-void InitSSH();
-*/
-void DetectHardware();
+protected:
+	SPI& m_spi;
+	GPIOPin& m_csn;
+};
 
 #endif

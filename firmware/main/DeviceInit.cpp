@@ -209,6 +209,74 @@ void DetectHardware()
 	else
 		g_log(Logger::WARNING, "Unknown device (0x%06x)\n", device);
 }
+
+/**
+	@brief Initialize global GPIO LEDs
+ */
+void InitLEDs()
+{
+	//Set up the GPIO LEDs and turn them off
+	static GPIOPin led0(&GPIOD, 12, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin led1(&GPIOD, 13, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin led2(&GPIOG, 2, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin led3(&GPIOG, 5, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+
+	led0 = 0;
+	led1 = 0;
+	led2 = 0;
+	led3 = 0;
+
+	g_leds[0] = &led0;
+	g_leds[1] = &led1;
+	g_leds[2] = &led2;
+	g_leds[3] = &led3;
+}
+
+/**
+	@brief Initialze the DACs used for the IO subsystem
+ */
+void InitDACs()
+{
+	g_log("Initializing DACs\n");
+
+	//Set up the GPIOs for chip selects and deselect everything
+	static GPIOPin tx_dac_cs_n(&GPIOE, 10, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_FAST);
+	static GPIOPin rx_dac0_cs_n(&GPIOA, 3, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_FAST);
+	static GPIOPin rx_dac1_cs_n(&GPIOA, 4, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_FAST);
+	tx_dac_cs_n = 1;
+	rx_dac0_cs_n = 1;
+	rx_dac1_cs_n = 1;
+
+	g_leds[0]->Set(1);
+
+	//Initialize the peripherals
+	static GPIOPin dac_spi_sck(&GPIOA, 5, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+	static GPIOPin dac_spi_miso(&GPIOA, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+	static GPIOPin dac_spi_mosi(&GPIOA, 7, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+
+	//SPI1 runs on spi 1/2/3 kernel clock domain
+	//default after reset is PLL1 Q which is 64 MHz, divide by 8 to get 8 MHz
+	//DACx0508 is weird and wants to work on falling edge of clock
+	static SPI dac_spi(&SPI1, true, 8);
+	dac_spi.SetClockInvert(true);
+
+	//Wait a while to make sure everything is deselected
+	g_logTimer->Sleep(5);
+
+	g_leds[1]->Set(1);
+
+	//Try selecting the TX DAC and sending something
+	//VCCIO4 is channel 7 of the DAC
+	static OctalDAC tx_dac(dac_spi, tx_dac_cs_n);
+
+	//Set all channels to 2.5V
+	for(int i=0; i<8; i++)
+		tx_dac.SetChannelMillivolts(i, 2500);
+
+	//Set channel 7 (out4) to 3.3V
+	tx_dac.SetChannelMillivolts(7, 3300);
+}
+
 /*
 void InitQSPI()
 {

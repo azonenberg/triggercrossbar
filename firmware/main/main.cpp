@@ -43,23 +43,13 @@ int main()
 	//Enable SYSCFG before changing any settings on it
 	RCCHelper::EnableSyscfg();
 
-	//DEBUG: turn on some LEDs
-	GPIOPin led0(&GPIOD, 12, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	GPIOPin led1(&GPIOD, 13, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	GPIOPin led2(&GPIOG, 2, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	GPIOPin led3(&GPIOG, 5, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-
 	//Basic hardware setup
 	InitClocks();
+	InitLEDs();
 	InitTimer();
 	InitUART();
 	InitLog(g_cliUART, g_logTimer);
 	DetectHardware();
-
-	led0 = 1;
-	led1 = 1;
-	led2 = 1;
-	led3 = 1;
 
 	/*
 		Use sectors 6 and 7 of main flash (in single bank mode) for a 128 kB microkvs
@@ -79,12 +69,13 @@ int main()
 	//Get our MAC address
 	InitI2C();
 	InitEEPROM();
+
+	//Set up the DACs
+	InitDACs();
+
 	/*
 	//Bring up sensors
 	InitSensors();
-
-	//Test the external RAM
-	MemoryTest();
 
 	//Begin initializing fabric ports
 	InitInterfaces();
@@ -93,21 +84,12 @@ int main()
 	//Initialize our local Ethernet interface and TCP/IP stack
 	InitEthernet();
 	InitIP();
-
-	//Set up the GPIO LEDs and turn them off
-	GPIOPin led0(&GPIOC, 4, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	GPIOPin led1(&GPIOA, 6, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	GPIOPin led2(&GPIOE, 10, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	GPIOPin led3(&GPIOE, 9, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	led0 = 0;
-	led1 = 0;
-	led2 = 0;
-	led3 = 0;
+	*/
 
 	//Create a CLI stream for the UART
 	UARTOutputStream uartStream;
 	uartStream.Initialize(g_cliUART);
-
+	/*
 	//Initialize the CLI for the UART
 	SwitchCLISessionContext uartContext;
 	uartContext.Initialize(&uartStream, "user");
@@ -130,12 +112,12 @@ int main()
 
 	GPIOPin irq(&GPIOA, 0, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
 	irq.SetPullMode(GPIOPin::PULL_DOWN);
-
+	*/
 	while(1)
 	{
 		//Wait for an interrupt
 		//asm("wfi");
-
+		/*
 		//Check if anything happened on the FPGA
 		if(irq)
 			PollFPGA();
@@ -164,8 +146,8 @@ int main()
 			LogTemperatures();
 			nextTempTick = g_logTimer->GetCount() + 1000;
 		}
+		*/
 	}
-	*/
 	return 0;
 }
 
