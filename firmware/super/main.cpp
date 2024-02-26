@@ -83,6 +83,12 @@ enum
 	STATE_STOPPING,		//shutdown but button may still be pressed
 } g_powerState = STATE_OFF;
 
+//500 ms
+const uint16_t g_blinkDelay = 5000;
+
+//Timer for blinking LEDs
+uint16_t g_nextBlink = 0;
+
 void PowerOn();
 void PowerOff();
 
@@ -118,6 +124,16 @@ int main()
 
 		//Check for power button activity
 		PollPowerButtons();
+
+		//Blink power LED if rails are up but FPGA isn't
+		if( ( (g_powerState == STATE_ON) || (g_powerState == STATE_STARTING) ) && !g_fpgaUp)
+		{
+			if(g_logTimer->GetCount() == g_nextBlink)
+			{
+				*g_ok_led = !*g_ok_led;
+				g_nextBlink = g_logTimer->GetCount() + g_blinkDelay;
+			}
+		}
 
 		//Poll inputs and check to see if anything ever went out of spec
 		if(g_powerState == STATE_ON)
@@ -216,6 +232,9 @@ void PowerOn()
 		g_powerState = STATE_STARTING;
 	else
 		g_powerState = STATE_ON;
+
+	//Prepare to blink LED until FPGA comes up
+	g_nextBlink = g_logTimer->GetCount() + g_blinkDelay;
 }
 
 void InitGPIOs()
