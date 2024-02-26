@@ -69,3 +69,19 @@ set_property PACKAGE_PIN W22 [get_ports {trig_out[11]}]
 set_property PACKAGE_PIN AB20 [get_ports {trig_out[10]}]
 set_property PACKAGE_PIN Y22 [get_ports {trig_out[9]}]
 set_property PACKAGE_PIN Y17 [get_ports {trig_out[8]}]
+
+set_property IOSTANDARD LVCMOS33 [get_ports rgmii_rst_n]
+set_property DRIVE 8 [get_ports rgmii_rst_n]
+set_property PACKAGE_PIN F10 [get_ports rgmii_rst_n]
+
+set_property PACKAGE_PIN G11 [get_ports rgmii_rxc]
+set_property IOSTANDARD LVCMOS33 [get_ports rgmii_rxc]
+create_clock -period 8.000 -name rgmii_rxc -waveform {0.000 4.000} [get_ports rgmii_rxc]
+
+set_property PACKAGE_PIN E4 [get_ports cdrtrig_n]
+set_property PACKAGE_PIN D6 [get_ports gtx_refclk_156m25_p]
+set_property PACKAGE_PIN F6 [get_ports gtx_refclk_200m_p]
+create_clock -period 6.400 -name gtx_refclk_156m25_p -waveform {0.000 3.200} [get_ports gtx_refclk_156m25_p]
+create_clock -period 5.000 -name gtx_refclk_200m_p [get_ports gtx_refclk_200m_p]
+
+set_property IOSTANDARD LVDS [get_ports clk_200mhz_p]
