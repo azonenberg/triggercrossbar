@@ -35,6 +35,7 @@
 #include <stdint.h>
 #include <stm32.h>
 
+#include <peripheral/ADC.h>
 #include <peripheral/GPIO.h>
 #include <peripheral/RCC.h>
 #include <peripheral/Timer.h>

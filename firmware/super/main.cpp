@@ -40,7 +40,9 @@ void InitClocks();
 void InitUART();
 void InitLog();
 void DetectHardware();
+void InitADC();
 
+uint16_t Get12VRailVoltage();
 void StartRail(GPIOPin& en, GPIOPin& pgood, uint32_t timeout, const char* name);
 void MonitorRail(GPIOPin& pgood, const char* name);
 void PanicShutdown();
@@ -71,9 +73,12 @@ GPIOPin* g_fpga_rst_n = nullptr;
 GPIOPin* g_softPower = nullptr;
 GPIOPin* g_softReset = nullptr;
 
+ADC* g_adc = nullptr;
+
 void PollFPGA();
 
 void PollPowerButtons();
+bool PollPowerFailure();
 
 enum
 {
@@ -106,10 +111,11 @@ int main()
 	InitLog();
 	DetectHardware();
 	InitGPIOs();
+	InitADC();
 
 	//Wait 5 seconds in case something goes wrong during first power up
-	g_log("5 second delay\n");
-	g_logTimer->Sleep(50000);
+	//g_log("5 second delay\n");
+	//g_logTimer->Sleep(50000);
 	g_log("Ready\n");
 
 	//Run the normal power-on procedure
@@ -135,21 +141,65 @@ int main()
 			}
 		}
 
-		//Poll inputs and check to see if anything ever went out of spec
+		//Normal operation
 		if(g_powerState == STATE_ON)
 		{
-			PollFPGA();
+			//Check if 12V input power is lost
+			if(PollPowerFailure())
+			{
+				//Continue to log 12V and 3.3V until we lose power so we can track how long the decay took
+				g_log("Logging voltages until we lose power completely...\n");
+				LogIndenter li(g_log);
+				while(true)
+				{
+					auto vin = Get12VRailVoltage();
+					g_log("Measured 12V0 rail voltage: %d.%03d V\n", vin/1000, vin % 1000);
+					g_log("3V3_SB:  %d mV\n", g_adc->GetSupplyVoltage());
+				}
+			}
 
+			//Check all rails (other than 1v8 which still has a solder defect on PGOOD that I don't feel like bodging)
+			//to see if any of them went out of tolerance (indicating a short)
 			MonitorRail(*g_pgood_3v3, "3V3");
 			//MonitorRail(pgood_1v8, "1V8");
 			MonitorRail(*g_pgood_gtx_1v8, "GTX_1V8");
 			MonitorRail(*g_pgood_1v2, "1V2");
 			MonitorRail(*g_pgood_1v0, "1V0");
 			MonitorRail(*g_pgood_gtx_1v0, "GTX_1V0");
+
+			//See if the FPGA went up or down
+			PollFPGA();
 		}
 	}
 
 	return 0;
+}
+
+/**
+	@brief Check for power failure
+
+	@return true if power failure detected
+ */
+bool PollPowerFailure()
+{
+	auto vin = Get12VRailVoltage();
+	if(vin < 11000)
+	{
+		g_log(Logger::ERROR, "Input power failure detected!\n");
+		g_log("Measured 12V0 rail voltage: %d.%03d V\n", vin/1000, vin % 1000);
+
+		*g_fail_led = 0;
+		PowerOff();
+		g_powerState = STATE_OFF;
+
+		g_log("Power failure process completed\n");
+		vin = Get12VRailVoltage();
+		g_log("Measured 12V0 rail voltage: %d.%03d V\n", vin/1000, vin % 1000);
+		g_log("3V3_SB:  %d mV\n", g_adc->GetSupplyVoltage());
+		return true;
+	}
+
+	return false;
 }
 
 /**
@@ -160,18 +210,36 @@ void PowerOff()
 	g_log("Beginning power-down sequence\n");
 	LogIndenter li(g_log);
 
-	*g_en_3v0_n = 0;
-	*g_en_3v3 = 0;
-	*g_en_1v2 = 0;
-	*g_en_1v8 = 0;
-	*g_en_gtx_1v8 = 0;
-	*g_en_1v0 = 0;
-	*g_en_gtx_1v0 = 0;
-	*g_en_12v0 = 0;
-
-	*g_fail_led = 0;
 	*g_ok_led = 0;
 
+	//Place FPGA and MCU in reset immediately
+	//TODO: do we want to tip them off and give them some window of time to do a clean shutdown??
+	*g_fpga_rst_n = 0;
+	*g_mcu_rst_n = 0;
+
+	//Shut rails off at 1ms intervals in reverse order of startup
+	*g_en_3v0_n = 0;
+	g_logTimer->Sleep(10);
+	*g_en_3v3 = 0;
+	g_logTimer->Sleep(10);
+	*g_en_1v2 = 0;
+	g_logTimer->Sleep(10);
+	*g_en_1v8 = 0;
+	g_logTimer->Sleep(10);
+	*g_en_gtx_1v8 = 0;
+	g_logTimer->Sleep(10);
+	*g_en_1v0 = 0;
+	g_logTimer->Sleep(10);
+	*g_en_gtx_1v0 = 0;
+	g_logTimer->Sleep(10);
+
+	//Log 12V rail voltage before we turn off the load switch
+	auto vin = Get12VRailVoltage();
+	g_log("All regulators shut down\n");
+	g_log("Measured 12V0 rail voltage: %d.%03d V\n", vin/1000, vin % 1000);
+	g_log("Turning off 12V load switch\n");
+
+	*g_en_12v0 = 0;
 	g_powerState = STATE_STOPPING;
 }
 
@@ -196,6 +264,17 @@ void PowerOn()
 	g_logTimer->Sleep(50);
 
 	//TODO: poll the 12V rail via our ADC and measure it to verify it's good
+	auto vin = Get12VRailVoltage();
+	g_log("Measured 12V0 rail voltage: %d.%03d V\n", vin/1000, vin % 1000);
+	if(vin < 11000)
+	{
+		PanicShutdown();
+
+		g_log(Logger::ERROR, "12V supply failed to come up\n");
+
+		while(1)
+		{}
+	}
 
 	//Now turn on the core power DC-DC's, giving them each 5ms to come up
 	StartRail(*g_en_1v0, *g_pgood_1v0, 50, "1V0");
@@ -235,6 +314,40 @@ void PowerOn()
 
 	//Prepare to blink LED until FPGA comes up
 	g_nextBlink = g_logTimer->GetCount() + g_blinkDelay;
+}
+
+uint16_t Get12VRailVoltage()
+{
+	//12V rail output is ADC_IN9
+	//5.094x division so one LSB = 4.105 mV at the input nominally
+	//Tweak with hard coded trim constants for now; TODO make thse go in flash
+	return g_adc->ReadChannel(9) * 4079 / 1000;
+}
+
+void InitADC()
+{
+	g_log("Initializing ADC\n");
+	LogIndenter li(g_log);
+
+	//Enable ADC to run at PCLK/2 (8 MHz)
+	static ADC adc(&ADC1, 2);
+
+	//g_log("Zero calibration: %d\n", ADC1.CALFACT);
+	//g_log("Temp cal 1: %d\n", TSENSE_CAL1);
+	//g_log("Temp cal 2: %d\n", TSENSE_CAL2);
+	//g_log("Vref cal: %d\n", VREFINT_CAL);
+	//adc 18 is vsense (temp)
+	//adc17 is vrefint (vcc)
+
+	//Read the temperature
+	//10us sampling time (80 ADC clocks) required for reading the temp sensor
+	//79.5 is close enough
+	adc.SetSampleTime(159);
+	//auto temp = adc.GetTemperature();
+	//g_log("MCU temperature: %uhk C\n", temp);
+	g_log("3V3_SB:  %d mV\n", adc.GetSupplyVoltage());
+
+	g_adc = &adc;
 }
 
 void InitGPIOs()
@@ -324,7 +437,7 @@ void PollPowerButtons()
 		case STATE_OFF:
 			if(*g_softPower)
 			{
-				g_log("Soft power-up requested\n");
+				g_log("Power button pressed\n");
 				PowerOn();
 			}
 			break;
@@ -342,7 +455,7 @@ void PollPowerButtons()
 		case STATE_ON:
 			if(*g_softPower)
 			{
-				g_log("Soft power-down requested\n");
+				g_log("Power button pressed\n");
 				PowerOff();
 			}
 			break;
@@ -471,9 +584,6 @@ void InitUART()
 	//TODO: Make an RCC method for this
 	//volatile uint32_t* NVIC_ISER1 = (volatile uint32_t*)(0xe000e104);
 	// *NVIC_ISER1 = 0x100000;
-
-	//Clear screen and move cursor to X0Y0
-	uart.Printf("\x1b[2J\x1b[0;0H");
 }
 
 void InitLog()
@@ -483,6 +593,13 @@ void InitLog()
 	static Timer logtim(&TIMER2, Timer::FEATURE_GENERAL_PURPOSE_16BIT, 3200);
 	g_logTimer = &logtim;
 
+	//Wait 10ms to avoid resets during shutdown from destroying diagnostic output
+	g_logTimer->Sleep(100);
+
+	//Clear screen and move cursor to X0Y0
+	g_uart->Printf("\x1b[2J\x1b[0;0H");
+
+	//Start the logger
 	g_log.Initialize(g_uart, &logtim);
 	g_log("UART logging ready\n");
 }
