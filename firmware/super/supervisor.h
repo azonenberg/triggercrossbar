@@ -37,6 +37,7 @@
 
 #include <peripheral/ADC.h>
 #include <peripheral/GPIO.h>
+#include <peripheral/I2C.h>
 #include <peripheral/RCC.h>
 #include <peripheral/Timer.h>
 #include <peripheral/UART.h>

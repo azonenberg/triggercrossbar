@@ -82,18 +82,10 @@ int main()
 
 	ok_led = 0;
 	fault_led = 0;
-	//out_en = 0;
 
 	//Save pointers to all the rails for use in other functions
 	g_ok_led = &ok_led;
 	g_fault_led = &fault_led;
-
-	//Wait 2 seconds in case something goes wrong during first power up
-	//g_log("2 second delay\n");
-	//g_logTimer->Sleep(20000);
-
-	//ok_led = 1;
-	//out_en = 1;
 
  	//Poll for problems
  	g_log("Output disabled\n");
@@ -114,9 +106,7 @@ int main()
 			out_was_en = 0;
 		}
 
-		//g_log("CSV-NAME,BoardTemp,MCUTemp,InVoltage,OutVoltage,SenseVoltage,InCurrent,OutCurrent\n");
-		//g_log("CSV-UNIT,°C,°C,V,V,V,A,A\n");
-
+		/*
 		for(int i=0; i<50; i++)
 		{
 			//wait 100ms
@@ -148,20 +138,8 @@ int main()
 			g_adc->SetSampleTime(159);
 			auto mtemp = g_adc->GetTemperature();
 			auto btemp = ReadThermalSensor();
-
-			/*
-			g_log(
-				"CSV-DATA,%uhk,%uhk,%d.%03d,%d.%03d,%d.%03d,%d.%03d,%d.%03d\n",
-				btemp,
-				mtemp,
-				vin/1000, vin % 1000,
-				vout/1000, vout % 1000,
-				vsense/1000, vsense % 1000,
-				iin/1000, iin % 1000,
-				iout/1000, iout % 1000
-				);
-			*/
 		}
+		*/
 	}
 	return 0;
 }

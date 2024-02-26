@@ -41,8 +41,9 @@ void InitUART();
 void InitLog();
 void DetectHardware();
 void InitADC();
+void InitI2C();
+void InitSensors();
 
-uint16_t Get12VRailVoltage();
 void StartRail(GPIOPin& en, GPIOPin& pgood, uint32_t timeout, const char* name);
 void MonitorRail(GPIOPin& pgood, const char* name);
 void PanicShutdown();
@@ -74,6 +75,10 @@ GPIOPin* g_softPower = nullptr;
 GPIOPin* g_softReset = nullptr;
 
 ADC* g_adc = nullptr;
+I2C* g_i2c = nullptr;
+uint16_t Get12VRailVoltage();
+uint16_t ReadThermalSensor(uint8_t addr);
+const uint8_t g_tempI2cAddress = 0x90;
 
 void PollFPGA();
 
@@ -112,6 +117,8 @@ int main()
 	DetectHardware();
 	InitGPIOs();
 	InitADC();
+	InitI2C();
+	InitSensors();
 
 	//Wait 5 seconds in case something goes wrong during first power up
 	//g_log("5 second delay\n");
@@ -147,7 +154,8 @@ int main()
 			//Check if 12V input power is lost
 			if(PollPowerFailure())
 			{
-				//Continue to log 12V and 3.3V until we lose power so we can track how long the decay took
+				//Continue to log 12V and 3.3V at 10ms intervals until we lose power,
+				//so we can track how long the decay took
 				g_log("Logging voltages until we lose power completely...\n");
 				LogIndenter li(g_log);
 				while(true)
@@ -155,6 +163,7 @@ int main()
 					auto vin = Get12VRailVoltage();
 					g_log("Measured 12V0 rail voltage: %d.%03d V\n", vin/1000, vin % 1000);
 					g_log("3V3_SB:  %d mV\n", g_adc->GetSupplyVoltage());
+					g_logTimer->Sleep(100);
 				}
 			}
 
@@ -174,6 +183,35 @@ int main()
 
 	return 0;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sensor interfacing
+
+/**
+	@brief Read a temperature sensor at the given I2C address and return the temperature (in 8.8 fixed point format)
+ */
+uint16_t ReadThermalSensor(uint8_t addr)
+{
+	if(!g_i2c->BlockingWrite8(addr, 0x00))
+		return 0xff;
+	uint16_t reply;
+	if(!g_i2c->BlockingRead16(addr, reply))
+		return 0xff;
+
+	return reply;
+}
+
+uint16_t Get12VRailVoltage()
+{
+	//12V rail output is ADC_IN9
+	//5.094x division so one LSB = 4.105 mV at the input nominally
+	//Tweak with hard coded trim constants for now; TODO make thse go in flash
+	return g_adc->ReadChannel(9) * 4079 / 1000;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Soft power sequencing
+
 
 /**
 	@brief Check for power failure
@@ -316,115 +354,6 @@ void PowerOn()
 	g_nextBlink = g_logTimer->GetCount() + g_blinkDelay;
 }
 
-uint16_t Get12VRailVoltage()
-{
-	//12V rail output is ADC_IN9
-	//5.094x division so one LSB = 4.105 mV at the input nominally
-	//Tweak with hard coded trim constants for now; TODO make thse go in flash
-	return g_adc->ReadChannel(9) * 4079 / 1000;
-}
-
-void InitADC()
-{
-	g_log("Initializing ADC\n");
-	LogIndenter li(g_log);
-
-	//Enable ADC to run at PCLK/2 (8 MHz)
-	static ADC adc(&ADC1, 2);
-
-	//g_log("Zero calibration: %d\n", ADC1.CALFACT);
-	//g_log("Temp cal 1: %d\n", TSENSE_CAL1);
-	//g_log("Temp cal 2: %d\n", TSENSE_CAL2);
-	//g_log("Vref cal: %d\n", VREFINT_CAL);
-	//adc 18 is vsense (temp)
-	//adc17 is vrefint (vcc)
-
-	//Read the temperature
-	//10us sampling time (80 ADC clocks) required for reading the temp sensor
-	//79.5 is close enough
-	adc.SetSampleTime(159);
-	//auto temp = adc.GetTemperature();
-	//g_log("MCU temperature: %uhk C\n", temp);
-	g_log("3V3_SB:  %d mV\n", adc.GetSupplyVoltage());
-
-	g_adc = &adc;
-}
-
-void InitGPIOs()
-{
-	g_log("Initializing GPIOs\n");
-
-	//Initalize our GPIOs and make sure all rails are off
-	static GPIOPin en_12v0(&GPIOB, 5, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	static GPIOPin en_1v0(&GPIOB, 9, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	static GPIOPin en_gtx_1v0(&GPIOB, 10, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	static GPIOPin en_1v2(&GPIOC, 13, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	static GPIOPin en_1v8(&GPIOB, 14, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	static GPIOPin en_gtx_1v8(&GPIOB, 2, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	static GPIOPin en_3v3(&GPIOB, 4, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	static GPIOPin en_3v0_n(&GPIOC, 13, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-
-	static GPIOPin pgood_1v0(&GPIOB, 8, GPIOPin::MODE_INPUT, 0, false);
-	static GPIOPin pgood_gtx_1v0(&GPIOA, 2, GPIOPin::MODE_INPUT, 0, false);
-	static GPIOPin pgood_1v2(&GPIOC, 0, GPIOPin::MODE_INPUT, 0, false);
-	static GPIOPin pgood_1v8(&GPIOB, 13, GPIOPin::MODE_INPUT, 0, false);
-	static GPIOPin pgood_gtx_1v8(&GPIOB, 0, GPIOPin::MODE_INPUT, 0, false);
-	static GPIOPin pgood_3v3(&GPIOB, 3, GPIOPin::MODE_INPUT, 0, false);
-
-	static GPIOPin fail_led(&GPIOH, 1, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	static GPIOPin ok_led(&GPIOH, 0, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-
-	static GPIOPin fpga_done(&GPIOB, 11, GPIOPin::MODE_INPUT, 0, false);
-	static GPIOPin mcu_rst_n(&GPIOA, 3, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	static GPIOPin mcu_ready(&GPIOA, 0, GPIOPin::MODE_INPUT, 0, false);
-	static GPIOPin fpga_rst_n(&GPIOA, 1, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW, 0, true);
-
-	static GPIOPin pwr_button(&GPIOA, 12, GPIOPin::MODE_INPUT, 0, false);
-	static GPIOPin rst_button(&GPIOA, 15, GPIOPin::MODE_INPUT, 0, false);
-
-	//R28 got knocked off the prototype during rework and I didn't feel like putting it back on
-	//On die pullups FTW
-	pgood_1v2.SetPullMode(GPIOPin::PULL_UP);
-
-	en_12v0 = 0;
-	en_1v0 = 0;
-	en_gtx_1v0 = 0;
-	en_1v2 = 0;
-	en_1v8 = 0;
-	en_gtx_1v8 = 0;
-
-	mcu_rst_n = 0;
-	fpga_rst_n = 0;
-	fail_led = 0;
-	ok_led = 0;
-
-	//Save pointers to all the rails for use in other functions
-	g_en_12v0 = &en_12v0;
-	g_en_1v0 = &en_1v0;
-	g_en_gtx_1v0 = &en_gtx_1v0;
-	g_en_1v2 = &en_1v2;
-	g_en_1v8 = &en_1v8;
-	g_en_gtx_1v8 = &en_gtx_1v8;
-	g_en_3v3 = &en_3v3;
-	g_en_3v0_n = &en_3v0_n;
-
-	g_pgood_1v0 = &pgood_1v0;
-	g_pgood_gtx_1v0 = &pgood_gtx_1v0;
-	g_pgood_gtx_1v8 = &pgood_gtx_1v8;
-	g_pgood_1v2 = &pgood_1v2;
-	g_pgood_3v3 = &pgood_3v3;
-
-	g_fail_led = &fail_led;
-	g_ok_led = &ok_led;
-
-	g_fpga_done = &fpga_done;
-	g_mcu_rst_n = &mcu_rst_n;
-	g_fpga_rst_n = &fpga_rst_n;
-
-	g_softPower = &pwr_button;
-	g_softReset = &rst_button;
-}
-
 /**
 	@brief Check for soft power button presses
  */
@@ -497,6 +426,9 @@ void PollFPGA()
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Power on / off process
+
 /**
 	@brief Polls a power rail and look for signs of trouble
  */
@@ -556,6 +488,9 @@ void StartRail(GPIOPin& en, GPIOPin& pgood, uint32_t timeout, const char* name)
 		{}
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Peripheral initialization
 
 void InitClocks()
 {
@@ -659,4 +594,133 @@ void DetectHardware()
 	}
 	else
 		g_log(Logger::WARNING, "Unknown device (0x%06x)\n", device);
+}
+
+void InitI2C()
+{
+	g_log("Initializing I2C interface\n");
+
+	static GPIOPin i2c_scl(&GPIOA, 9, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 1, true);
+	static GPIOPin i2c_sda(&GPIOA, 10, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 1, true);
+
+	//I2C1 runs off our kernel clock (16 MHz)
+	//Prescale by 4 to get 4 MHz
+	//Divide by 40 after that to get 100 kHz
+	static I2C i2c(&I2C1, 4, 40);
+	g_i2c = &i2c;
+}
+
+void InitSensors()
+{
+	g_log("Initializing sensors\n");
+	LogIndenter li(g_log);
+
+	//Set temperature sensor to max resolution
+	uint8_t cmd[3] = {0x01, 0x60, 0x00};
+	if(!g_i2c->BlockingWrite(g_tempI2cAddress, cmd, sizeof(cmd)))
+		g_log(Logger::ERROR, "Failed to initialize I2C temp sensor at 0x%02x\n", g_tempI2cAddress);
+
+	//Print value
+	g_log("IBC board temperature: %uhk C\n", ReadThermalSensor(g_tempI2cAddress));
+}
+
+void InitADC()
+{
+	g_log("Initializing ADC\n");
+	LogIndenter li(g_log);
+
+	//Enable ADC to run at PCLK/2 (8 MHz)
+	static ADC adc(&ADC1, 2);
+
+	//g_log("Zero calibration: %d\n", ADC1.CALFACT);
+	//g_log("Temp cal 1: %d\n", TSENSE_CAL1);
+	//g_log("Temp cal 2: %d\n", TSENSE_CAL2);
+	//g_log("Vref cal: %d\n", VREFINT_CAL);
+	//adc 18 is vsense (temp)
+	//adc17 is vrefint (vcc)
+
+	//Read the temperature
+	//10us sampling time (80 ADC clocks) required for reading the temp sensor
+	//79.5 is close enough
+	adc.SetSampleTime(159);
+	//auto temp = adc.GetTemperature();
+	//g_log("MCU temperature: %uhk C\n", temp);
+	g_log("3V3_SB:  %d mV\n", adc.GetSupplyVoltage());
+
+	g_adc = &adc;
+}
+
+void InitGPIOs()
+{
+	g_log("Initializing GPIOs\n");
+
+	//Initalize our GPIOs and make sure all rails are off
+	static GPIOPin en_12v0(&GPIOB, 5, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin en_1v0(&GPIOB, 9, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin en_gtx_1v0(&GPIOB, 10, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin en_1v2(&GPIOC, 13, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin en_1v8(&GPIOB, 14, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin en_gtx_1v8(&GPIOB, 2, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin en_3v3(&GPIOB, 4, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin en_3v0_n(&GPIOC, 13, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+
+	static GPIOPin pgood_1v0(&GPIOB, 8, GPIOPin::MODE_INPUT, 0, false);
+	static GPIOPin pgood_gtx_1v0(&GPIOA, 2, GPIOPin::MODE_INPUT, 0, false);
+	static GPIOPin pgood_1v2(&GPIOC, 0, GPIOPin::MODE_INPUT, 0, false);
+	static GPIOPin pgood_1v8(&GPIOB, 13, GPIOPin::MODE_INPUT, 0, false);
+	static GPIOPin pgood_gtx_1v8(&GPIOB, 0, GPIOPin::MODE_INPUT, 0, false);
+	static GPIOPin pgood_3v3(&GPIOB, 3, GPIOPin::MODE_INPUT, 0, false);
+
+	static GPIOPin fail_led(&GPIOH, 1, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin ok_led(&GPIOH, 0, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+
+	static GPIOPin fpga_done(&GPIOB, 11, GPIOPin::MODE_INPUT, 0, false);
+	static GPIOPin mcu_rst_n(&GPIOA, 3, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin mcu_ready(&GPIOA, 0, GPIOPin::MODE_INPUT, 0, false);
+	static GPIOPin fpga_rst_n(&GPIOA, 1, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW, 0, true);
+
+	static GPIOPin pwr_button(&GPIOA, 12, GPIOPin::MODE_INPUT, 0, false);
+	static GPIOPin rst_button(&GPIOA, 15, GPIOPin::MODE_INPUT, 0, false);
+
+	//R28 got knocked off the prototype during rework and I didn't feel like putting it back on
+	//On die pullups FTW
+	pgood_1v2.SetPullMode(GPIOPin::PULL_UP);
+
+	en_12v0 = 0;
+	en_1v0 = 0;
+	en_gtx_1v0 = 0;
+	en_1v2 = 0;
+	en_1v8 = 0;
+	en_gtx_1v8 = 0;
+
+	mcu_rst_n = 0;
+	fpga_rst_n = 0;
+	fail_led = 0;
+	ok_led = 0;
+
+	//Save pointers to all the rails for use in other functions
+	g_en_12v0 = &en_12v0;
+	g_en_1v0 = &en_1v0;
+	g_en_gtx_1v0 = &en_gtx_1v0;
+	g_en_1v2 = &en_1v2;
+	g_en_1v8 = &en_1v8;
+	g_en_gtx_1v8 = &en_gtx_1v8;
+	g_en_3v3 = &en_3v3;
+	g_en_3v0_n = &en_3v0_n;
+
+	g_pgood_1v0 = &pgood_1v0;
+	g_pgood_gtx_1v0 = &pgood_gtx_1v0;
+	g_pgood_gtx_1v8 = &pgood_gtx_1v8;
+	g_pgood_1v2 = &pgood_1v2;
+	g_pgood_3v3 = &pgood_3v3;
+
+	g_fail_led = &fail_led;
+	g_ok_led = &ok_led;
+
+	g_fpga_done = &fpga_done;
+	g_mcu_rst_n = &mcu_rst_n;
+	g_fpga_rst_n = &fpga_rst_n;
+
+	g_softPower = &pwr_button;
+	g_softReset = &rst_button;
 }
