@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *                                                                                                                      *
-* LATENTPACKET v0.1                                                                                                    *
+* trigger-crossbar                                                                                                     *
 *                                                                                                                      *
 * Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
@@ -28,6 +28,7 @@
 ***********************************************************************************************************************/
 
 #include "ibc.h"
+#include "i2cregs.h"
 
 //UART console
 UART* g_uart = NULL;
@@ -90,6 +91,7 @@ int main()
  	//Poll for problems
  	g_log("Output disabled\n");
  	bool out_was_en = false;
+ 	uint8_t i2c_regid = 0;
 	while(1)
 	{
 		//Log enable status
@@ -106,40 +108,54 @@ int main()
 			out_was_en = 0;
 		}
 
-		/*
-		for(int i=0; i<50; i++)
+		//Check for I2C activity
+		//TODO: interrupt driven or something?
+		if(g_i2c->PollAddressMatch())
 		{
-			//wait 100ms
-			g_logTimer->Sleep(1000);
-
-			//Take a bunch of averages of the voltages to reduce noise
-			int navg = 32;
-			int vin = 0;
-			int vout = 0;
-			int vsense = 0;
-			for(int i=0; i<navg; i++)
+			//Process reads
+			if(g_i2c->IsDeviceRequestRead())
 			{
-				vin += GetInputVoltage();
-				vout += GetOutputVoltage();
-				vsense += GetSenseVoltage();
+				//Send the reply
+				switch(i2c_regid)
+				{
+					//Read input voltage
+					case IBC_REG_VIN:
+						g_i2c->BlockingDeviceWrite16(GetInputVoltage());
+						break;
+
+					//Read output voltage
+					case IBC_REG_VOUT:
+						g_i2c->BlockingDeviceWrite16(GetOutputVoltage());
+						break;
+
+					//Read sense voltage
+					case IBC_REG_VSENSE:
+						g_i2c->BlockingDeviceWrite16(GetSenseVoltage());
+						break;
+
+					//Read input current
+					case IBC_REG_IIN:
+						g_i2c->BlockingDeviceWrite16(GetInputCurrent());
+						break;
+
+					//Read output current
+					case IBC_REG_IOUT:
+						g_i2c->BlockingDeviceWrite16(GetOutputCurrent());
+						break;
+
+					default:
+						break;
+				}
+
 			}
-			vin /= navg;
-			vout /= navg;
-			vsense /= navg;
 
-			//Use short sampling window for currents then average
-			//Total conversion time is 1.5 + 12.5 = 14 clocks @ 8 MHz = 1.75 us = 571 kHz sampling rate?
-			g_adc->SetSampleTime(3);
-			auto iin = GetInputCurrent();
-			auto iout = GetOutputCurrent();
-
-			//Don't bother averaging temperatures
-			//Use longer sampling time here
-			g_adc->SetSampleTime(159);
-			auto mtemp = g_adc->GetTemperature();
-			auto btemp = ReadThermalSensor();
+			//Process writes
+			else
+			{
+				//for now, just assume its a single write to the address register
+				i2c_regid = g_i2c->BlockingDeviceRead8();
+			}
 		}
-		*/
 	}
 	return 0;
 }
@@ -156,6 +172,9 @@ void InitI2C()
 	//Divide by 40 after that to get 100 kHz
 	static I2C i2c(&I2C1, 4, 40);
 	g_i2c = &i2c;
+
+	//Set our device address, somewhat arbitrarily, to 0x42
+	i2c.SetThisNodeAddress(0x42);
 }
 
 void InitClocks()
@@ -291,17 +310,6 @@ void InitSensors()
 	g_log("Initializing sensors\n");
 	LogIndenter li(g_log);
 
-	//Set temperature sensor to max resolution
-	uint8_t addr = 0x90;
-	uint8_t cmd[3] = {0x01, 0x60, 0x00};
-	if(!g_i2c->BlockingWrite(addr, cmd, sizeof(cmd)))
-		g_log(Logger::ERROR, "Failed to initialize I2C temp sensor at 0x%02x\n", addr);
-
-	//Print value
-	g_log("Board temperature: %uhk C\n", ReadThermalSensor(addr));
-
-	//Full scale 4095 counts = 3300 mV so one LSB = 805.8 uV
-
 	auto vin = GetInputVoltage();
 	g_log("Input voltage:  %d.%03d V\n", vin/1000, vin % 1000);
 
@@ -331,6 +339,7 @@ uint16_t GetInputCurrent()
 	//sum first to avoid delays during acquisition so we sample somewhat evenly
 	//TODO: use hardware averaging mode to avoid the need for this
 	int64_t iin = 0;
+	g_adc->SetSampleTime(3);
 	for(int i=0; i<navg; i++)
 		iin += g_adc->ReadChannel(1);
 
@@ -357,6 +366,7 @@ uint16_t GetOutputCurrent()
 	//sum first to avoid delays during acquisition so we sample somewhat evenly
 	//TODO: use hardware averaging mode to avoid the need for this
 	int64_t iout = 0;
+	g_adc->SetSampleTime(3);
 	for(int i=0; i<navg; i++)
 		iout += g_adc->ReadChannel(7);
 
@@ -378,6 +388,7 @@ uint16_t GetInputVoltage()
 	//Calculate voltages at each test point
 	//48V rail is ADC_IN2
 	//30.323x division so one LSB = 24.436 mV at the input
+	g_adc->SetSampleTime(159);
 	return g_adc->ReadChannel(2) * 24436 / 1000;
 }
 
@@ -386,12 +397,14 @@ uint16_t GetOutputVoltage()
 	//12V rail output is ADC_IN9
 	//5.094x division so one LSB = 4.105 mV at the input nominally
 	//Tweak with hard coded trim constants for now; TODO make thse go in flash
+	g_adc->SetSampleTime(159);
 	return g_adc->ReadChannel(9) * 4079 / 1000;
 }
 
 uint16_t GetSenseVoltage()
 {
 	//12V remote sense (including cable loss) is ADC_IN8
+	g_adc->SetSampleTime(159);
 	return g_adc->ReadChannel(8) * 4081 / 1000;
 }
 
