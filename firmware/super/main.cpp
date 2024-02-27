@@ -145,7 +145,7 @@ int main()
 		//Blink power LED if rails are up but FPGA isn't
 		if( ( (g_powerState == STATE_ON) || (g_powerState == STATE_STARTING) ) && !g_fpgaUp)
 		{
-			if(g_logTimer->GetCount() == g_nextBlink)
+			if(g_logTimer->GetCount() >= g_nextBlink)
 			{
 				*g_ok_led = !*g_ok_led;
 				g_nextBlink = g_logTimer->GetCount() + g_blinkDelay;

@@ -89,12 +89,26 @@ UART* g_cliUART = nullptr;
  */
 DigitalTempSensor* g_dts = nullptr;
 
-/**
-	@brief MAC address I2C EEPROM
- */
+///@brief MAC address I2C EEPROM
 I2C* g_macI2C = nullptr;
 
-/**
-	@brief GPIO LEDs
- */
+///@brief SFP+ DOM / ID EEPROM
+I2C* g_sfpI2C = nullptr;
+
+///@brief GPIO LEDs
 GPIOPin* g_leds[4] = {0};
+
+///@brief SFP mod_abs
+GPIOPin* g_sfpModAbsPin = nullptr;
+
+///@brief SFP tx_disable
+GPIOPin* g_sfpTxDisablePin = nullptr;
+
+///@brief SFP tx_fault
+GPIOPin* g_sfpTxFaultPin = nullptr;
+
+///@brief SFP laser fault detected
+bool g_sfpFaulted = false;
+
+///@brief SFP module inserted (does not imply link is up)
+bool g_sfpPresent = false;

@@ -238,6 +238,7 @@ void InitLEDs()
 void InitDACs()
 {
 	g_log("Initializing DACs\n");
+	LogIndenter li(g_log);
 
 	//Set up the GPIOs for chip selects and deselect everything
 	static GPIOPin tx_dac_cs_n(&GPIOE, 10, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_FAST);
@@ -265,16 +266,26 @@ void InitDACs()
 
 	g_leds[1]->Set(1);
 
-	//Try selecting the TX DAC and sending something
-	//VCCIO4 is channel 7 of the DAC
+	//Initialize the DACs
 	static OctalDAC tx_dac(dac_spi, tx_dac_cs_n);
+	static OctalDAC rx_dac0(dac_spi, rx_dac0_cs_n);
+	static OctalDAC rx_dac1(dac_spi, rx_dac1_cs_n);
 
-	//Set all channels to 2.5V
+	//Set all output channels to 2.5V
 	for(int i=0; i<8; i++)
 		tx_dac.SetChannelMillivolts(i, 2500);
 
 	//Set channel 7 (out4) to 3.3V
 	tx_dac.SetChannelMillivolts(7, 3300);
+
+	//Set all input channels to 500 mV threshold
+	for(int i=0; i<8; i++)
+	{
+		rx_dac0.SetChannelMillivolts(i, 500);
+		rx_dac1.SetChannelMillivolts(i, 500);
+	}
+
+	g_log("DAC init complete\n");
 }
 
 /*
@@ -347,21 +358,20 @@ void InitI2C()
 	static GPIOPin temp_i2c_scl(&GPIOB, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
 	static GPIOPin temp_i2c_sda(&GPIOB, 7, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
 
-	//Default kernel clock for I2C4 is APB1 clock (64 MHz for our current config)
+	//Default kernel clock for I2C1 is APB1 clock (64 MHz for our current config)
 	//Prescale by 16 to get 4 MHz
 	//Divide by 40 after that to get 100 kHz
 	static I2C temp_i2c(&I2C1, 16, 40);
 	g_tempI2C = &temp_i2c;
-
-	static GPIOPin sfp_i2c_scl(&GPIOH, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
-	static GPIOPin sfp_i2c_sda(&GPIOH, 5, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
+	*/
+	static GPIOPin sfp_i2c_scl(&GPIOF, 1, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
+	static GPIOPin sfp_i2c_sda(&GPIOF, 0, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
 
 	//Default kernel clock for I2C2 is APB1 clock (64 MHz for our current config)
 	//Prescale by 16 to get 4 MHz
 	//Divide by 40 after that to get 100 kHz
 	static I2C sfp_i2c(&I2C2, 16, 40);
 	g_sfpI2C = &sfp_i2c;
-	*/
 }
 
 void InitEEPROM()
@@ -457,26 +467,21 @@ void InitSensors()
 /**
 	@brief Initialize the I2C EEPROM and GPIOs for the SFP+ interface
  */
- /*
 void InitSFP()
 {
 	g_log("Initializing SFP+\n");
 
 	//Set up the IOs
-	static GPIOPin modAbs(&GPIOH, 0, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
-	static GPIOPin txDisable(&GPIOH, 6, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	static GPIOPin txFault(&GPIOH, 12, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin modAbs(&GPIOC, 13, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin txDisable(&GPIOC, 14, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin txFault(&GPIOC, 15, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
 	modAbs.SetPullMode(GPIOPin::PULL_UP);
 	txFault.SetPullMode(GPIOPin::PULL_UP);
 	g_sfpModAbsPin = &modAbs;
 	g_sfpTxDisablePin = &txDisable;
 	g_sfpTxFaultPin = &txFault;
 
-	//Rate select to full rate
-	static GPIOPin rs0(&GPIOH, 1, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	static GPIOPin rs1(&GPIOH, 3, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	rs0 = 1;
-	rs1 = 1;
+	//No GPIOs for rate select, they're hardwired high
 
 	//Default to disabling transmit
 	txDisable.Set(true);
@@ -484,11 +489,9 @@ void InitSFP()
 	//note that there may not be an optic installed yet, so don't initialize unless we know it's there
 	PollSFP();
 }
-*/
 /**
 	@brief Check if a SFP+ optic has been inserted or removed
  */
- /*
 void PollSFP()
 {
 	//Detect transmitter faults
@@ -535,7 +538,6 @@ void PollSFP()
 	LogIndenter li(g_log);
 
 	//Turn on transmitter
-	//TODO: only do this if not administratively down
 	g_sfpTxDisablePin->Set(false);
 
 	//Wait 300 ms (t_start_up) to make sure it's up
@@ -659,7 +661,7 @@ void PollSFP()
 		g_log("RX power:      %3d.%d μW\n", rxPowerScaled / 10, rxPowerScaled % 10);
 	}
 }
-*/
+
 /**
 	@brief Remove spaces from trailing edge of a string
  */

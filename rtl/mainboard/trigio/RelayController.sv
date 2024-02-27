@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+`default_nettype none
 /***********************************************************************************************************************
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
@@ -27,85 +29,90 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "triggercrossbar.h"
-
 /**
-	@brief Read a temperature sensor at the given I2C address and return the temperature (in 8.8 fixed point format)
+	@brief Controller for the relays on the bidirectional ports
  */
-uint16_t ReadThermalSensor(uint8_t addr)
-{
-	/*
-	if(!g_tempI2C->BlockingWrite8(addr, 0x00))
-		return 0xff;
-	uint16_t reply;
-	if(!g_tempI2C->BlockingRead16(addr, reply))
-		return 0xff;
+module RelayController(
+	input wire			clk_125mhz,
 
-	return reply;
-	*/
-}
+	output logic[3:0]	relay_a		= 0,
+	output logic[3:0]	relay_b		= 0
+);
 
-/**
-	@brief Reads the RPM of the requested fan
- */
-uint16_t GetFanRPM(uint8_t channel)
-{
-	/*
-	switch(channel)
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Cycle all of the relays once during startup and place them in output mode
+
+	//Relays spec max 5ms operating time
+	//1M cycles at 125 MHz is 8 ns which should be plenty of margin
+
+	logic[1:0]	relayIndex		= 0;
+	logic[19:0]	relayCount		= 0;
+
+	enum logic[1:0]
 	{
-		case 0:
-			return g_fpga->BlockingRead16(REG_FAN0_RPM);
+		RELAY_NEXT	= 2'h0,
+		RELAY_ON	= 2'h1,
+		RELAY_WAIT	= 2'h2,
+		RELAY_DONE	= 2'h3
+	} relayState	= RELAY_NEXT;
 
-		case 1:
-			return g_fpga->BlockingRead16(REG_FAN1_RPM);
+	always_ff @(posedge clk_125mhz) begin
 
-		default:
-			return 0;
-	}
-	*/
-}
+		case(relayState)
 
-/**
-	@brief Gets the temperature of the FPGA (in 8.8 fixed point format)
- */
-uint16_t GetFPGATemperature()
-{
-	//return g_fpga->BlockingRead16(REG_DIE_TEMP);
-}
+			//Start doing the next relay
+			RELAY_NEXT: begin
 
-/**
-	@brief Gets the VCCINT voltage of the FPGA (in 8.8 fixed point format)
- */
-uint16_t GetFPGAVCCINT()
-{
-	//return g_fpga->BlockingRead16(REG_VOLT_CORE);
-}
+				//not sure which direction this selects but i guess we'll find out
+				relay_a[relayIndex]	<= 0;
+				relay_b[relayIndex]	<= 1;
 
-/**
-	@brief Gets the VCCBRAM voltage of the FPGA (in 8.8 fixed point format)
- */
-uint16_t GetFPGAVCCBRAM()
-{
-	//return g_fpga->BlockingRead16(REG_VOLT_RAM);
-}
+				relayCount			<= 1;
+				relayState			<= RELAY_ON;
 
-/**
-	@brief Gets the VCCAUX voltage of the FPGA (in 8.8 fixed point format)
- */
-uint16_t GetFPGAVCCAUX()
-{
-	//return g_fpga->BlockingRead16(REG_VOLT_AUX);
-}
+			end
 
-/**
-	@brief Gets the temperature of the SFP+
- */
-uint16_t GetSFPTemperature()
-{
-	//FIXME: assumes internally calibrated
+			//Coil energized
+			RELAY_ON: begin
+				relayCount	<= relayCount + 1;
 
-	g_sfpI2C->BlockingWrite8(0xa2, 96);
-	uint16_t temp = 0;
-	g_sfpI2C->BlockingRead16(0xa2, temp);
-	return temp;
-}
+				//Done with this cycle
+				if(relayCount == 0) begin
+
+					//De-energize coil
+					relay_a	<= 0;
+					relay_b	<= 0;
+
+					//Finished last one?
+					if(relayIndex == 3)
+						relayState <= RELAY_DONE;
+
+					//Nope, move on
+					else begin
+						relayIndex	<= relayIndex + 1;
+						relayState	<= RELAY_WAIT;
+						relayCount	<= 1;
+					end
+
+				end
+
+			end
+
+			//Wait a short time before moving to the next one
+			RELAY_WAIT: begin
+				relayCount	<= relayCount + 1;
+
+				if(relayCount == 0)
+					relayState	<= RELAY_NEXT;
+			end
+
+			//Done updating, don't touch again
+			RELAY_DONE: begin
+			end
+
+		endcase
+
+	end
+
+
+endmodule

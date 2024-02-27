@@ -70,6 +70,7 @@ extern MACAddress g_macAddress;
 extern IPv4Config g_ipConfig;
 extern EthernetProtocol* g_ethProtocol;
 extern I2C* g_macI2C;
+extern I2C* g_sfpI2C;
 
 extern UART* g_cliUART;
 extern OctoSPI* g_qspi;
@@ -77,6 +78,12 @@ extern OctoSPI* g_qspi;
 extern DigitalTempSensor* g_dts;
 
 extern GPIOPin* g_leds[4];
+
+extern GPIOPin* g_sfpModAbsPin;
+extern GPIOPin* g_sfpTxDisablePin;
+extern GPIOPin* g_sfpTxFaultPin;
+extern bool g_sfpFaulted;
+extern bool g_sfpPresent;
 
 extern const IPv4Address g_defaultIP;
 extern const IPv4Address g_defaultNetmask;
@@ -99,11 +106,11 @@ void InitEEPROM();
 void InitDACs();
 /*
 void InitSensors();
+*/
 void InitSFP();
 void PollSFP();
+/*
 void InitManagementPHY();
-void InitSGMIIPHYs();
-void InitQSGMIIPHY();
 void PollFPGA();
 void PollPHYs();
 
@@ -113,9 +120,9 @@ uint16_t GetFPGATemperature();
 uint16_t GetFPGAVCCINT();
 uint16_t GetFPGAVCCAUX();
 uint16_t GetFPGAVCCBRAM();
-uint16_t GetVSC8512Temperature();
-uint16_t GetSFPTemperature();
 */
+uint16_t GetSFPTemperature();
+
 void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
 /*
 void InitFPGAInterface();

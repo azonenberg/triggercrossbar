@@ -34,18 +34,33 @@ module top(
 	input wire			clk_200mhz_n,
 
 	//RGMII interface
-	output logic		rgmii_rst_n	= 0,
+	output wire			rgmii_rst_n,
 	input wire			rgmii_rxc,
+
+	//SFP+ interface
+	input wire			sfp_rx_p,
+	input wire			sfp_rx_n,
+
+	output wire			sfp_tx_p,
+	output wire			sfp_tx_n,
+
+	input wire			sfp_rx_los,
+
+	output wire[1:0]	sfp_led,
 
 	//GPIO LEDs
 	output logic[3:0]	led,
 
 	//H-bridge control for relays
-	output logic[3:0]	relay_a		= 0,
-	output logic[3:0]	relay_b		= 0,
+	output wire[3:0]	relay_a,
+	output wire[3:0]	relay_b,
 
 	//Trigger outputs
 	output logic[11:0]	trig_out	= 0,
+
+	//Trigger inputs
+	input wire[11:0]	trig_in_p,
+	input wire[11:0]	trig_in_n,
 
 	//GTX refclks
 	input wire			gtx_refclk_156m25_p,
@@ -103,7 +118,22 @@ module top(
 		.qpll_clkout_10g3125(qpll_clkout_10g3125)
 	);
 
-	//Dummy GTX for PRBS generation
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Differential input buffers for LVDS trigger inputs
+
+	wire[11:0]	trig_in;
+
+	DifferentialInputBuffer #(
+		.WIDTH(12)
+	) ibuf_trigin (
+		.pad_in_p(trig_in_p),
+		.pad_in_n(trig_in_n),
+		.fabric_out(trig_in));
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Output PRBS generation
+
+	//Dummy GTX clocking
 	wire	cdrtrig_rxclk;
 	wire	cdrtrig_rxclk_raw;
 	wire	prbs_tx_clk;
@@ -116,9 +146,6 @@ module top(
 	BUFG buf_prbs_tx_clk(
 		.I(prbs_tx_clk_raw),
 		.O(prbs_tx_clk));
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Output PRBS generation
 
 	wire[4:0]	tx_swing;			//best results for 10gbase-R 'h05
 	wire[4:0]	tx_precursor;		//best results for 10gbase-R 'h07
@@ -207,103 +234,42 @@ module top(
 		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Reset the Ethernet PHY
+	// Network interfaces
 
-	//Bring up the PHYs after a little while
-	logic[18:0] eth_rst_count = 1;
-	always_ff @(posedge clk_125mhz) begin
-		if(eth_rst_count == 0) begin
-			rgmii_rst_n		<= 1;
-		end
-		else
-			eth_rst_count	<= eth_rst_count + 1'h1;
-	end
+	NetworkInterfaces network(
+		.clk_125mhz(clk_125mhz),
+		.clk_250mhz(clk_250mhz),
+		.pll_rgmii_lock(pll_rgmii_lock),
+
+		.qpll_lock(qpll_lock),
+		.qpll_clkout_10g3125(qpll_clkout_10g3125),
+		.qpll_refclk(qpll_refclk),
+		.qpll_refclk_lost(qpll_refclk_lost),
+		.serdes_refclk_156m25(serdes_refclk_156m25),
+		.serdes_refclk_200m(serdes_refclk_200m),
+
+		.sfp_tx_p(sfp_tx_p),
+		.sfp_tx_n(sfp_tx_n),
+		.sfp_rx_p(sfp_rx_p),
+		.sfp_rx_n(sfp_rx_n),
+		.sfp_rx_los(sfp_rx_los),
+		.sfp_led(sfp_led),
+
+		.rgmii_rst_n(rgmii_rst_n)
+	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Cycle all of the relays once during startup and place them in output mode
+	// Relays
 
-	//Relays spec max 5ms operating time
-	//1M cycles at 125 MHz is 8 ns which should be plenty of margin
+	RelayController relays(
+		.clk_125mhz(clk_125mhz),
 
-	logic[1:0]	relayIndex		= 0;
-	logic[19:0]	relayCount		= 0;
-
-	enum logic[1:0]
-	{
-		RELAY_NEXT	= 2'h0,
-		RELAY_ON	= 2'h1,
-		RELAY_WAIT	= 2'h2,
-		RELAY_DONE	= 2'h3
-	} relayState	= RELAY_NEXT;
-
-	always_ff @(posedge clk_125mhz) begin
-
-		case(relayState)
-
-			//Start doing the next relay
-			RELAY_NEXT: begin
-
-				//not sure which direction this selects but i guess we'll find out
-				relay_a[relayIndex]	<= 0;
-				relay_b[relayIndex]	<= 1;
-
-				relayCount			<= 1;
-				relayState			<= RELAY_ON;
-
-			end
-
-			//Coil energized
-			RELAY_ON: begin
-				relayCount	<= relayCount + 1;
-
-				//Done with this cycle
-				if(relayCount == 0) begin
-
-					//De-energize coil
-					relay_a	<= 0;
-					relay_b	<= 0;
-
-					//Finished last one?
-					if(relayIndex == 3)
-						relayState <= RELAY_DONE;
-
-					//Nope, move on
-					else begin
-						relayIndex	<= relayIndex + 1;
-						relayState	<= RELAY_WAIT;
-						relayCount	<= 1;
-					end
-
-				end
-
-			end
-
-			//Wait a short time before moving to the next one
-			RELAY_WAIT: begin
-				relayCount	<= relayCount + 1;
-
-				if(relayCount == 0)
-					relayState	<= RELAY_NEXT;
-			end
-
-			//Done updating, don't touch again
-			RELAY_DONE: begin
-			end
-
-		endcase
-
-	end
+		.relay_a(relay_a),
+		.relay_b(relay_b)
+		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Debug LEDs etc
-
-	/*logic[22:0] count = 0;
-	always_ff @(posedge rgmii_rxc) begin
-		count <= count + 1;
-
-		if(count == 0)
-			led			<= led + 1;
-	end*/
 
 	always_comb begin
 		led[0]		= pll_rgmii_lock;
@@ -311,9 +277,9 @@ module top(
 		led[3:2]	= 2'b11;
 	end
 
-	always_ff @(posedge clk_250mhz) begin
-		//toggle trigger outputs at 125 MHz
-		trig_out		<= ~trig_out;
+	//forward trigger inputs to outputs 1:1
+	always_comb begin
+		trig_out	= trig_in;
 	end
 
 endmodule

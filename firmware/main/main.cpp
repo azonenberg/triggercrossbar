@@ -78,9 +78,9 @@ int main()
 	InitSensors();
 
 	//Begin initializing fabric ports
-	InitInterfaces();
+	InitInterfaces();*/
 	InitSFP();
-
+	/*
 	//Initialize our local Ethernet interface and TCP/IP stack
 	InitEthernet();
 	InitIP();
