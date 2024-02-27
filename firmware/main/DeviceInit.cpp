@@ -35,7 +35,7 @@
 
 #include "triggercrossbar.h"
 #include <ctype.h>
-//#include "target/device/DeviceFPGAInterface.h"
+#include "DeviceFPGAInterface.h"
 //#include "target/device/QSPIEthernetInterface.h"
 
 void TrimSpaces(char* str);
@@ -288,7 +288,6 @@ void InitDACs()
 	g_log("DAC init complete\n");
 }
 
-/*
 void InitQSPI()
 {
 	g_log("Initializing QSPI interface\n");
@@ -341,7 +340,7 @@ void InitQSPI()
 	static DeviceFPGAInterface fpga;
 	g_fpga = &fpga;
 }
-*/
+
 void InitI2C()
 {
 	g_log("Initializing I2C interfaces\n");
@@ -410,7 +409,6 @@ void InitEEPROM()
 /**
 	@brief Initialize sensors and log starting values for each
  */
- /*
 void InitSensors()
 {
 	g_log("Initializing sensors\n");
@@ -427,7 +425,7 @@ void InitSensors()
 	}
 
 	//Bring up each temp sensor
-	for(uint8_t i=0; i<4; i++)
+	/*for(uint8_t i=0; i<4; i++)
 	{
 		auto addr = g_tempSensorAddrs[i];
 
@@ -446,7 +444,7 @@ void InitSensors()
 			g_tempSensorNames[i],
 			(temp >> 8),
 			static_cast<int>(((temp & 0xff) / 256.0) * 100));
-	}
+	}*/
 
 	//Read FPGA temperature
 	auto temp = GetFPGATemperature();
@@ -462,7 +460,6 @@ void InitSensors()
 
 	InitDTS();
 }
-*/
 
 /**
 	@brief Initialize the I2C EEPROM and GPIOs for the SFP+ interface
@@ -715,7 +712,6 @@ void InitEthernet()
 /**
 	@brief Initialize the digital temperature sensor
  */
- /*
 void InitDTS()
 {
 	//APB4 clock is 64 MHz, so divide by 80 to get 800 kHz ticks
@@ -728,4 +724,4 @@ void InitDTS()
 	g_log("MCU die temperature:                   %d.%02d C\n",
 		(tempval >> 8),
 		static_cast<int>(((tempval & 0xff) / 256.0) * 100));
-}*/
+}

@@ -81,7 +81,6 @@ void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize)
 /**
 	@brief Bring up the control interface to the FPGA
  */
- /*
 void InitFPGA()
 {
 	g_log("Initializing FPGA\n");
@@ -89,8 +88,10 @@ void InitFPGA()
 
 	//Wait 50ms to make sure the FPGA is booted
 	//TODO: more formal handshake of some sort?
-	//g_log("Waiting for boot\n");
-	//g_logTimer->Sleep(50);
+	g_log("Waiting for FPGA boot\n");
+	static GPIOPin fpgaDone(&GPIOF, 6, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
+	while(!fpgaDone)
+	{}
 
 	//Read the FPGA IDCODE and serial number
 	//Retry until we get a nonzero result indicating FPGA is up
@@ -108,6 +109,10 @@ void InitFPGA()
 		//Print status
 		switch(idcode & 0x0fffffff)
 		{
+			case 0x3647093:
+				g_log("IDCODE: %08x (XC7K70T rev %d)\n", idcode, idcode >> 28);
+				break;
+
 			case 0x364c093:
 				g_log("IDCODE: %08x (XC7K160T rev %d)\n", idcode, idcode >> 28);
 				break;
@@ -122,7 +127,6 @@ void InitFPGA()
 		break;
 	}
 }
-*/
 
 /**
 	@brief Set our IP address and initialize the IP stack

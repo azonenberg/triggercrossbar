@@ -96,17 +96,16 @@ void InitTimer();
 void InitUART();
 void InitLog(CharacterDevice* logdev, Timer* timer);
 
-/*
 void InitDTS();
 void InitQSPI();
 void InitFPGA();
-*/
+
 void InitI2C();
 void InitEEPROM();
 void InitDACs();
-/*
+
 void InitSensors();
-*/
+
 void InitSFP();
 void PollSFP();
 /*
@@ -114,13 +113,12 @@ void InitManagementPHY();
 void PollFPGA();
 void PollPHYs();
 
-uint16_t ReadThermalSensor(uint8_t addr);
+uint16_t ReadThermalSensor(uint8_t addr);*/
 uint16_t GetFanRPM(uint8_t channel);
 uint16_t GetFPGATemperature();
 uint16_t GetFPGAVCCINT();
 uint16_t GetFPGAVCCAUX();
 uint16_t GetFPGAVCCBRAM();
-*/
 uint16_t GetSFPTemperature();
 
 void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);

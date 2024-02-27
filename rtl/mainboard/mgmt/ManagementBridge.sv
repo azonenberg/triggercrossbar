@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+`default_nettype none
 /***********************************************************************************************************************
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
@@ -27,92 +29,121 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef fpgainterface_h
-#define fpgainterface_h
+/**
+	@file
+	@author	Andrew D. Zonenberg
+	@brief	Quad SPI interface
+ */
+module ManagementBridge(
 
-class FPGAInterface
-{
-public:
-	virtual ~FPGAInterface()
-	{}
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// System clocks
 
-	virtual void Nop()
-	{};
+	input wire			clk,
 
-	#ifdef SIMULATION
-	/**
-		@brief Advance simulation time until the crypto engine has finished
-	 */
-	virtual void CryptoEngineBlock()
-	{}
-	#endif
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Bus to MCU
 
-	virtual void BlockingRead(uint32_t insn, uint8_t* data, uint32_t len) = 0;
-	virtual void BlockingWrite(uint32_t insn, const uint8_t* data, uint32_t len) = 0;
+	input wire			qspi_sck,
+	input wire			qspi_cs_n,
+	inout wire[3:0]		qspi_dq,
 
-	uint32_t BlockingRead32(uint32_t insn)
-	{
-		uint32_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Bus to ManagementRegisterInterface
 
-	uint8_t BlockingRead8(uint32_t insn)
-	{
-		uint8_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+	output logic		rd_en,
+	output logic[15:0]	rd_addr	= 0,
 
-	uint16_t BlockingRead16(uint32_t insn)
-	{
-		uint16_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+	input wire			rd_valid,
+	input wire[7:0]		rd_data,
 
-	void BlockingWrite8(uint32_t insn, uint8_t data)
-	{ BlockingWrite(insn, &data, sizeof(data)); }
+	output wire			wr_en,
+	output logic[15:0]	wr_addr	= 0,
+	output wire[7:0]	wr_data
 
-	void BlockingWrite16(uint32_t insn, uint16_t data)
-	{ BlockingWrite(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
+	);
 
-	void BlockingWrite32(uint32_t insn, uint32_t data)
-	{ BlockingWrite(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// QSPI interface
 
-};
+	wire		start;
+	wire		insn_valid;
+	wire[15:0]	insn;
+	logic		rd_mode		= 0;
+	wire		rd_ready;
 
-//must match regid_t in ManagementRegisterInterface.sv
-enum regid_t
-{
-	REG_FPGA_IDCODE		= 0x0000,
-	REG_FPGA_SERIAL		= 0x0004,
-	REG_FAN0_RPM		= 0x0010,
-	REG_FAN1_RPM		= 0x0012,
-	REG_DIE_TEMP		= 0x0014,
-	REG_VOLT_CORE		= 0x0016,
-	REG_VOLT_RAM		= 0x0018,
-	REG_VOLT_AUX		= 0x001a,
+	wire		rd_en_raw;
 
-	REG_FPGA_IRQSTAT	= 0x0020,
-	REG_EMAC_RXLEN		= 0x0024,
-	REG_EMAC_COMMIT		= 0x0028,
+	QSPIDeviceInterface #(
+		.INSN_BYTES(2)
+	) qspi (
+		.clk(clk),
+		.sck(qspi_sck),
+		.cs_n(qspi_cs_n),
+		.dq(qspi_dq),
 
-	REG_MGMT0_MDIO		= 0x0048,
+		.start(start),
+		.insn_valid(insn_valid),
+		.insn(insn),
+		.wr_valid(wr_en),
+		.wr_data(wr_data),
 
-	REG_XG0_STAT		= 0x0060,
+		.rd_mode(rd_mode),
+		.rd_ready(rd_en_raw),
+		.rd_valid(rd_valid),
+		.rd_data(rd_data)
+	);
 
-	REG_EMAC_BUFFER		= 0x1000//,
+	always_comb begin
+		rd_en	= rd_en_raw && !insn[15];
+	end
 
-	//REG_CRYPT_BASE		= 0x3800,
-};
-/*
-enum cryptreg_t
-{
-	REG_WORK			= 0x0000,
-	REG_E				= 0x0020,
-	REG_CRYPT_STATUS	= 0x0040,
-	REG_WORK_OUT		= 0x0060
-};
-*/
-#endif
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Address counting
+
+	logic[15:0]	rd_addr_ff	= 0;
+	logic[15:0]	wr_addr_ff	= 0;
+	logic		first		= 0;
+
+	always_comb begin
+
+		//Default to passthrough
+		rd_addr			= rd_addr_ff;
+		wr_addr			= wr_addr_ff;
+
+		//Increment if reading/writing
+		if(rd_en)
+			rd_addr		= rd_addr_ff + 1;
+		if(wr_en && !first)
+			wr_addr		= wr_addr_ff + 1;
+
+		//Start a new transaction
+		if(insn_valid) begin
+			rd_addr		= {1'b0, insn[14:0]};
+			wr_addr		= {1'b0, insn[14:0]};
+		end
+
+	end
+
+	always_ff @(posedge clk) begin
+
+		wr_addr_ff		<= wr_addr;
+		rd_addr_ff		<= rd_addr;
+
+		//Process instruction
+		//MSB of opcode is read flag (0=read, 1=write)
+		if(insn_valid)
+			rd_mode		<= !insn[15];
+
+		//Reset anything we need on CS# falling edge
+		if(start) begin
+			rd_mode		<= 0;
+			first		<= 1;
+		end
+
+		if(wr_en)
+			first		<= 0;
+
+	end
+
+endmodule

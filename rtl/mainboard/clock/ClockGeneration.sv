@@ -41,8 +41,9 @@ module ClockGeneration(
 	input wire			clk_200mhz_n,
 
 	//PLL A: 1000 MHz VCO (x5)
+	output wire			clk_50mhz,			//for DNA
 	output wire			clk_125mhz,			//1x RGMII
-	output wire			clk_250mhz,			//2x RGMII
+	output wire			clk_250mhz,			//2x RGMII, plus main system clock
 	output wire			pll_rgmii_lock/*,
 
 	//PLL B: 1250 MHz VCO (x10), but in a different region than A so it can drive SGMII stuff specificially
@@ -83,17 +84,18 @@ module ClockGeneration(
 
 	wire	rgmii_fbclk;
 
+	wire	clk_50mhz_raw;
 	wire	clk_125mhz_raw;
 	wire	clk_250mhz_raw;
 
 	MMCME2_BASE #(
 		.BANDWIDTH("OPTIMIZED"),
 		.CLKOUT0_DIVIDE_F(10),
-		.CLKOUT1_DIVIDE(10),
+		.CLKOUT1_DIVIDE(20),		//1000 MHz / 20 = 50 MHz
 		.CLKOUT2_DIVIDE(10),
 		.CLKOUT3_DIVIDE(10),
 		.CLKOUT4_DIVIDE(4),			//1000 MHz / 4 = 250 MHz
-		.CLKOUT5_DIVIDE(8),			//1000 MHz / 10 = 125 MHz
+		.CLKOUT5_DIVIDE(8),			//1000 MHz / 8 = 125 MHz
 		.CLKOUT6_DIVIDE(4),
 
 		.CLKOUT0_PHASE(0),
@@ -127,7 +129,7 @@ module ClockGeneration(
 		.PWRDWN(1'b0),
 		.CLKOUT0(),
 		.CLKOUT0B(),
-		.CLKOUT1(),
+		.CLKOUT1(clk_50mhz_raw),
 		.CLKOUT1B(),
 		.CLKOUT2(),
 		.CLKOUT2B(),
@@ -141,12 +143,17 @@ module ClockGeneration(
 		.LOCKED(pll_rgmii_lock)
 	);
 
+	BUFGCE buf_50mhz(
+		.I(clk_50mhz_raw),
+		.O(clk_50mhz),
+		.CE(pll_rgmii_lock));
+
 	BUFGCE buf_125mhz(
 		.I(clk_125mhz_raw),
 		.O(clk_125mhz),
 		.CE(pll_rgmii_lock));
 
-	BUFHCE buf_250mhz(
+	BUFGCE bufg_250mhz(
 		.I(clk_250mhz_raw),
 		.O(clk_250mhz),
 		.CE(pll_rgmii_lock));

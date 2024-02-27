@@ -61,11 +61,11 @@ int main()
 	static STM32StorageBank left(reinterpret_cast<uint8_t*>(0x080c0000), 0x20000);
 	static STM32StorageBank right(reinterpret_cast<uint8_t*>(0x080e0000), 0x20000);
 	InitKVS(&left, &right, 1024);
-	/*
+
 	//Set up the quad SPI and connect to the FPGA
 	InitQSPI();
 	InitFPGA();
-	*/
+
 	//Get our MAC address
 	InitI2C();
 	InitEEPROM();
@@ -73,12 +73,11 @@ int main()
 	//Set up the DACs
 	InitDACs();
 
-	/*
 	//Bring up sensors
 	InitSensors();
 
 	//Begin initializing fabric ports
-	InitInterfaces();*/
+	//InitInterfaces();
 	InitSFP();
 	/*
 	//Initialize our local Ethernet interface and TCP/IP stack

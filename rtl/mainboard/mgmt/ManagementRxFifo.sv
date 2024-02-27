@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+`default_nettype none
 /***********************************************************************************************************************
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
@@ -27,92 +29,137 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef fpgainterface_h
-#define fpgainterface_h
+`include "EthernetBus.svh"
 
-class FPGAInterface
-{
-public:
-	virtual ~FPGAInterface()
-	{}
+/**
+	@file
+	@author Andrew D. Zonenberg
+	@brief FIFO for shifting Ethernet frames from the management PHY clock domain to the QSPI clock domain
+ */
+module ManagementRxFifo(
+	input wire					sys_clk,
 
-	virtual void Nop()
-	{};
+	input wire					mgmt0_rx_clk,
 
-	#ifdef SIMULATION
-	/**
-		@brief Advance simulation time until the crypto engine has finished
-	 */
-	virtual void CryptoEngineBlock()
-	{}
-	#endif
+	input wire EthernetRxBus	mgmt0_rx_bus,
+	input wire					mgmt0_link_up,
 
-	virtual void BlockingRead(uint32_t insn, uint8_t* data, uint32_t len) = 0;
-	virtual void BlockingWrite(uint32_t insn, const uint8_t* data, uint32_t len) = 0;
+	input wire					rxfifo_rd_en,
+	input wire					rxfifo_rd_pop_single,
+	output wire[31:0]			rxfifo_rd_data,
+	input wire					rxheader_rd_en,
+	output wire					rxheader_rd_empty,
+	output wire[10:0]			rxheader_rd_data
+);
 
-	uint32_t BlockingRead32(uint32_t insn)
-	{
-		uint32_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Main FIFO and push logic
 
-	uint8_t BlockingRead8(uint32_t insn)
-	{
-		uint8_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+	logic		rxfifo_wr_en		= 0;
+	logic[31:0]	rxfifo_wr_data		= 0;
 
-	uint16_t BlockingRead16(uint32_t insn)
-	{
-		uint16_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+	wire		wr_reset;
+	assign		wr_reset = !mgmt0_link_up;
 
-	void BlockingWrite8(uint32_t insn, uint8_t data)
-	{ BlockingWrite(insn, &data, sizeof(data)); }
+	wire		rd_reset;
 
-	void BlockingWrite16(uint32_t insn, uint16_t data)
-	{ BlockingWrite(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
+	ThreeStageSynchronizer sync_fifo_rst(
+		.clk_in(mgmt0_rx_clk),
+		.din(wr_reset),
+		.clk_out(sys_clk),
+		.dout(rd_reset)
+	);
 
-	void BlockingWrite32(uint32_t insn, uint32_t data)
-	{ BlockingWrite(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
+	wire[10:0]	rxfifo_wr_size;
+	logic		rxfifo_wr_drop;
 
-};
+	CrossClockPacketFifo #(
+		.WIDTH(32),
+		.DEPTH(1024)	//at least 2 packets worth
+	) rx_cdc_fifo (
+		.wr_clk(mgmt0_rx_clk),
+		.wr_en(rxfifo_wr_en),
+		.wr_data(rxfifo_wr_data),
+		.wr_reset(wr_reset),
+		.wr_size(rxfifo_wr_size),
+		.wr_commit(mgmt0_rx_bus.commit),
+		.wr_rollback(rxfifo_wr_drop),
 
-//must match regid_t in ManagementRegisterInterface.sv
-enum regid_t
-{
-	REG_FPGA_IDCODE		= 0x0000,
-	REG_FPGA_SERIAL		= 0x0004,
-	REG_FAN0_RPM		= 0x0010,
-	REG_FAN1_RPM		= 0x0012,
-	REG_DIE_TEMP		= 0x0014,
-	REG_VOLT_CORE		= 0x0016,
-	REG_VOLT_RAM		= 0x0018,
-	REG_VOLT_AUX		= 0x001a,
+		.rd_clk(sys_clk),
+		.rd_en(rxfifo_rd_en),
+		.rd_offset(10'h0),
+		.rd_pop_single(rxfifo_rd_pop_single),
+		.rd_pop_packet(1'b0),
+		.rd_packet_size(10'h0),
+		.rd_data(rxfifo_rd_data),
+		.rd_size(),
+		.rd_reset(rd_reset)
+	);
 
-	REG_FPGA_IRQSTAT	= 0x0020,
-	REG_EMAC_RXLEN		= 0x0024,
-	REG_EMAC_COMMIT		= 0x0028,
+	//PUSH SIDE
+	logic dropping = 0;
+	logic[10:0] framelen = 0;
 
-	REG_MGMT0_MDIO		= 0x0048,
+	wire		header_wfull;
 
-	REG_XG0_STAT		= 0x0060,
+	CrossClockFifo #(
+		.WIDTH(11),
+		.DEPTH(32),
+		.USE_BLOCK(0),
+		.OUT_REG(0)
+	) rx_framelen_fifo (
+		.wr_clk(mgmt0_rx_clk),
+		.wr_en(mgmt0_rx_bus.commit && !dropping),
+		.wr_data(framelen),
+		.wr_size(),
+		.wr_full(header_wfull),
+		.wr_overflow(),
+		.wr_reset(wr_reset),
 
-	REG_EMAC_BUFFER		= 0x1000//,
+		.rd_clk(sys_clk),
+		.rd_en(rxheader_rd_en),
+		.rd_data(rxheader_rd_data),
+		.rd_size(),
+		.rd_empty(rxheader_rd_empty),
+		.rd_underflow(),
+		.rd_reset(rd_reset)
+	);
 
-	//REG_CRYPT_BASE		= 0x3800,
-};
-/*
-enum cryptreg_t
-{
-	REG_WORK			= 0x0000,
-	REG_E				= 0x0020,
-	REG_CRYPT_STATUS	= 0x0040,
-	REG_WORK_OUT		= 0x0060
-};
-*/
-#endif
+	always_ff @(posedge mgmt0_rx_clk) begin
+
+		rxfifo_wr_drop		<= 0;
+
+		if(mgmt0_rx_bus.drop) begin
+			rxfifo_wr_drop	<= 1;
+			dropping		<= 1;
+		end
+
+		//Frame delimiter
+		if(mgmt0_rx_bus.start) begin
+
+			//Not enough space for a full sized frame? Give up
+			if( (rxfifo_wr_size < 375) || header_wfull )
+				dropping	<= 1;
+
+			//Nope, start a new frame
+			else
+				framelen	<= 0;
+
+		end
+
+		//If we hit max length frame or run out of space, drop the frame
+		else if( (rxfifo_wr_size < 2) || (framelen > 1500) ) begin
+			rxfifo_wr_drop	<= 1;
+			dropping		<= 1;
+		end
+
+		//Nope, push data as needed
+		else if(!dropping) begin
+			rxfifo_wr_en	<= mgmt0_rx_bus.data_valid;
+			rxfifo_wr_data	<= mgmt0_rx_bus.data;
+			framelen		<= framelen + mgmt0_rx_bus.bytes_valid;
+		end
+
+	end
+
+endmodule

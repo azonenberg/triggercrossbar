@@ -33,9 +33,28 @@ module top(
 	input wire			clk_200mhz_p,
 	input wire			clk_200mhz_n,
 
+	//Tachometers from cooling fans
+	input wire[1:0]		fan_tach,
+
+	//Quad SPI interface to MCU
+	input wire			qspi_sck,
+	input wire			qspi_cs_n,
+	inout wire[3:0]		qspi_dq,
+	output wire			irq,
+
 	//RGMII interface
 	output wire			rgmii_rst_n,
+
+	inout wire			rgmii_mdio,
+	output wire			rgmii_mdc,
+
 	input wire			rgmii_rxc,
+	input wire			rgmii_rx_dv,
+	input wire[3:0]		rgmii_rxd,
+
+	output wire			rgmii_tx_clk,
+	output wire			rgmii_tx_en,
+	output wire[3:0]	rgmii_txd,
 
 	//SFP+ interface
 	input wire			sfp_rx_p,
@@ -80,6 +99,7 @@ module top(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Clock synthesis
 
+	wire	clk_50mhz;
 	wire	clk_125mhz;
 	wire	clk_250mhz;
 
@@ -96,6 +116,8 @@ module top(
 	ClockGeneration clk_main(
 		.clk_200mhz_p(clk_200mhz_p),
 		.clk_200mhz_n(clk_200mhz_n),
+
+		.clk_50mhz(clk_50mhz),
 		.clk_125mhz(clk_125mhz),
 		.clk_250mhz(clk_250mhz),
 		.pll_rgmii_lock(pll_rgmii_lock)
@@ -236,6 +258,22 @@ module top(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Network interfaces
 
+	`include "GmiiBus.svh"
+	`include "EthernetBus.svh"
+
+	wire					mgmt0_rx_clk_buf;
+	EthernetRxBus			mgmt0_rx_bus;
+	EthernetTxBus			mgmt0_tx_bus;
+	wire					mgmt0_tx_ready;
+	wire					mgmt0_link_up;
+	lspeed_t				mgmt0_link_speed;
+
+	wire					xg0_mac_rx_clk;
+	wire					xg0_mac_tx_clk;
+	EthernetRxBus			xg0_mac_rx_bus;
+	EthernetTxBus			xg0_mac_tx_bus;
+	wire					xg0_link_up;
+
 	NetworkInterfaces network(
 		.clk_125mhz(clk_125mhz),
 		.clk_250mhz(clk_250mhz),
@@ -255,7 +293,61 @@ module top(
 		.sfp_rx_los(sfp_rx_los),
 		.sfp_led(sfp_led),
 
-		.rgmii_rst_n(rgmii_rst_n)
+		.rgmii_rst_n(rgmii_rst_n),
+
+		.rgmii_rx_clk(rgmii_rxc),
+		.rgmii_rx_dv(rgmii_rx_dv),
+		.rgmii_rxd(rgmii_rxd),
+
+		.rgmii_tx_clk(rgmii_tx_clk),
+		.rgmii_tx_en(rgmii_tx_en),
+		.rgmii_txd(rgmii_txd),
+
+		.xg0_mac_rx_clk(xg0_mac_rx_clk),
+		.xg0_mac_rx_bus(xg0_mac_rx_bus),
+		.xg0_mac_tx_clk(xg0_mac_tx_clk),
+		.xg0_mac_tx_bus(xg0_mac_tx_bus),
+		.xg0_link_up(xg0_link_up),
+
+		.mgmt0_rx_clk_buf(mgmt0_rx_clk_buf),
+		.mgmt0_rx_bus(mgmt0_rx_bus),
+		.mgmt0_tx_bus(mgmt0_tx_bus),
+		.mgmt0_tx_ready(mgmt0_tx_ready),
+		.mgmt0_link_up(mgmt0_link_up),
+		.mgmt0_link_speed(mgmt0_link_speed)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// TODO: arbitration/muxing for SFP vs RGMII PHY to allow management from either
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Management register interface
+
+	ManagementSubsystem mgmt(
+		.sys_clk(clk_250mhz),
+		.clk_sysinfo(clk_50mhz),
+
+		.qspi_sck(qspi_sck),
+		.qspi_cs_n(qspi_cs_n),
+		.qspi_dq(qspi_dq),
+		.irq(irq),
+
+		.mgmt0_rx_clk(mgmt0_rx_clk_buf),
+		.mgmt0_tx_clk(clk_125mhz),
+
+		.mgmt0_rx_bus(mgmt0_rx_bus),
+		.mgmt0_tx_bus(mgmt0_tx_bus),
+		.mgmt0_tx_ready(mgmt0_tx_ready),
+		.mgmt0_link_up(mgmt0_link_up),
+		.mgmt0_link_speed(mgmt0_link_speed),
+
+		.mgmt0_mdio(rgmii_mdio),
+		.mgmt0_mdc(rgmii_mdc),
+
+		.xg0_rx_clk(xg0_mac_rx_clk),
+		.xg0_link_up(xg0_link_up),
+
+		.fan_tach(fan_tach)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -272,8 +364,8 @@ module top(
 	// Debug LEDs etc
 
 	always_comb begin
-		led[0]		= pll_rgmii_lock;
-		led[1]		= qpll_lock;
+		led[0]		= xg0_link_up;
+		led[1]		= mgmt0_link_up;
 		led[3:2]	= 2'b11;
 	end
 

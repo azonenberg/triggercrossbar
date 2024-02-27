@@ -50,7 +50,6 @@ uint16_t ReadThermalSensor(uint8_t addr)
  */
 uint16_t GetFanRPM(uint8_t channel)
 {
-	/*
 	switch(channel)
 	{
 		case 0:
@@ -62,7 +61,6 @@ uint16_t GetFanRPM(uint8_t channel)
 		default:
 			return 0;
 	}
-	*/
 }
 
 /**
@@ -70,7 +68,7 @@ uint16_t GetFanRPM(uint8_t channel)
  */
 uint16_t GetFPGATemperature()
 {
-	//return g_fpga->BlockingRead16(REG_DIE_TEMP);
+	return g_fpga->BlockingRead16(REG_DIE_TEMP);
 }
 
 /**
@@ -78,7 +76,7 @@ uint16_t GetFPGATemperature()
  */
 uint16_t GetFPGAVCCINT()
 {
-	//return g_fpga->BlockingRead16(REG_VOLT_CORE);
+	return g_fpga->BlockingRead16(REG_VOLT_CORE);
 }
 
 /**
@@ -86,7 +84,7 @@ uint16_t GetFPGAVCCINT()
  */
 uint16_t GetFPGAVCCBRAM()
 {
-	//return g_fpga->BlockingRead16(REG_VOLT_RAM);
+	return g_fpga->BlockingRead16(REG_VOLT_RAM);
 }
 
 /**
@@ -94,7 +92,7 @@ uint16_t GetFPGAVCCBRAM()
  */
 uint16_t GetFPGAVCCAUX()
 {
-	//return g_fpga->BlockingRead16(REG_VOLT_AUX);
+	return g_fpga->BlockingRead16(REG_VOLT_AUX);
 }
 
 /**

@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+`default_nettype none
 /***********************************************************************************************************************
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
@@ -27,92 +29,165 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef fpgainterface_h
-#define fpgainterface_h
+`include "EthernetBus.svh"
 
-class FPGAInterface
-{
-public:
-	virtual ~FPGAInterface()
-	{}
+/**
+	@file
+	@author Andrew D. Zonenberg
+	@brief FIFO for shifting Ethernet frames from the QSPI clock domain to the management PHY clock domain
+ */
+module ManagementTxFifo(
+	input wire				sys_clk,
 
-	virtual void Nop()
-	{};
+	input wire				wr_en,
+	input wire[7:0]			wr_data,
+	input wire				wr_commit,
 
-	#ifdef SIMULATION
-	/**
-		@brief Advance simulation time until the crypto engine has finished
-	 */
-	virtual void CryptoEngineBlock()
-	{}
-	#endif
+	input wire				tx_clk,
+	input wire				link_up,
+	input wire				tx_ready,
+	output EthernetTxBus	tx_bus
+);
 
-	virtual void BlockingRead(uint32_t insn, uint8_t* data, uint32_t len) = 0;
-	virtual void BlockingWrite(uint32_t insn, const uint8_t* data, uint32_t len) = 0;
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// The actual FIFOs
 
-	uint32_t BlockingRead32(uint32_t insn)
+	//For now, no checks for overflow
+	//Assume we're popping (at gigabit speed) faster than we can possibly push from the slow micro
+
+	wire		rd_reset;
+	assign		rd_reset = !link_up;
+
+	wire		wr_reset;
+
+	logic		txfifo_rd_en			= 0;
+	wire[7:0]	txfifo_rd_data;
+
+	//Tie off unused high bits
+	assign tx_bus.data[31:8] = 0;
+	assign tx_bus.bytes_valid = 1;
+
+	ThreeStageSynchronizer sync_fifo_rst(
+		.clk_in(sys_clk),
+		.din(rd_reset),
+		.clk_out(tx_clk),
+		.dout(wr_reset)
+	);
+	CrossClockFifo #(
+		.WIDTH(8),
+		.DEPTH(4096),
+		.USE_BLOCK(1),
+		.OUT_REG(1)
+	) tx_cdc_fifo (
+		.wr_clk(sys_clk),
+		.wr_en(wr_en),
+		.wr_data(wr_data),
+		.wr_size(),
+		.wr_full(),
+		.wr_overflow(),
+		.wr_reset(wr_reset),
+
+		.rd_clk(tx_clk),
+		.rd_en(txfifo_rd_en),
+		.rd_data(tx_bus.data[7:0]),
+		.rd_size(),
+		.rd_empty(),
+		.rd_underflow(),
+		.rd_reset(rd_reset)
+	);
+
+	logic		txheader_rd_en				= 0;
+	wire[10:0]	txheader_rd_data;
+	wire		txheader_rd_empty;
+	logic[10:0]	tx_wr_packetlen;
+
+	CrossClockFifo #(
+		.WIDTH(11),
+		.DEPTH(32),
+		.USE_BLOCK(0),
+		.OUT_REG(1)
+	) tx_framelen_fifo (
+		.wr_clk(sys_clk),
+		.wr_en(wr_commit),
+		.wr_data(tx_wr_packetlen),
+		.wr_size(),
+		.wr_full(),
+		.wr_overflow(),
+		.wr_reset(wr_reset),
+
+		.rd_clk(tx_clk),
+		.rd_en(txheader_rd_en),
+		.rd_data(txheader_rd_data),
+		.rd_size(),
+		.rd_empty(txheader_rd_empty),
+		.rd_underflow(),
+		.rd_reset(rd_reset)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Push logic
+
+	always_ff @(posedge sys_clk) begin
+
+		//Reset length when pushing packet
+		if(wr_commit)
+			tx_wr_packetlen	<= 0;
+
+		//Push a byte
+		if(wr_en)
+			tx_wr_packetlen	<= tx_wr_packetlen + 1;
+	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Pop logic
+
+	enum logic[1:0]
 	{
-		uint32_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+		TX_STATE_IDLE 		= 0,
+		TX_STATE_POP		= 1,
+		TX_STATE_SENDING	= 2
+	} tx_state = TX_STATE_IDLE;
 
-	uint8_t BlockingRead8(uint32_t insn)
-	{
-		uint8_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+	logic[10:0] tx_count = 0;
+	always_ff @(posedge tx_clk) begin
 
-	uint16_t BlockingRead16(uint32_t insn)
-	{
-		uint16_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+		tx_bus.start		<= 0;
+		tx_bus.data_valid	<= txfifo_rd_en;
+		txheader_rd_en		<= 0;
+		txfifo_rd_en		<= 0;
 
-	void BlockingWrite8(uint32_t insn, uint8_t data)
-	{ BlockingWrite(insn, &data, sizeof(data)); }
+		case(tx_state)
 
-	void BlockingWrite16(uint32_t insn, uint16_t data)
-	{ BlockingWrite(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
+			TX_STATE_IDLE: begin
 
-	void BlockingWrite32(uint32_t insn, uint32_t data)
-	{ BlockingWrite(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
+				if(!txheader_rd_empty && tx_ready && !txheader_rd_en) begin
+					txheader_rd_en	<= 1;
+					tx_state		<= TX_STATE_POP;
+				end
 
-};
+			end
 
-//must match regid_t in ManagementRegisterInterface.sv
-enum regid_t
-{
-	REG_FPGA_IDCODE		= 0x0000,
-	REG_FPGA_SERIAL		= 0x0004,
-	REG_FAN0_RPM		= 0x0010,
-	REG_FAN1_RPM		= 0x0012,
-	REG_DIE_TEMP		= 0x0014,
-	REG_VOLT_CORE		= 0x0016,
-	REG_VOLT_RAM		= 0x0018,
-	REG_VOLT_AUX		= 0x001a,
+			TX_STATE_POP: begin
+				tx_bus.start	<= 1;
+				tx_count		<= 1;
+				txfifo_rd_en	<= 1;
+				tx_state		<= TX_STATE_SENDING;
+			end
 
-	REG_FPGA_IRQSTAT	= 0x0020,
-	REG_EMAC_RXLEN		= 0x0024,
-	REG_EMAC_COMMIT		= 0x0028,
+			TX_STATE_SENDING: begin
 
-	REG_MGMT0_MDIO		= 0x0048,
+				if(tx_count >= txheader_rd_data) begin
+					tx_state		<= TX_STATE_IDLE;
+				end
+				else begin
+					txfifo_rd_en	<= 1;
+					tx_count		<= tx_count + 1;
+				end
 
-	REG_XG0_STAT		= 0x0060,
+			end
 
-	REG_EMAC_BUFFER		= 0x1000//,
+		endcase
 
-	//REG_CRYPT_BASE		= 0x3800,
-};
-/*
-enum cryptreg_t
-{
-	REG_WORK			= 0x0000,
-	REG_E				= 0x0020,
-	REG_CRYPT_STATUS	= 0x0040,
-	REG_WORK_OUT		= 0x0060
-};
-*/
-#endif
+	end
+
+endmodule

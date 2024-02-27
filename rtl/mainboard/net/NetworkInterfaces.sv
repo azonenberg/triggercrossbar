@@ -31,7 +31,6 @@
 
 `include "GmiiBus.svh"
 `include "EthernetBus.svh"
-`include "SGMIIToGMIIBridge.svh"
 
 /**
 	@file
@@ -45,14 +44,7 @@ module NetworkInterfaces(
 
 	input wire					clk_125mhz,
 	input wire					clk_250mhz,
-	/*
-	input wire					clk_312p5mhz,
-	input wire					clk_400mhz,
-	input wire					clk_625mhz_0,
-	input wire					clk_625mhz_90,
 
-	input wire					clk_ram_ctl,
-	*/
 	input wire					pll_rgmii_lock,
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -80,18 +72,18 @@ module NetworkInterfaces(
 
 	output logic[1:0]			sfp_led,
 
-	/*
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// RGMII PHY
 
-	input wire					mgmt0_rx_clk,
-	input wire					mgmt0_rx_dv,
-	input wire[3:0]				mgmt0_rxd,
+	input wire					rgmii_rx_clk,
+	input wire					rgmii_rx_dv,
+	input wire[3:0]				rgmii_rxd,
 
-	output wire					mgmt0_tx_clk,
-	output wire					mgmt0_tx_en,
-	output wire[3:0]			mgmt0_txd,
-	*/
+	output wire					rgmii_tx_clk,
+	output wire					rgmii_tx_en,
+	output wire[3:0]			rgmii_txd,
+
 	output logic				rgmii_rst_n = 0,
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,14 +95,14 @@ module NetworkInterfaces(
 	output wire							xg0_mac_tx_clk,
 	input wire EthernetTxBus			xg0_mac_tx_bus,
 
-	output wire							xg0_link_up/*,
+	output wire							xg0_link_up,
 
 	output wire							mgmt0_rx_clk_buf,
 	output EthernetRxBus				mgmt0_rx_bus,
 	input EthernetTxBus					mgmt0_tx_bus,
 	output wire							mgmt0_tx_ready,
 	output wire							mgmt0_link_up,
-	output lspeed_t						mgmt0_link_speed,
+	output lspeed_t						mgmt0_link_speed/*,
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Performance counter access
@@ -288,26 +280,12 @@ module NetworkInterfaces(
 		.remote_fault(xg0_remote_fault)
 	);
 
-	//Debug ILA
-	ila_0 ila(
-		.clk(xg0_rx_clk),
-		.probe0(xg0_rx_data_valid),
-		.probe1(xg0_rx_header_valid),
-		.probe2(xg0_rx_header),
-		.probe3(xg0_rx_data),
-		.probe4(xg0_rx_bitslip),
-		.probe5(sfp_rx_los),
-		.probe6(xg0_link_up)
-	);
-
 	//Debug: LEDs for link status
 	//TODO: activity indicator
 	always_comb begin
 		sfp_led[0]	= xg0_link_up;
 		sfp_led[1]	= xg0_remote_fault;
 	end
-
-	/*
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// RGMII PHY for mgmt0
@@ -316,13 +294,13 @@ module NetworkInterfaces(
 		.clk_125mhz(clk_125mhz),
 		.clk_250mhz(clk_250mhz),
 
-		.rgmii_rxc(mgmt0_rx_clk),
-		.rgmii_rxd(mgmt0_rxd),
-		.rgmii_rx_ctl(mgmt0_rx_dv),
+		.rgmii_rxc(rgmii_rx_clk),
+		.rgmii_rxd(rgmii_rxd),
+		.rgmii_rx_ctl(rgmii_rx_dv),
 
-		.rgmii_txc(mgmt0_tx_clk),
-		.rgmii_txd(mgmt0_txd),
-		.rgmii_tx_ctl(mgmt0_tx_en),
+		.rgmii_txc(rgmii_tx_clk),
+		.rgmii_txd(rgmii_txd),
+		.rgmii_tx_ctl(rgmii_tx_en),
 
 		.mac_rx_clk(mgmt0_rx_clk_buf),
 		.mac_rx_bus(mgmt0_rx_bus),
@@ -334,8 +312,7 @@ module NetworkInterfaces(
 		.link_speed(mgmt0_link_speed)
 		);
 
-	wire[11:0]	qsgmii_link_up_sync;
-
+	/*
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Performance counters
 
