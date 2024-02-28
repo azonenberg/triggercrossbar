@@ -348,14 +348,7 @@ module ManagementSubsystem(
 		.clk(mgmt0_rx_clk),
 		.probe0(mgmt0_rx_bus),
 		.probe1(mgmt0_link_up),
-		.probe2(rx_fifo.rxfifo_wr_size),
-		.probe3(rx_fifo.rxfifo_wr_en),
-		.probe4(rx_fifo.rxfifo_wr_drop),
-		.probe5(rx_fifo.rxfifo_wr_data),
-
-		.probe6(rx_fifo.dropping),
-		.probe7(rx_fifo.wr_reset),
-		.probe8(rx_fifo.header_wfull)
+		.probe2(rx_fifo.dropping)
 		);
 
 endmodule

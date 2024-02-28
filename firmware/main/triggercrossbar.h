@@ -53,6 +53,7 @@
 
 #include <staticnet-config.h>
 #include <staticnet/stack/staticnet.h>
+#include <staticnet/ssh/SSHTransportServer.h>
 
 //#include "net/ManagementTCPProtocol.h"
 #include "FPGAInterface.h"
@@ -147,6 +148,9 @@ enum mdioreg_t
 
 	//KSZ9031 specific
 	REG_KSZ9031_MDIX			= 0x001c,
+
+	//KSZ9031 MMD 2
+	REG_KSZ9031_MMD2_CLKSKEW	= 0x0008
 };
 
 #endif

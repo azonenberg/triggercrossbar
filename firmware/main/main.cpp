@@ -28,6 +28,7 @@
 ***********************************************************************************************************************/
 
 #include "triggercrossbar.h"
+#include "CrossbarCLISessionContext.h"
 #include <microkvs/driver/STM32StorageBank.h>
 
 void LogTemperatures();
@@ -87,16 +88,16 @@ int main()
 	//Create a CLI stream for the UART
 	UARTOutputStream uartStream;
 	uartStream.Initialize(g_cliUART);
-	/*
+
 	//Initialize the CLI for the UART
-	SwitchCLISessionContext uartContext;
+	CrossbarCLISessionContext uartContext;
 	uartContext.Initialize(&uartStream, "user");
-	*/
+
 	//Enable interrupts only after all setup work is done
 	EnableInterrupts();
 
 	//Show the initial prompt
-	//uartContext.PrintPrompt();
+	uartContext.PrintPrompt();
 
 	//Main event loop
 	/*int nextRxFrame = 0;
@@ -124,11 +125,11 @@ int main()
 		//Check if we had an optic inserted or removed
 		PollSFP();
 
-		/*
+
 		//Poll for UART input
 		if(g_cliUART->HasInput())
 			uartContext.OnKeystroke(g_cliUART->BlockingRead());
-		*/
+
 		//Check for aging on stuff once a second
 		if(g_logTimer->GetCount() > nextAgingTick)
 		{

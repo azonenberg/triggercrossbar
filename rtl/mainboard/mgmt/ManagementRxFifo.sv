@@ -70,12 +70,12 @@ module ManagementRxFifo(
 		.dout(rd_reset)
 	);
 
-	wire[10:0]	rxfifo_wr_size;
+	wire[12:0]	rxfifo_wr_size;
 	logic		rxfifo_wr_drop;
 
 	CrossClockPacketFifo #(
 		.WIDTH(32),
-		.DEPTH(1024)	//at least 2 packets worth
+		.DEPTH(4096)	//at least 8 packets worth
 	) rx_cdc_fifo (
 		.wr_clk(mgmt0_rx_clk),
 		.wr_en(rxfifo_wr_en),

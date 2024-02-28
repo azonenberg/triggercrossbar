@@ -467,24 +467,4 @@ module ManagementRegisterInterface(
 
 	end
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Debug ILA
-
-	ila_1 ila1(
-		.clk(clk),
-		.probe0(rxfifo_rd_en),
-		.probe1(irq),
-		.probe2(rxfifo_rd_pop_single),
-		.probe3(rxfifo_rd_data),
-		.probe4(rxheader_rd_en),
-		.probe5(rxheader_rd_empty),
-		.probe6(rxheader_rd_data),
-
-		.probe7(rd_en),
-		.probe8(reading),
-		.probe9(rd_addr),
-		.probe10(txfifo_wr_en),
-		.probe11(rd_data)
-		);
-
 endmodule

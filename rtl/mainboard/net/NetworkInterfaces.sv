@@ -290,7 +290,10 @@ module NetworkInterfaces(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// RGMII PHY for mgmt0
 
-	RGMIIMACWrapper port_mgmt0(
+	RGMIIMACWrapper #(
+		.CLK_BUF_TYPE("LOCAL"),
+		.PHY_INTERNAL_DELAY_RX(1)
+	) port_mgmt0 (
 		.clk_125mhz(clk_125mhz),
 		.clk_250mhz(clk_250mhz),
 
@@ -432,16 +435,6 @@ module NetworkInterfaces(
 			end
 		end
 	end
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Debug stuff
-
-	vio_0 vio_qsgmii(
-		.clk(clk_125mhz),
-		.probe_out0(qsgmii_tx_swing),			//default 2
-		.probe_out1(qsgmii_tx_pre_cursor),		//default 0
-		.probe_out2(qsgmii_tx_post_cursor)		//default 0
-	);
 	*/
 
 endmodule

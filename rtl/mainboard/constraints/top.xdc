@@ -1,3 +1,6 @@
+########################################################################################################################
+# Pin assignments
+
 set_property PACKAGE_PIN Y8 [get_ports clk_200mhz_p]
 set_property IOSTANDARD LVCMOS18 [get_ports {trig_out[3]}]
 set_property IOSTANDARD LVCMOS18 [get_ports {trig_out[2]}]
@@ -15,8 +18,6 @@ set_property PACKAGE_PIN A16 [get_ports {led[3]}]
 set_property PACKAGE_PIN A15 [get_ports {led[2]}]
 set_property PACKAGE_PIN B15 [get_ports {led[1]}]
 set_property PACKAGE_PIN A14 [get_ports {led[0]}]
-
-create_clock -period 5.000 -name clk_200mhz_p -waveform {0.000 2.500} [get_ports clk_200mhz_p]
 
 set_property DRIVE 8 [get_ports {trig_out[3]}]
 set_property DRIVE 8 [get_ports {trig_out[2]}]
@@ -43,7 +44,6 @@ set_property SLEW FAST [get_ports {trig_out[4]}]
 set_property PACKAGE_PIN AB17 [get_ports {trig_out[6]}]
 set_property PACKAGE_PIN AB18 [get_ports {trig_out[5]}]
 set_property PACKAGE_PIN T15 [get_ports {trig_out[4]}]
-
 
 set_property IOSTANDARD LVCMOS33 [get_ports {relay_a[3]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {relay_a[2]}]
@@ -76,13 +76,10 @@ set_property PACKAGE_PIN F10 [get_ports rgmii_rst_n]
 
 set_property PACKAGE_PIN G11 [get_ports rgmii_rxc]
 set_property IOSTANDARD LVCMOS33 [get_ports rgmii_rxc]
-create_clock -period 8.000 -name rgmii_rxc -waveform {0.000 4.000} [get_ports rgmii_rxc]
 
 set_property PACKAGE_PIN E4 [get_ports cdrtrig_n]
 set_property PACKAGE_PIN D6 [get_ports gtx_refclk_156m25_p]
 set_property PACKAGE_PIN F6 [get_ports gtx_refclk_200m_p]
-create_clock -period 6.400 -name gtx_refclk_156m25_p -waveform {0.000 3.200} [get_ports gtx_refclk_156m25_p]
-create_clock -period 5.000 -name gtx_refclk_200m_p [get_ports gtx_refclk_200m_p]
 
 set_property IOSTANDARD LVDS [get_ports clk_200mhz_p]
 
@@ -157,11 +154,42 @@ set_property PACKAGE_PIN A9 [get_ports {rgmii_txd[3]}]
 set_property PACKAGE_PIN C9 [get_ports {rgmii_txd[2]}]
 set_property PACKAGE_PIN A8 [get_ports {rgmii_txd[1]}]
 set_property PACKAGE_PIN B8 [get_ports {rgmii_txd[0]}]
+
+########################################################################################################################
+# Clock inputs
+
+create_clock -period 5.000 -name clk_200mhz_p -waveform {0.000 2.500} [get_ports clk_200mhz_p]
+
+create_clock -period 6.400 -name gtx_refclk_156m25_p -waveform {0.000 3.200} [get_ports gtx_refclk_156m25_p]
+create_clock -period 5.000 -name gtx_refclk_200m_p [get_ports gtx_refclk_200m_p]
+create_clock -period 8.000 -name rgmii_rxc -waveform {0.000 4.000} [get_ports rgmii_rxc]
+
+########################################################################################################################
+# IO timing
+
+# Naive constraints of 1.2 / 2.8 assume the data and clock are nominally aligned to center with 1.2ns setup/hold time
+# This does not appear to actually be the case!
+# Actual scope measurements show clock ~912ps after data edge, not 2ns as the datasheet suggests
+set_input_delay -clock [get_clocks rgmii_rxc] -clock_fall -min -add_delay 2.300 [get_ports {rgmii_rxd[*]}]
+set_input_delay -clock [get_clocks rgmii_rxc] -clock_fall -max -add_delay 2.750 [get_ports {rgmii_rxd[*]}]
+set_input_delay -clock [get_clocks rgmii_rxc] -min -add_delay 2.300 [get_ports {rgmii_rxd[*]}]
+set_input_delay -clock [get_clocks rgmii_rxc] -max -add_delay 2.750 [get_ports {rgmii_rxd[*]}]
+set_input_delay -clock [get_clocks rgmii_rxc] -clock_fall -min -add_delay 2.300 [get_ports rgmii_rx_dv]
+set_input_delay -clock [get_clocks rgmii_rxc] -clock_fall -max -add_delay 2.750 [get_ports rgmii_rx_dv]
+set_input_delay -clock [get_clocks rgmii_rxc] -min -add_delay 2.300 [get_ports rgmii_rx_dv]
+set_input_delay -clock [get_clocks rgmii_rxc] -max -add_delay 2.750 [get_ports rgmii_rx_dv]
+
+########################################################################################################################
+# CDC
+
 set_clock_groups -asynchronous -group [get_clocks rgmii_rxc] -group [get_clocks clk_125mhz_raw]
 set_clock_groups -asynchronous -group [get_clocks network/xg_transceiver/inst/sfp_transceiver_i/gt0_sfp_transceiver_i/gtxe2_i/RXOUTCLK] -group [get_clocks clk_250mhz_raw]
 set_clock_groups -asynchronous -group [get_clocks rgmii_rxc] -group [get_clocks clk_250mhz_raw]
 set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks rgmii_rxc]
 set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks rgmii_rxc]
+
+########################################################################################################################
+# Floorplanning
 
 create_pblock pblock_crypt25519
 add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519]]
@@ -173,6 +201,19 @@ resize_pblock [get_pblocks pblock_port_xg0] -add {SLICE_X36Y101:SLICE_X53Y149}
 resize_pblock [get_pblocks pblock_port_xg0] -add {DSP48_X2Y42:DSP48_X2Y59}
 resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB18_X2Y50:RAMB18_X2Y59}
 resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB36_X2Y25:RAMB36_X2Y29}
+
+create_pblock pblock_port_mgmt0
+add_cells_to_pblock [get_pblocks pblock_port_mgmt0] [get_cells -quiet [list network/port_mgmt0]]
+resize_pblock [get_pblocks pblock_port_mgmt0] -add {SLICE_X0Y150:SLICE_X11Y178}
+resize_pblock [get_pblocks pblock_port_mgmt0] -add {DSP48_X0Y60:DSP48_X0Y69}
+resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB18_X0Y60:RAMB18_X0Y69}
+resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB36_X0Y30:RAMB36_X0Y34}
+set_property IS_SOFT FALSE [get_pblocks pblock_port_mgmt0]
+
+########################################################################################################################
+# JTAG
+
+
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
 set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
 set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]

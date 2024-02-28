@@ -1,5 +1,3 @@
-`timescale 1ns/1ps
-`default_nettype none
 /***********************************************************************************************************************
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
@@ -31,120 +29,109 @@
 
 /**
 	@file
-	@author	Andrew D. Zonenberg
-	@brief	Quad SPI interface
+	@brief Declaration of CrossbarCLISessionContext
  */
-module ManagementBridge(
+#ifndef CrossbarCLISessionContext_h
+#define CrossbarCLISessionContext_h
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// System clocks
+#include "FPGAInterface.h"
+#include <embedded-cli/CLIOutputStream.h>
+#include <embedded-cli/CLISessionContext.h>
+#include <staticnet/cli/SSHOutputStream.h>
 
-	input wire			clk,
+class CrossbarCLISessionContext : public CLISessionContext
+{
+public:
+	CrossbarCLISessionContext();
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Bus to MCU
+	void Initialize(int sessid, TCPTableEntry* socket, SSHTransportServer* server, const char* username)
+	{
+		m_sshstream.Initialize(sessid, socket, server);
+		Initialize(&m_sshstream, username);
+	}
 
-	input wire			qspi_sck,
-	input wire			qspi_cs_n,
-	inout wire[3:0]		qspi_dq,
+	//Generic init for non-SSH streams
+	void Initialize(CLIOutputStream* stream, const char* username)
+	{
+		m_stream = stream;
+		CLISessionContext::Initialize(m_stream, username);
+	}
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Bus to ManagementRegisterInterface
+	SSHOutputStream* GetSSHStream()
+	{ return &m_sshstream; }
 
-	output logic		rd_en,
-	output logic[15:0]	rd_addr	= 0,
+	virtual ~CrossbarCLISessionContext()
+	{}
 
-	input wire			rd_valid,
-	input wire[7:0]		rd_data,
+	virtual void PrintPrompt();
 
-	output wire			wr_en,
-	output logic[15:0]	wr_addr	= 0,
-	output wire[7:0]	wr_data
+protected:
 
-	);
+	void LoadHostname();
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// QSPI interface
+	virtual void OnExecute();
+	void OnExecuteRoot();
+	/*
+	void OnCommit();
 
-	wire		start;
-	wire		insn_valid;
-	wire[15:0]	insn;
-	logic		rd_mode		= 0;
-	wire		rd_ready;
+	void OnClearCounters(uint8_t interface);
 
-	wire		rd_en_raw;
+	void OnInterfaceCommand();
 
-	(* keep_hierarchy = "yes" *)
-	QSPIDeviceInterface #(
-		.INSN_BYTES(2)
-	) qspi (
-		.clk(clk),
-		.sck(qspi_sck),
-		.cs_n(qspi_cs_n),
-		.dq(qspi_dq),
+	void OnAutonegotiation();
 
-		.start(start),
-		.insn_valid(insn_valid),
-		.insn(insn),
-		.wr_valid(wr_en),
-		.wr_data(wr_data),
+	void OnDescription();
+	void OnDebug();
 
-		.rd_mode(rd_mode),
-		.rd_ready(rd_en_raw),
-		.rd_valid(rd_valid),
-		.rd_data(rd_data)
-	);
+	void OnIPCommand();
+	void OnIPAddress(const char* addr);
+	void OnIPGateway(const char* gw);
 
-	always_comb begin
-		rd_en	= rd_en_raw && !insn[15];
-	end
+	void OnMdiCommand();
+	void OnModeCommand();
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Address counting
+	void OnNoCommand();
+	void OnNoAutonegotiation();
+	void OnNoSpeed();
+	void OnNoTestPattern();
+	*/
+	void OnReload();
+	//void OnRollback();
 
-	logic[15:0]	rd_addr_ff	= 0;
-	logic[15:0]	wr_addr_ff	= 0;
-	logic		first		= 0;
+	void OnSetCommand();
+	void OnSetRegister();
+	void OnSetMmdRegister();/*
+	void OnSpeed();
 
-	always_comb begin
+	void OnShowARPCache();*/
+	void OnShowCommand();/*
+	void OnShowFlash();
+	void OnShowFlashDetail();
+	void OnShowHardware();
+	void OnShowInterfaceCommand();
+	void OnShowInterfaceCounters(uint8_t interface);
+	void OnShowInterfaceStatus();
+	void OnShowIPAddress();
+	void OnShowIPRoute();*/
+	void OnShowMMDRegister();
+	void OnShowRegister();/*
+	void OnShowSSHFingerprint();
+	void OnShowTemperature();
+	void OnShowVersion();
 
-		//Default to passthrough
-		rd_addr			= rd_addr_ff;
-		wr_addr			= wr_addr_ff;
+	void OnTest();
+	void OnTestPattern();
 
-		//Increment if reading/writing
-		if(rd_en)
-			rd_addr		= rd_addr_ff + 1;
-		if(wr_en && !first)
-			wr_addr		= wr_addr_ff + 1;
+	void OnVlan();
 
-		//Start a new transaction
-		if(insn_valid) begin
-			rd_addr		= {1'b0, insn[14:0]};
-			wr_addr		= {1'b0, insn[14:0]};
-		end
+	void OnZeroize();
+	*/
 
-	end
+	SSHOutputStream m_sshstream;
+	CLIOutputStream* m_stream;
 
-	always_ff @(posedge clk) begin
+	///@brief Hostname (only used for display)
+	char m_hostname[33];
+};
 
-		wr_addr_ff		<= wr_addr;
-		rd_addr_ff		<= rd_addr;
-
-		//Process instruction
-		//MSB of opcode is read flag (0=read, 1=write)
-		if(insn_valid)
-			rd_mode		<= !insn[15];
-
-		//Reset anything we need on CS# falling edge
-		if(start) begin
-			rd_mode		<= 0;
-			first		<= 1;
-		end
-
-		if(wr_en)
-			first		<= 0;
-
-	end
-
-endmodule
+#endif

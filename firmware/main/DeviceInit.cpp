@@ -668,7 +668,12 @@ void InitManagementPHY()
 	auto phyid2 = ManagementPHYRead(REG_PHY_ID_2);
 
 	if( (phyid1 == 0x22) && ( (phyid2 >> 4) == 0x162))
+	{
 		g_log("PHY ID   = %04x %04x (KSZ9031RNX rev %d)\n", phyid1, phyid2, phyid2 & 0xf);
+
+		//Adjust pad skew for RX_CLK register to improve timing FPGA side
+		//ManagementPHYExtendedWrite(2, REG_KSZ9031_MMD2_CLKSKEW, 0x01ef);
+	}
 	else
 		g_log("PHY ID   = %04x %04x (unknown)\n", phyid1, phyid2);
 }
