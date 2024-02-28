@@ -169,7 +169,7 @@ module top(
 		.I(prbs_tx_clk_raw),
 		.O(prbs_tx_clk));
 
-	wire[4:0]	tx_swing;			//best results for 10gbase-R 'h05
+	wire[3:0]	tx_swing;			//best results for 10gbase-R 'h05
 	wire[4:0]	tx_precursor;		//best results for 10gbase-R 'h07
 	wire[4:0]	tx_postcursor;		//best results for 10Gbase-R 'h08
 	wire[6:0]	tx_maincursor;		//best results for 10Gbase-R 'h00
@@ -321,6 +321,24 @@ module top(
 	// TODO: arbitration/muxing for SFP vs RGMII PHY to allow management from either
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Curve25519 crypto_scalarmult accelerator (for speeding up SSH key exchange)
+
+	wire		crypt_en;
+	wire[255:0]	crypt_work_in;
+	wire[255:0]	crypt_e;
+	wire		crypt_out_valid;
+	wire[255:0]	crypt_work_out;
+
+	X25519_ScalarMult crypt25519(
+		.clk(clk_250mhz),
+		.en(crypt_en),
+		.work_in(crypt_work_in),
+		.e(crypt_e),
+		.out_valid(crypt_out_valid),
+		.work_out(crypt_work_out)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Management register interface
 
 	ManagementSubsystem mgmt(
@@ -347,7 +365,14 @@ module top(
 		.xg0_rx_clk(xg0_mac_rx_clk),
 		.xg0_link_up(xg0_link_up),
 
-		.fan_tach(fan_tach)
+		.fan_tach(fan_tach),
+
+		.clk_crypt(clk_250mhz),
+		.crypt_en(crypt_en),
+		.crypt_work_in(crypt_work_in),
+		.crypt_work_out(crypt_work_out),
+		.crypt_e(crypt_e),
+		.crypt_out_valid(crypt_out_valid)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

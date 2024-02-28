@@ -36,7 +36,7 @@
 #include "triggercrossbar.h"
 #include <ctype.h>
 #include "DeviceFPGAInterface.h"
-//#include "target/device/QSPIEthernetInterface.h"
+#include "QSPIEthernetInterface.h"
 
 void TrimSpaces(char* str);
 
@@ -319,9 +319,9 @@ void InitQSPI()
 	//Default is for AHB3 bus clock to be used as kernel clock (256 MHz for us)
 	//With 3.3V Vdd, we can go up to 140 MHz.
 	//Dividing by 4 gives 64 MHz and a transfer rate of 256 Mbps.
-	//FPGA currently requires <= 46.875 MHz due to the RX oversampling used
-	//Dividing by 6 gives 42.666 MHz and a transfer rate of 170.66 Mbps
-	uint8_t prescale = 6;
+	//FPGA currently requires <= 62.5 MHz due to the RX oversampling used (4x in 250 MHz clock domain)
+	//Dividing by 5 gives 51.2 MHz and a transfer rate of 204.8 Mbps
+	uint8_t prescale = 5;
 
 	//Configure the OCTOSPI itself
 	static OctoSPI qspi(&OCTOSPI1, 0x02000000, prescale);
@@ -424,39 +424,17 @@ void InitSensors()
 			g_log("Fan %d:                                 %d RPM\n", i, rpm);
 	}
 
-	//Bring up each temp sensor
-	/*for(uint8_t i=0; i<4; i++)
-	{
-		auto addr = g_tempSensorAddrs[i];
-
-		//Set mode to max resolution
-		uint8_t cmd[3] = {0x01, 0x60, 0x00};
-		if(!g_tempI2C->BlockingWrite(addr, cmd, sizeof(cmd)))
-		{
-			g_log(Logger::ERROR, "Failed to initialize I2C temp sensor at 0x%02x\n", addr);
-			continue;
-		}
-
-		//Print value
-		auto temp = ReadThermalSensor(addr);
-		g_log("Temp 0x%02x (%25s): %d.%02d C\n",
-			addr,
-			g_tempSensorNames[i],
-			(temp >> 8),
-			static_cast<int>(((temp & 0xff) / 256.0) * 100));
-	}*/
-
 	//Read FPGA temperature
 	auto temp = GetFPGATemperature();
-	g_log("FPGA die temperature:                  %d.%02d C\n", (temp >> 8), static_cast<int>(((temp & 0xff) / 256.0) * 100));
+	g_log("FPGA die temperature:                  %uhk C\n", temp);
 
 	//Read FPGA voltage sensors
 	int volt = GetFPGAVCCINT();
-	g_log("FPGA VCCINT:                           %d.%02d V\n", (volt >> 8), static_cast<int>(((volt & 0xff) / 256.0) * 100));
+	g_log("FPGA VCCINT:                           %uhk V\n", volt);
 	volt = GetFPGAVCCBRAM();
-	g_log("FPGA VCCBRAM:                          %d.%02d V\n", (volt >> 8), static_cast<int>(((volt & 0xff) / 256.0) * 100));
+	g_log("FPGA VCCBRAM:                          %uhk V\n", volt);
 	volt = GetFPGAVCCAUX();
-	g_log("FPGA VCCAUX:                           %d.%02d V\n", (volt >> 8), static_cast<int>(((volt & 0xff) / 256.0) * 100));
+	g_log("FPGA VCCAUX:                           %uhk V\n", volt);
 
 	InitDTS();
 }
@@ -680,7 +658,6 @@ void TrimSpaces(char* str)
 /**
 	@brief Initializes the management PHY
  */
- /*
 void InitManagementPHY()
 {
 	g_log("Initializing management PHY\n");
@@ -694,12 +671,11 @@ void InitManagementPHY()
 		g_log("PHY ID   = %04x %04x (KSZ9031RNX rev %d)\n", phyid1, phyid2, phyid2 & 0xf);
 	else
 		g_log("PHY ID   = %04x %04x (unknown)\n", phyid1, phyid2);
-}*/
+}
 
 /**
 	@brief Initializes the Ethernet interface
  */
- /*
 void InitEthernet()
 {
 	g_log("Initializing Ethernet management\n");
@@ -708,7 +684,7 @@ void InitEthernet()
 	static QSPIEthernetInterface iface;
 	g_ethIface = &iface;
 }
-*/
+
 /**
 	@brief Initialize the digital temperature sensor
  */

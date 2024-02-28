@@ -27,126 +27,117 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef triggercrossbar_h
-#define triggercrossbar_h
+/**
+	@file
+	@author	Andrew D. Zonenberg
+	@brief	PHY control code
+ */
 
-#include "stm32.h"
-#include <peripheral/DTS.h>
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
-#include <peripheral/OctoSPI.h>
-#include <peripheral/OctoSPIManager.h>
-#include <peripheral/Power.h>
-#include <peripheral/RCC.h>
-#include <peripheral/SPI.h>
-#include <peripheral/Timer.h>
-#include <peripheral/UART.h>
-#include <cli/UARTOutputStream.h>
+#include "triggercrossbar.h"
 
-#include "LogSink.h"
-
-#include <microkvs/kvs/KVS.h>
-
-#include <util/Logger.h>
-#include <util/StringBuffer.h>
-
-#include <staticnet-config.h>
-#include <staticnet/stack/staticnet.h>
-
-//#include "net/ManagementTCPProtocol.h"
-#include "FPGAInterface.h"
-#include "OctalDAC.h"
-
-#define MAX_LOG_SINKS SSH_TABLE_SIZE
-
-extern KVS* g_kvs;
-extern LogSink<MAX_LOG_SINKS>* g_logSink;
-extern Logger g_log;
-extern FPGAInterface* g_fpga;
-extern Timer* g_logTimer;
-extern EthernetInterface* g_ethIface;
-extern MACAddress g_macAddress;
-extern IPv4Config g_ipConfig;
-extern EthernetProtocol* g_ethProtocol;
-extern I2C* g_macI2C;
-extern I2C* g_sfpI2C;
-
-extern UART* g_cliUART;
-extern OctoSPI* g_qspi;
-
-extern DigitalTempSensor* g_dts;
-
-extern GPIOPin* g_leds[4];
-
-extern GPIOPin* g_sfpModAbsPin;
-extern GPIOPin* g_sfpTxDisablePin;
-extern GPIOPin* g_sfpTxFaultPin;
-extern bool g_sfpFaulted;
-extern bool g_sfpPresent;
-
-extern const IPv4Address g_defaultIP;
-extern const IPv4Address g_defaultNetmask;
-extern const IPv4Address g_defaultBroadcast;
-extern const IPv4Address g_defaultGateway;
-
-void InitClocks();
-void InitLEDs();
-void InitTimer();
-void InitUART();
-void InitLog(CharacterDevice* logdev, Timer* timer);
-
-void InitDTS();
-void InitQSPI();
-void InitFPGA();
-
-void InitI2C();
-void InitEEPROM();
-void InitDACs();
-
-void InitSensors();
-
-void InitSFP();
-void PollSFP();
-void InitManagementPHY();
-void PollFPGA();
-
-uint16_t GetFanRPM(uint8_t channel);
-uint16_t GetFPGATemperature();
-uint16_t GetFPGAVCCINT();
-uint16_t GetFPGAVCCAUX();
-uint16_t GetFPGAVCCBRAM();
-uint16_t GetSFPTemperature();
-
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-
-void InitEthernet();
-void InitIP();
-void ConfigureIP();
-
-void DetectHardware();
-
-uint16_t ManagementPHYRead(uint8_t regid);
-uint16_t ManagementPHYExtendedRead(uint8_t mmd, uint8_t regid);
-void ManagementPHYWrite(uint8_t regid, uint16_t regval);
-void ManagementPHYExtendedWrite(uint8_t regid, uint8_t mmd, uint16_t regval);
-
-enum mdioreg_t
+/**
+	@brief Reads a register from the management PHY
+ */
+uint16_t ManagementPHYRead(uint8_t regid)
 {
-	//IEEE defined registers
-	REG_BASIC_CONTROL			= 0x0000,
-	REG_BASIC_STATUS			= 0x0001,
-	REG_PHY_ID_1				= 0x0002,
-	REG_PHY_ID_2				= 0x0003,
-	REG_AN_ADVERT				= 0x0004,
-	REG_GIG_CONTROL				= 0x0009,
+	//Request the read
+	g_fpga->BlockingWrite32(REG_MGMT0_MDIO, (regid << 16) | 0x20000000);
 
-	//Extended register access
-	REG_PHY_REGCR				= 0x000d,
-	REG_PHY_ADDAR				= 0x000e,
+	//Poll until busy flag is cleared
+	while(true)
+	{
+		auto reply = g_fpga->BlockingRead32(REG_MGMT0_MDIO);
+		if( (reply & 0x80000000) == 0)
+			return reply & 0xffff;
+	}
+}
 
-	//KSZ9031 specific
-	REG_KSZ9031_MDIX			= 0x001c,
-};
+void ManagementPHYWrite(uint8_t regid, uint16_t regval)
+{
+	//Request the write
+	g_fpga->BlockingWrite32(REG_MGMT0_MDIO, (regid << 16) | 0x40000000 | regval );
 
-#endif
+	//Poll until busy flag is cleared
+	while(true)
+	{
+		auto reply = g_fpga->BlockingRead32(REG_MGMT0_MDIO);
+		if( (reply & 0x80000000) == 0)
+			return;
+	}
+}
+
+/**
+	@brief Reads an extended register from the management PHY
+ */
+uint16_t ManagementPHYExtendedRead(uint8_t mmd, uint8_t regid)
+{
+	ManagementPHYWrite(REG_PHY_REGCR, mmd);			//set address
+	ManagementPHYWrite(REG_PHY_ADDAR, regid);
+	ManagementPHYWrite(REG_PHY_REGCR, 0x4000 | mmd);	//data, no post inc
+	return ManagementPHYRead(REG_PHY_ADDAR);
+}
+
+/**
+	@brief Writes an extended register to the management PHY
+ */
+void ManagementPHYExtendedWrite(uint8_t mmd, uint8_t regid, uint16_t regval)
+{
+	ManagementPHYWrite(REG_PHY_REGCR, mmd);				//set address
+	ManagementPHYWrite(REG_PHY_ADDAR, regid);
+	ManagementPHYWrite(REG_PHY_REGCR, 0x4000 | mmd);	//data, no post inc
+	ManagementPHYWrite(REG_PHY_ADDAR, regval);
+}
+
+/**
+	@brief Poll the PHYs for link state changes
+
+	TODO: use IRQ pin to trigger this vs doing it nonstop?
+ */
+/*
+void PollPHYs()
+{
+	for(int i=0; i<NUM_PORTS; i++)
+	{
+		//if port is not up or down, ignore updates
+		//(it's administratively down, errdisable, or similar)
+		if( (g_linkState[i] != LINK_STATE_UP) && (g_linkState[i] != LINK_STATE_DOWN) )
+			continue;
+
+		if(i == UPLINK_PORT)
+		{
+			uint32_t status = g_fpga->BlockingRead32(REG_XG0_STAT);
+			if(status & 1)
+			{
+				//Link went up?
+				if(g_linkState[i] != LINK_STATE_UP)
+				{
+					g_linkState[i] = LINK_STATE_UP;
+					g_linkSpeed[i] = LINK_SPEED_10G;
+
+					g_log("Interface %s (%s): link is up at %s\n",
+						g_interfaceNames[i],
+						g_interfaceDescriptions[i],
+						g_linkSpeedNamesLong[g_linkSpeed[i]]);
+				}
+			}
+
+			else
+			{
+				//Link went down?
+				if(g_linkState[i] != LINK_STATE_DOWN)
+				{
+					g_linkState[i] = LINK_STATE_DOWN;
+					g_log("Interface %s (%s): link is down\n", g_interfaceNames[i], g_interfaceDescriptions[i]);
+				}
+			}
+		}
+
+		else
+		{
+			uint16_t bctl = InterfacePHYRead(i, REG_BASIC_CONTROL);
+			uint16_t bstat = InterfacePHYRead(i, REG_BASIC_STATUS);
+			UpdateLinkState(i, bctl, bstat);
+		}
+	}
+}
+*/

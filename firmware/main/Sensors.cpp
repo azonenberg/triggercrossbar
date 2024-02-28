@@ -30,22 +30,6 @@
 #include "triggercrossbar.h"
 
 /**
-	@brief Read a temperature sensor at the given I2C address and return the temperature (in 8.8 fixed point format)
- */
-uint16_t ReadThermalSensor(uint8_t addr)
-{
-	/*
-	if(!g_tempI2C->BlockingWrite8(addr, 0x00))
-		return 0xff;
-	uint16_t reply;
-	if(!g_tempI2C->BlockingRead16(addr, reply))
-		return 0xff;
-
-	return reply;
-	*/
-}
-
-/**
 	@brief Reads the RPM of the requested fan
  */
 uint16_t GetFanRPM(uint8_t channel)

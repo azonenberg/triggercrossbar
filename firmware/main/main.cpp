@@ -77,13 +77,12 @@ int main()
 	InitSensors();
 
 	//Begin initializing fabric ports
-	//InitInterfaces();
 	InitSFP();
-	/*
+	InitManagementPHY();
+
 	//Initialize our local Ethernet interface and TCP/IP stack
 	InitEthernet();
 	InitIP();
-	*/
 
 	//Create a CLI stream for the UART
 	UARTOutputStream uartStream;
@@ -92,60 +91,50 @@ int main()
 	//Initialize the CLI for the UART
 	SwitchCLISessionContext uartContext;
 	uartContext.Initialize(&uartStream, "user");
-
+	*/
 	//Enable interrupts only after all setup work is done
 	EnableInterrupts();
 
 	//Show the initial prompt
-	uartContext.PrintPrompt();*/
+	//uartContext.PrintPrompt();
 
-	/*
 	//Main event loop
-	int nextRxFrame = 0;
+	/*int nextRxFrame = 0;
 	uint32_t numRxFrames = 0;
-	uint32_t numRxBad = 0;
-	*/
-	/*
-	uint32_t nextAgingTick = 0;
-	uint32_t nextTempTick = 0;
+	uint32_t numRxBad = 0;*/
 
-	GPIOPin irq(&GPIOA, 0, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
+	uint32_t nextAgingTick = 0;
+
+	GPIOPin irq(&GPIOH, 6, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
 	irq.SetPullMode(GPIOPin::PULL_DOWN);
-	*/
+
 	while(1)
 	{
 		//Wait for an interrupt
 		//asm("wfi");
-		/*
+
 		//Check if anything happened on the FPGA
 		if(irq)
 			PollFPGA();
 
 		//Check if we had a PHY link state change
 		//TODO: add irq bit for this so we don't have to poll nonstop
-		PollPHYs();
+		//PollPHYs();
 
 		//Check if we had an optic inserted or removed
 		PollSFP();
 
+		/*
 		//Poll for UART input
 		if(g_cliUART->HasInput())
 			uartContext.OnKeystroke(g_cliUART->BlockingRead());
-
+		*/
 		//Check for aging on stuff once a second
 		if(g_logTimer->GetCount() > nextAgingTick)
 		{
 			g_ethProtocol->OnAgingTick();
 			nextAgingTick = g_logTimer->GetCount() + 10000;
 		}
-
-		//Log thermal data at 10 Hz
-		if(g_debugEnv && (g_logTimer->GetCount() > nextTempTick))
-		{
-			LogTemperatures();
-			nextTempTick = g_logTimer->GetCount() + 1000;
-		}
-		*/
 	}
 	return 0;
 }
@@ -153,11 +142,9 @@ int main()
 /**
 	@brief Reads the FPGA status register to see why it sent us an IRQ
  */
-/*
 void PollFPGA()
 {
 	uint16_t fpgastat = g_fpga->BlockingRead16(REG_FPGA_IRQSTAT);
-	//g_log("FPGA poll: IRQ stat = %04x\n", fpgastat);
 
 	//New Ethernet frame ready?
 	if(fpgastat & 1)
@@ -166,7 +153,7 @@ void PollFPGA()
 		if(frame != NULL)
 			g_ethProtocol->OnRxFrame(frame);
 	}
-}*/
+}
 
 /**
 	@brief Debug logging

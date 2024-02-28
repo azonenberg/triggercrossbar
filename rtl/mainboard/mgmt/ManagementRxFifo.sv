@@ -142,8 +142,10 @@ module ManagementRxFifo(
 				dropping	<= 1;
 
 			//Nope, start a new frame
-			else
+			else begin
 				framelen	<= 0;
+				dropping	<= 0;
+			end
 
 		end
 

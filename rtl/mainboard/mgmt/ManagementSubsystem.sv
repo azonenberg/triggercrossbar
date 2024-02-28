@@ -63,7 +63,7 @@ module ManagementSubsystem(
 	input wire						xg0_link_up,
 
 	//Tachometers for fans
-	input wire[1:0]					fan_tach/*,
+	input wire[1:0]					fan_tach,
 
 	//Configuration registers in crypto clock domain
 	input wire						clk_crypt,
@@ -71,7 +71,7 @@ module ManagementSubsystem(
 	output wire[255:0]				crypt_work_in,
 	output wire[255:0]				crypt_e,
 	input wire						crypt_out_valid,
-	input wire[255:0]				crypt_work_out*/
+	input wire[255:0]				crypt_work_out
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -332,7 +332,7 @@ module ManagementSubsystem(
 
 		//Control registers (port RX clock domain)
 		.xg0_rx_clk(xg0_rx_clk),
-		.xg0_link_up(xg0_link_up)/*,
+		.xg0_link_up(xg0_link_up),
 
 		//Control registers (crypto clock domain)
 		.clk_crypt(clk_crypt),
@@ -340,7 +340,22 @@ module ManagementSubsystem(
 		.crypt_work_in(crypt_work_in),
 		.crypt_e(crypt_e),
 		.crypt_out_valid(crypt_out_valid),
-		.crypt_work_out(crypt_work_out)*/
+		.crypt_work_out(crypt_work_out)
 	);
+
+	//Debug ILA
+	ila_0 ila(
+		.clk(mgmt0_rx_clk),
+		.probe0(mgmt0_rx_bus),
+		.probe1(mgmt0_link_up),
+		.probe2(rx_fifo.rxfifo_wr_size),
+		.probe3(rx_fifo.rxfifo_wr_en),
+		.probe4(rx_fifo.rxfifo_wr_drop),
+		.probe5(rx_fifo.rxfifo_wr_data),
+
+		.probe6(rx_fifo.dropping),
+		.probe7(rx_fifo.wr_reset),
+		.probe8(rx_fifo.header_wfull)
+		);
 
 endmodule

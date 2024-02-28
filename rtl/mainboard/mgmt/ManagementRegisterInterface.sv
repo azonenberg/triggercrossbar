@@ -90,7 +90,7 @@ module ManagementRegisterInterface(
 	input wire[10:0]				rxheader_rd_data,
 	output logic 					txfifo_wr_en = 0,
 	output logic[7:0] 				txfifo_wr_data = 0,
-	output logic	 				txfifo_wr_commit = 0/*,
+	output logic	 				txfifo_wr_commit = 0,
 
 	//Configuration registers in crypto clock domain
 	input wire						clk_crypt,
@@ -98,10 +98,9 @@ module ManagementRegisterInterface(
 	output wire[255:0]				crypt_work_in,
 	output wire[255:0]				crypt_e,
 	input wire						crypt_out_valid,
-	input wire[255:0]				crypt_work_out*/
+	input wire[255:0]				crypt_work_out
 	);
 
-	/*
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Synchronizers for crypto stuff
 
@@ -150,7 +149,6 @@ module ManagementRegisterInterface(
 		.reset_b(1'b0),
 		.reg_b(crypt_work_out_mgmt)
 	);
-	*/
 
 	wire	xg0_link_up_sync;
 
@@ -225,13 +223,13 @@ module ManagementRegisterInterface(
 		REG_EMAC_BUFFER_HI	= 16'h1fff,
 
 		//Crypto accelerator
-		//REG_CRYPT_BASE		= 16'h3800,
+		REG_CRYPT_BASE		= 16'h3800,
 
 		//helper just so we can use commas to separate list items
 		REG_LAST
 
 	} regid_t;
-	/*
+
 	//Register offsets within crypto block
 	typedef enum logic[15:0]
 	{
@@ -239,7 +237,7 @@ module ManagementRegisterInterface(
 		REG_E				= 16'h0020,
 		REG_CRYPT_STATUS	= 16'h0040,
 		REG_WORK_OUT		= 16'h0060
-	} cryptoff_t;*/
+	} cryptoff_t;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Address decoding and muxing logic
@@ -264,7 +262,7 @@ module ManagementRegisterInterface(
 
 		//Clear single cycle flags
 		rd_valid				<= 0;
-		//crypt_in_updated		<= 0;
+		crypt_in_updated		<= 0;
 		mgmt0_phy_reg_wr		<= 0;
 		mgmt0_phy_reg_rd		<= 0;
 		rxfifo_rd_en			<= 0;
@@ -276,11 +274,11 @@ module ManagementRegisterInterface(
 		//Start a new read
 		if(rd_en)
 			reading	<= 1;
-		/*
+
 		//Finish a crypto operation
 		if(crypt_out_updated)
 			crypto_active		<= 0;
-		*/
+
 		//Set interrupt line if something's changed
 		if(!rxheader_rd_empty)
 			irq					<= 1;
@@ -301,7 +299,7 @@ module ManagementRegisterInterface(
 				reading		<= 0;
 
 			end
-			/*
+
 			//Crypto registers are decoded separately
 			if(rd_addr >= REG_CRYPT_BASE) begin
 
@@ -318,7 +316,7 @@ module ManagementRegisterInterface(
 
 			//Ethernet MAC
 			//Read data without any endianness swapping, since it's logically an array of bytes
-			else*/ if(rd_addr >= REG_EMAC_BUFFER_LO) begin
+			else if(rd_addr >= REG_EMAC_BUFFER_LO) begin
 
 				case(rd_addr[1:0])
 					0: begin
@@ -373,7 +371,10 @@ module ManagementRegisterInterface(
 					REG_VOLT_AUX:		rd_data	<= volt_aux[7:0];
 					REG_VOLT_AUX_1:		rd_data	<= volt_aux[15:8];
 
-					REG_FPGA_IRQSTAT:	rd_data	<= {7'b0, !rxheader_rd_empty };
+					REG_FPGA_IRQSTAT: begin
+						rd_data		<= {7'b0, !rxheader_rd_empty };
+						irq			<= 0;
+					end
 					REG_FPGA_IRQSTAT_1: rd_data <= 8'b0;
 
 					REG_EMAC_RXLEN:		rd_data <= rxheader_rd_data[7:0];
@@ -414,7 +415,7 @@ module ManagementRegisterInterface(
 			wr_regid = wr_addr[0 +: REGID_BITS];
 
 			//Crypto accelerator registers are decoded separately
-			/*(if(wr_addr >= REG_CRYPT_BASE) begin
+			if(wr_addr >= REG_CRYPT_BASE) begin
 
 				//E register
 				if(wr_addr[7:0] >= REG_E) begin
@@ -435,7 +436,7 @@ module ManagementRegisterInterface(
 			end
 
 			//Ethernet MAC
-			else*/ if(wr_addr >= REG_EMAC_BUFFER_LO) begin
+			else if(wr_addr >= REG_EMAC_BUFFER_LO) begin
 				txfifo_wr_en	<= 1;
 				txfifo_wr_data	<= wr_data;
 			end
@@ -465,5 +466,25 @@ module ManagementRegisterInterface(
 		end
 
 	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Debug ILA
+
+	ila_1 ila1(
+		.clk(clk),
+		.probe0(rxfifo_rd_en),
+		.probe1(irq),
+		.probe2(rxfifo_rd_pop_single),
+		.probe3(rxfifo_rd_data),
+		.probe4(rxheader_rd_en),
+		.probe5(rxheader_rd_empty),
+		.probe6(rxheader_rd_data),
+
+		.probe7(rd_en),
+		.probe8(reading),
+		.probe9(rd_addr),
+		.probe10(txfifo_wr_en),
+		.probe11(rd_data)
+		);
 
 endmodule

@@ -64,14 +64,12 @@ EthernetFrame* QSPIEthernetInterface::GetTxFrame()
 
 void QSPIEthernetInterface::SendTxFrame(EthernetFrame* frame)
 {
-	/*
 	//TODO: DMA optimizations
 	g_fpga->BlockingWrite(REG_EMAC_BUFFER, frame->RawData(), frame->Length());
 	g_fpga->BlockingWrite8(REG_EMAC_COMMIT, 0);
 
 	//Done, put on free list
 	m_txFreeList.Push(frame);
-	*/
 }
 
 void QSPIEthernetInterface::CancelTxFrame(EthernetFrame* frame)
@@ -85,7 +83,6 @@ void QSPIEthernetInterface::CancelTxFrame(EthernetFrame* frame)
 
 EthernetFrame* QSPIEthernetInterface::GetRxFrame()
 {
-	/*
 	//Read and sanity check length
 	uint16_t len = g_fpga->BlockingRead16(REG_EMAC_RXLEN);
 	if(len > 1500)
@@ -112,8 +109,6 @@ EthernetFrame* QSPIEthernetInterface::GetRxFrame()
 	g_fpga->BlockingRead(REG_EMAC_BUFFER, frame->RawData(), len);
 
 	return frame;
-	*/
-	return nullptr;
 }
 
 void QSPIEthernetInterface::ReleaseRxFrame(EthernetFrame* frame)

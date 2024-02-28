@@ -36,10 +36,13 @@
 #include "triggercrossbar.h"
 //#include "net/ManagementTCPProtocol.h"
 
-const IPv4Address g_defaultIP			= { .m_octets{192, 168,   1,   2} };
+//const IPv4Address g_defaultIP			= { .m_octets{192, 168,   1,   2} };
+const IPv4Address g_defaultIP			= { .m_octets{10, 2,   6,   20} };
 const IPv4Address g_defaultNetmask		= { .m_octets{255, 255, 255,   0} };
-const IPv4Address g_defaultBroadcast	= { .m_octets{192, 168,   1, 255} };
-const IPv4Address g_defaultGateway		= { .m_octets{192, 168,   1,   1} };
+//const IPv4Address g_defaultBroadcast	= { .m_octets{192, 168,   1, 255} };
+const IPv4Address g_defaultBroadcast	= { .m_octets{10, 2,   6, 255} };
+//const IPv4Address g_defaultGateway		= { .m_octets{192, 168,   1,   1} };
+const IPv4Address g_defaultGateway		= { .m_octets{10, 2,   6,   252} };
 
 /**
 	@brief Initialize the logging library
@@ -131,7 +134,6 @@ void InitFPGA()
 /**
 	@brief Set our IP address and initialize the IP stack
  */
- /*
 void InitIP()
 {
 	g_log("Initializing management IPv4 interface\n");
@@ -156,19 +158,18 @@ void InitIP()
 	//Global protocol stacks
 	static IPv4Protocol ipv4(eth, g_ipConfig, cache);
 	static ICMPv4Protocol icmpv4(ipv4);
-	static ManagementTCPProtocol tcp(&ipv4);
+	//static ManagementTCPProtocol tcp(&ipv4);
 
 	//Register protocol handlers with the lower layer
 	eth.UseARP(&arp);
 	eth.UseIPv4(&ipv4);
 	ipv4.UseICMPv4(&icmpv4);
-	ipv4.UseTCP(&tcp);
+	//ipv4.UseTCP(&tcp);
 }
-*/
+
 /**
 	@brief Load our IP configuration from the KVS
  */
- /*
 void ConfigureIP()
 {
 	g_ipConfig.m_address = g_kvs->ReadObject<IPv4Address>(g_defaultIP, "ip.address");
@@ -176,4 +177,3 @@ void ConfigureIP()
 	g_ipConfig.m_broadcast = g_kvs->ReadObject<IPv4Address>(g_defaultBroadcast, "ip.broadcast");
 	g_ipConfig.m_gateway = g_kvs->ReadObject<IPv4Address>(g_defaultGateway, "ip.gateway");
 }
-*/

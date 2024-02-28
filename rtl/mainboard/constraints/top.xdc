@@ -162,6 +162,17 @@ set_clock_groups -asynchronous -group [get_clocks network/xg_transceiver/inst/sf
 set_clock_groups -asynchronous -group [get_clocks rgmii_rxc] -group [get_clocks clk_250mhz_raw]
 set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks rgmii_rxc]
 set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks rgmii_rxc]
+
+create_pblock pblock_crypt25519
+add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519]]
+resize_pblock [get_pblocks pblock_crypt25519] -add {CLOCKREGION_X1Y0:CLOCKREGION_X1Y1}
+
+create_pblock pblock_port_xg0
+add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/port_xg0]]
+resize_pblock [get_pblocks pblock_port_xg0] -add {SLICE_X36Y101:SLICE_X53Y149}
+resize_pblock [get_pblocks pblock_port_xg0] -add {DSP48_X2Y42:DSP48_X2Y59}
+resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB18_X2Y50:RAMB18_X2Y59}
+resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB36_X2Y25:RAMB36_X2Y29}
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
 set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
 set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]
