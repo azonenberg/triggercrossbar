@@ -27,130 +27,93 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef triggercrossbar_h
-#define triggercrossbar_h
+#include "triggercrossbar.h"
+#include "ManagementSSHTransportServer.h"
 
-#include "stm32.h"
-#include <peripheral/DTS.h>
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
-#include <peripheral/OctoSPI.h>
-#include <peripheral/OctoSPIManager.h>
-#include <peripheral/Power.h>
-#include <peripheral/RCC.h>
-#include <peripheral/SPI.h>
-#include <peripheral/Timer.h>
-#include <peripheral/UART.h>
-#include <cli/UARTOutputStream.h>
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Construction / destruction
 
-#include "LogSink.h"
-
-#include <microkvs/kvs/KVS.h>
-
-#include <util/Logger.h>
-#include <util/StringBuffer.h>
-
-#include <staticnet-config.h>
-#include <staticnet/stack/staticnet.h>
-#include <staticnet/ssh/SSHTransportServer.h>
-
-#include "ManagementTCPProtocol.h"
-#include "FPGAInterface.h"
-#include "OctalDAC.h"
-
-#define MAX_LOG_SINKS SSH_TABLE_SIZE
-
-extern KVS* g_kvs;
-extern LogSink<MAX_LOG_SINKS>* g_logSink;
-extern Logger g_log;
-extern FPGAInterface* g_fpga;
-extern Timer* g_logTimer;
-extern EthernetInterface* g_ethIface;
-extern MACAddress g_macAddress;
-extern IPv4Config g_ipConfig;
-extern EthernetProtocol* g_ethProtocol;
-extern I2C* g_macI2C;
-extern I2C* g_sfpI2C;
-
-extern UART* g_cliUART;
-extern OctoSPI* g_qspi;
-
-extern DigitalTempSensor* g_dts;
-
-extern GPIOPin* g_leds[4];
-
-extern GPIOPin* g_sfpModAbsPin;
-extern GPIOPin* g_sfpTxDisablePin;
-extern GPIOPin* g_sfpTxFaultPin;
-extern bool g_sfpFaulted;
-extern bool g_sfpPresent;
-
-extern const IPv4Address g_defaultIP;
-extern const IPv4Address g_defaultNetmask;
-extern const IPv4Address g_defaultBroadcast;
-extern const IPv4Address g_defaultGateway;
-
-void InitClocks();
-void InitLEDs();
-void InitTimer();
-void InitUART();
-void InitLog(CharacterDevice* logdev, Timer* timer);
-
-void InitDTS();
-void InitQSPI();
-void InitFPGA();
-
-void InitI2C();
-void InitEEPROM();
-void InitDACs();
-
-void InitSensors();
-
-void InitSFP();
-void PollSFP();
-void InitManagementPHY();
-void PollFPGA();
-
-uint16_t GetFanRPM(uint8_t channel);
-uint16_t GetFPGATemperature();
-uint16_t GetFPGAVCCINT();
-uint16_t GetFPGAVCCAUX();
-uint16_t GetFPGAVCCBRAM();
-uint16_t GetSFPTemperature();
-
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-
-void InitEthernet();
-void InitIP();
-void ConfigureIP();
-
-void DetectHardware();
-
-uint16_t ManagementPHYRead(uint8_t regid);
-uint16_t ManagementPHYExtendedRead(uint8_t mmd, uint8_t regid);
-void ManagementPHYWrite(uint8_t regid, uint16_t regval);
-void ManagementPHYExtendedWrite(uint8_t regid, uint8_t mmd, uint16_t regval);
-
-enum mdioreg_t
+ManagementSSHTransportServer::ManagementSSHTransportServer(TCPProtocol& tcp)
+	: SSHTransportServer(tcp)
 {
-	//IEEE defined registers
-	REG_BASIC_CONTROL			= 0x0000,
-	REG_BASIC_STATUS			= 0x0001,
-	REG_PHY_ID_1				= 0x0002,
-	REG_PHY_ID_2				= 0x0003,
-	REG_AN_ADVERT				= 0x0004,
-	REG_GIG_CONTROL				= 0x0009,
+	g_log("Initializing SSH server\n");
+	LogIndenter li(g_log);
 
-	//Extended register access
-	REG_PHY_REGCR				= 0x000d,
-	REG_PHY_ADDAR				= 0x000e,
+	//Initialize crypto engines
+	for(size_t i=0; i<SSH_TABLE_SIZE; i++)
+		m_state[i].m_crypto = &m_engine[i];
 
-	//KSZ9031 specific
-	REG_KSZ9031_MDIX			= 0x001c,
+	//Find the keys, generating if required
+	unsigned char pub[ECDSA_KEY_SIZE] = {0};
+	unsigned char priv[ECDSA_KEY_SIZE] = {0};
 
-	//KSZ9031 MMD 2
-	REG_KSZ9031_MMD2_CLKSKEW	= 0x0008
-};
+	bool found = true;
+	if(!g_kvs->ReadObject("ssh.hostpub", pub, ECDSA_KEY_SIZE))
+		found = false;
+	if(!g_kvs->ReadObject("ssh.hostpriv", priv, ECDSA_KEY_SIZE))
+		found = false;
 
-#endif
+	if(found)
+	{
+		g_log("Using existing SSH host key\n");
+		CryptoEngine::SetHostKey(pub, priv);
+	}
+
+	else
+	{
+		g_log("No SSH host key in flash, generating new key pair\n");
+		m_state[0].m_crypto->GenerateHostKey();
+
+		if(!g_kvs->StoreObject("ssh.hostpub", CryptoEngine::GetHostPublicKey(), ECDSA_KEY_SIZE))
+			g_log(Logger::ERROR, "Unable to store SSH host public key to flash\n");
+		if(!g_kvs->StoreObject("ssh.hostpriv", CryptoEngine::GetHostPrivateKey(), ECDSA_KEY_SIZE))
+			g_log(Logger::ERROR, "Unable to store SSH host private key to flash\n");
+	}
+
+	char buf[64] = {0};
+	m_state[0].m_crypto->GetHostKeyFingerprint(buf, sizeof(buf));
+	g_log("ED25519 key fingerprint is SHA256:%s.\n", buf);
+
+	//Set up authenticators
+	UsePasswordAuthenticator(&m_auth);
+}
+
+ManagementSSHTransportServer::~ManagementSSHTransportServer()
+{
+	//Clean up crypto state
+	for(size_t i=0; i<SSH_TABLE_SIZE; i++)
+	{
+		delete m_state[i].m_crypto;
+		m_state[i].m_crypto = NULL;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Shell helpers
+
+void ManagementSSHTransportServer::InitializeShell(int id, TCPTableEntry* socket)
+{
+	m_context[id].Initialize(id, socket, this, m_state[id].m_username);
+	m_context[id].PrintPrompt();
+
+	//TODO: only if we "terminal monitor" or similar?
+	g_logSink->AddSink(m_context[id].GetSSHStream());
+}
+
+void ManagementSSHTransportServer::GracefulDisconnect(int id, TCPTableEntry* socket)
+{
+	g_logSink->RemoveSink(m_context[id].GetSSHStream());
+	SSHTransportServer::GracefulDisconnect(id, socket);
+}
+
+void ManagementSSHTransportServer::DropConnection(int id, TCPTableEntry* socket)
+{
+	g_logSink->RemoveSink(m_context[id].GetSSHStream());
+	SSHTransportServer::DropConnection(id, socket);
+}
+
+void ManagementSSHTransportServer::OnRxShellData(int id, TCPTableEntry* /*socket*/, char* data, uint16_t len)
+{
+	for(uint16_t i=0; i<len; i++)
+		m_context[id].OnKeystroke(data[i]);
+}

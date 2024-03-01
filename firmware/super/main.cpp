@@ -247,7 +247,6 @@ void PrintIBCSensors()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Soft power sequencing
 
-
 /**
 	@brief Check for power failure
 
@@ -374,8 +373,8 @@ void PowerOn()
 	StartRail(*g_en_1v2, *g_pgood_1v2, 50, "1V2");
 
 	//Turn on 3V0_N last
-	//g_log("Turning on 3V0_N (no PGOOD signal available)\n");
-	//en_3v0_n = 1;
+	g_log("Turning on 3V0_N (no PGOOD signal available)\n");
+	*g_en_3v0_n = 1;
 
 	//Print all IBC sensor values
 	PrintIBCSensors();
@@ -704,7 +703,7 @@ void InitGPIOs()
 	static GPIOPin en_1v8(&GPIOB, 14, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	static GPIOPin en_gtx_1v8(&GPIOB, 2, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	static GPIOPin en_3v3(&GPIOB, 4, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-	static GPIOPin en_3v0_n(&GPIOC, 13, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin en_3v0_n(&GPIOC, 14, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 
 	static GPIOPin pgood_1v0(&GPIOB, 8, GPIOPin::MODE_INPUT, 0, false);
 	static GPIOPin pgood_gtx_1v0(&GPIOA, 2, GPIOPin::MODE_INPUT, 0, false);

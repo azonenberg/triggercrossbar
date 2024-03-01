@@ -93,7 +93,14 @@ module top(
 
 	//Front panel single ended CDR trigger input
 	input wire			cdrtrig_p,
-	input wire			cdrtrig_n
+	input wire			cdrtrig_n,
+
+	//Front panel differential BERT/pattern generator port
+	output wire			tx1_p,
+	output wire			tx1_n,
+
+	input wire			rx1_p,
+	input wire			rx1_n
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -153,7 +160,7 @@ module top(
 		.fabric_out(trig_in));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Output PRBS generation
+	// Output PRBS generation on sync port (also runs CDR trigger input)
 
 	//Dummy GTX clocking
 	wire	cdrtrig_rxclk;
@@ -256,6 +263,102 @@ module top(
 		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Output PRBS generation on TX1 port
+
+	wire lane1_rxclk;
+	wire lane1_txclk;
+
+	wire lane1_rxclk_raw;
+	wire lane1_txclk_raw;
+
+	BUFH bufh_lane1_rx(.I(lane1_rxclk_raw), .O(lane1_rxclk));
+	BUFH bufh_lane1_tx(.I(lane1_txclk_raw), .O(lane1_txclk));
+
+	wire	cpll_lock;
+
+	gtx_frontlane1 lane1_transceiver(
+		.sysclk_in(clk_125mhz),
+
+		//TODO: do we need any of this
+		.soft_reset_tx_in(1'b0),
+		.soft_reset_rx_in(1'b0),
+		.dont_reset_on_data_error_in(1'b0),
+		.gt0_tx_fsm_reset_done_out(),
+		.gt0_rx_fsm_reset_done_out(),
+		.gt0_tx_mmcm_lock_in(pll_rgmii_lock),
+		.gt0_tx_mmcm_reset_out(),
+		.gt0_rx_mmcm_lock_in(pll_rgmii_lock),
+		.gt0_rx_mmcm_reset_out(),
+
+		//Tie off unused ports
+		.gt0_drpaddr_in(9'b0),
+		.gt0_drpclk_in(clk_125mhz),
+		.gt0_drpdi_in(16'b0),
+		.gt0_drpdo_out(),
+		.gt0_drpen_in(1'b0),
+		.gt0_drprdy_out(),
+		.gt0_drpwe_in(1'b0),
+		.gt0_dmonitorout_out(),
+		.gt0_eyescanreset_in(1'b0),
+		.gt0_eyescandataerror_out(),
+		.gt0_eyescantrigger_in(1'b0),
+		//.gt0_rxphmonitor_out(),
+		//.gt0_rxphslipmonitor_out(),
+		.gt0_rxmonitorout_out(),
+		.gt0_rxmonitorsel_in(2'b0),
+		.gt0_gtrxreset_in(1'b0),
+		.gt0_gttxreset_in(1'b0),
+
+		//Transmit interface
+		.gt0_txuserrdy_in(pll_rgmii_lock),
+		.gt0_txusrclk_in(lane1_txclk),
+		.gt0_txusrclk2_in(lane1_txclk),
+		.gt0_data_valid_in(1'b1),
+		.gt0_txdata_in(32'h00000000),
+		.gt0_txoutclk_out(lane1_txclk_raw),
+		.gt0_txoutclkfabric_out(),
+		.gt0_txoutclkpcs_out(),
+		.gt0_txresetdone_out(),
+
+		//Fabric RX interface
+		.gt0_rxusrclk_in(lane1_rxclk),
+		.gt0_rxusrclk2_in(lane1_rxclk),
+		.gt0_rxdata_out(),
+		//.gt0_rxoutclk_out(lane1_rxclk_raw),
+		.gt0_rxoutclkfabric_out(),
+
+		//Output pattern selection
+		.gt0_txprbssel_in(3'b010),	//PRBS-15
+
+		//Top level diff pairs
+		.gt0_gtxtxn_out(tx1_p),
+		.gt0_gtxtxp_out(tx1_n),
+		.gt0_gtxrxn_in(rx1_p),
+		.gt0_gtxrxp_in(rx1_n),
+
+		//Output swing control and equalizer taps
+		.gt0_txdiffctrl_in(/*4'b0100*/tx_swing),	//543 mV p-p differential
+		.gt0_txprecursor_in(tx_precursor),
+		.gt0_txpostcursor_in(tx_postcursor),
+		.gt0_txmaincursor_in(tx_maincursor),
+
+		//Clock to/from CPLL
+		.gt0_cpllfbclklost_out(),
+		.gt0_cplllock_out(cpll_lock),
+		.gt0_cplllockdetclk_in(clk_125mhz),
+		.gt0_cpllreset_in(1'b0),
+		.gt0_gtrefclk0_in(serdes_refclk_156m25),
+		.gt0_gtrefclk1_in(serdes_refclk_200m),
+
+		//Clock from QPLL
+		//.gt0_qplllock_in(qpll_lock),
+		//.gt0_qpllrefclklost_in(qpll_refclk_lost),
+		//.gt0_qpllreset_out(),
+		.gt0_qplloutclk_in(qpll_clkout_10g3125),
+		.gt0_qplloutrefclk_in(qpll_refclk)
+		);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Network interfaces
 
 	`include "GmiiBus.svh"
@@ -339,6 +442,69 @@ module top(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Relays
+
+	logic			toggle_en = 0;
+	logic			toggle_dir = 0;
+	logic[1:0]		toggle_channel = 0;
+	wire			toggle_done;
+
+	RelayController relays(
+		.clk_125mhz(clk_125mhz),
+
+		.toggle_en(toggle_en),
+		.toggle_dir(toggle_dir),
+		.toggle_channel(toggle_channel),
+		.toggle_done(toggle_done),
+
+		.relay_a(relay_a),
+		.relay_b(relay_b)
+		);
+
+	//force lane 8-9 to input and 10-11 to output
+	enum logic[1:0]
+	{
+		RELAY_START = 0,
+		RELAY_WAIT,
+		RELAY_DONE
+	} relay_state = RELAY_START;
+
+	always_ff @(posedge clk_125mhz) begin
+
+		toggle_en	<= 0;
+
+		//Set toggle direction: 8-9 input, 10-11 output
+		toggle_dir	<= (toggle_channel < 2);
+
+		if(toggle_en)
+			toggle_channel	<= toggle_channel + 1;
+
+		case(relay_state)
+
+			RELAY_START: begin
+				toggle_en	<= 1;
+				relay_state	<= RELAY_WAIT;
+			end
+
+			RELAY_WAIT: begin
+				if(toggle_done) begin
+					if(toggle_channel == 3)
+						relay_state	<= RELAY_DONE;
+					else begin
+						relay_state	<= RELAY_WAIT;
+						toggle_en	<= 1;
+					end
+				end
+			end
+
+			RELAY_DONE: begin
+			end
+
+		endcase
+
+	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Management register interface
 
 	ManagementSubsystem mgmt(
@@ -376,27 +542,21 @@ module top(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Relays
-
-	RelayController relays(
-		.clk_125mhz(clk_125mhz),
-
-		.relay_a(relay_a),
-		.relay_b(relay_b)
-		);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Debug LEDs etc
 
 	always_comb begin
 		led[0]		= xg0_link_up;
 		led[1]		= mgmt0_link_up;
-		led[3:2]	= 2'b11;
+		led[2]		= cpll_lock;
+		led[3]	= 1'b1;
 	end
 
 	//forward trigger inputs to outputs 1:1
 	always_comb begin
 		trig_out	= trig_in;
+
+		//but special case: out4 is in8
+		trig_out[4]	= trig_in[8];
 	end
 
 endmodule

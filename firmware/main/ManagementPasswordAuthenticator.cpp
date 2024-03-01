@@ -27,130 +27,28 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef triggercrossbar_h
-#define triggercrossbar_h
+#include "triggercrossbar.h"
+#include "ManagementPasswordAuthenticator.h"
 
-#include "stm32.h"
-#include <peripheral/DTS.h>
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
-#include <peripheral/OctoSPI.h>
-#include <peripheral/OctoSPIManager.h>
-#include <peripheral/Power.h>
-#include <peripheral/RCC.h>
-#include <peripheral/SPI.h>
-#include <peripheral/Timer.h>
-#include <peripheral/UART.h>
-#include <cli/UARTOutputStream.h>
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Main auth checks
 
-#include "LogSink.h"
+/**
+	@brief Demo password check against hard-coded values for testing the SSH layer
 
-#include <microkvs/kvs/KVS.h>
-
-#include <util/Logger.h>
-#include <util/StringBuffer.h>
-
-#include <staticnet-config.h>
-#include <staticnet/stack/staticnet.h>
-#include <staticnet/ssh/SSHTransportServer.h>
-
-#include "ManagementTCPProtocol.h"
-#include "FPGAInterface.h"
-#include "OctalDAC.h"
-
-#define MAX_LOG_SINKS SSH_TABLE_SIZE
-
-extern KVS* g_kvs;
-extern LogSink<MAX_LOG_SINKS>* g_logSink;
-extern Logger g_log;
-extern FPGAInterface* g_fpga;
-extern Timer* g_logTimer;
-extern EthernetInterface* g_ethIface;
-extern MACAddress g_macAddress;
-extern IPv4Config g_ipConfig;
-extern EthernetProtocol* g_ethProtocol;
-extern I2C* g_macI2C;
-extern I2C* g_sfpI2C;
-
-extern UART* g_cliUART;
-extern OctoSPI* g_qspi;
-
-extern DigitalTempSensor* g_dts;
-
-extern GPIOPin* g_leds[4];
-
-extern GPIOPin* g_sfpModAbsPin;
-extern GPIOPin* g_sfpTxDisablePin;
-extern GPIOPin* g_sfpTxFaultPin;
-extern bool g_sfpFaulted;
-extern bool g_sfpPresent;
-
-extern const IPv4Address g_defaultIP;
-extern const IPv4Address g_defaultNetmask;
-extern const IPv4Address g_defaultBroadcast;
-extern const IPv4Address g_defaultGateway;
-
-void InitClocks();
-void InitLEDs();
-void InitTimer();
-void InitUART();
-void InitLog(CharacterDevice* logdev, Timer* timer);
-
-void InitDTS();
-void InitQSPI();
-void InitFPGA();
-
-void InitI2C();
-void InitEEPROM();
-void InitDACs();
-
-void InitSensors();
-
-void InitSFP();
-void PollSFP();
-void InitManagementPHY();
-void PollFPGA();
-
-uint16_t GetFanRPM(uint8_t channel);
-uint16_t GetFPGATemperature();
-uint16_t GetFPGAVCCINT();
-uint16_t GetFPGAVCCAUX();
-uint16_t GetFPGAVCCBRAM();
-uint16_t GetSFPTemperature();
-
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-
-void InitEthernet();
-void InitIP();
-void ConfigureIP();
-
-void DetectHardware();
-
-uint16_t ManagementPHYRead(uint8_t regid);
-uint16_t ManagementPHYExtendedRead(uint8_t mmd, uint8_t regid);
-void ManagementPHYWrite(uint8_t regid, uint16_t regval);
-void ManagementPHYExtendedWrite(uint8_t regid, uint8_t mmd, uint16_t regval);
-
-enum mdioreg_t
+	A real implementation of this method should check a dynamic database of users and hashed passwords.
+ */
+bool ManagementPasswordAuthenticator::TestLogin(
+	const char* username,
+	uint16_t username_len,
+	const char* password,
+	uint16_t password_len,
+	CryptoEngine* /*crypto*/
+	)
 {
-	//IEEE defined registers
-	REG_BASIC_CONTROL			= 0x0000,
-	REG_BASIC_STATUS			= 0x0001,
-	REG_PHY_ID_1				= 0x0002,
-	REG_PHY_ID_2				= 0x0003,
-	REG_AN_ADVERT				= 0x0004,
-	REG_GIG_CONTROL				= 0x0009,
-
-	//Extended register access
-	REG_PHY_REGCR				= 0x000d,
-	REG_PHY_ADDAR				= 0x000e,
-
-	//KSZ9031 specific
-	REG_KSZ9031_MDIX			= 0x001c,
-
-	//KSZ9031 MMD 2
-	REG_KSZ9031_MMD2_CLKSKEW	= 0x0008
-};
-
-#endif
+	if(!SSHTransportServer::StringMatchWithLength("admin", username, username_len))
+		return false;
+	if(!SSHTransportServer::StringMatchWithLength("password", password, password_len))
+		return false;
+	return true;
+}

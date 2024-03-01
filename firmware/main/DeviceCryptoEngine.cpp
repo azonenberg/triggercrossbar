@@ -40,13 +40,12 @@ DeviceCryptoEngine::~DeviceCryptoEngine()
 
 void DeviceCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clientPublicKey)
 {
-	/*
 	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_WORK, clientPublicKey, ECDH_KEY_SIZE);
 	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_E, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
 	uint8_t status = 1;
 	while(status != 0)
 		status = g_fpga->BlockingRead8(REG_CRYPT_BASE + REG_CRYPT_STATUS);
-	g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, sharedSecret, ECDH_KEY_SIZE);*/
+	g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, sharedSecret, ECDH_KEY_SIZE);
 }
 
 /**
@@ -58,7 +57,6 @@ void DeviceCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clientPubl
  */
 void DeviceCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
 {
-	/*
 	//To be a valid key, a few bits need well-defined values. The rest are cryptographic randomness.
 	GenerateRandom(m_ephemeralkeyPriv, 32);
 	m_ephemeralkeyPriv[0] &= 0xF8;
@@ -78,5 +76,5 @@ void DeviceCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
 	uint8_t status = 1;
 	while(status != 0)
 		status = g_fpga->BlockingRead8(REG_CRYPT_BASE + REG_CRYPT_STATUS);
-	g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, pub, ECDH_KEY_SIZE);*/
+	g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, pub, ECDH_KEY_SIZE);
 }

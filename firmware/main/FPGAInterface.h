@@ -102,11 +102,11 @@ enum regid_t
 
 	REG_XG0_STAT		= 0x0060,
 
-	REG_EMAC_BUFFER		= 0x1000//,
+	REG_EMAC_BUFFER		= 0x1000,
 
-	//REG_CRYPT_BASE		= 0x3800,
+	REG_CRYPT_BASE		= 0x3800,
 };
-/*
+
 enum cryptreg_t
 {
 	REG_WORK			= 0x0000,
@@ -114,5 +114,5 @@ enum cryptreg_t
 	REG_CRYPT_STATUS	= 0x0040,
 	REG_WORK_OUT		= 0x0060
 };
-*/
+
 #endif

@@ -281,8 +281,8 @@ void InitDACs()
 	//Set all input channels to 500 mV threshold
 	for(int i=0; i<8; i++)
 	{
-		rx_dac0.SetChannelMillivolts(i, 500);
-		rx_dac1.SetChannelMillivolts(i, 500);
+		rx_dac0.SetChannelMillivolts(i, 850);
+		rx_dac1.SetChannelMillivolts(i, 850);
 	}
 
 	g_log("DAC init complete\n");
