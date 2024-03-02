@@ -30,12 +30,16 @@
 #include "triggercrossbar.h"
 #include "ManagementTCPProtocol.h"
 
+#define SSH_PORT	22
+#define SCPI_PORT	5025
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
 
 ManagementTCPProtocol::ManagementTCPProtocol(IPv4Protocol* ipv4)
 	: TCPProtocol(ipv4)
-	, m_server(*this)
+	, m_ssh(*this)
+	, m_scpi(*this)
 {
 }
 
@@ -44,21 +48,55 @@ ManagementTCPProtocol::ManagementTCPProtocol(IPv4Protocol* ipv4)
 
 bool ManagementTCPProtocol::IsPortOpen(uint16_t port)
 {
-	return (port == 22);
+	return (port == SSH_PORT) || (port == SCPI_PORT);
 }
 
 void ManagementTCPProtocol::OnConnectionAccepted(TCPTableEntry* state)
 {
-	//Tell the SSH server process to do its thing
-	m_server.OnConnectionAccepted(state);
+	switch(state->m_localPort)
+	{
+		case SSH_PORT:
+			m_ssh.OnConnectionAccepted(state);
+			break;
+
+		case SCPI_PORT:
+			m_scpi.OnConnectionAccepted(state);
+			break;
+
+		default:
+			break;
+	}
+}
+
+void ManagementTCPProtocol::OnConnectionClosed(TCPTableEntry* state)
+{
+	switch(state->m_localPort)
+	{
+		case SSH_PORT:
+			m_ssh.OnConnectionClosed(state);
+			break;
+
+		case SCPI_PORT:
+			m_scpi.OnConnectionClosed(state);
+			break;
+
+		default:
+			break;
+	}
 }
 
 bool ManagementTCPProtocol::OnRxData(TCPTableEntry* state, uint8_t* payload, uint16_t payloadLen)
 {
-	//Discard anything not to port 22
-	if(state->m_localPort != 22)
-		return true;
+	switch(state->m_localPort)
+	{
+		case SSH_PORT:
+			return m_ssh.OnRxData(state, payload, payloadLen);
 
-	//Pass the incoming traffic off to the SSH server process
-	return m_server.OnRxData(state, payload, payloadLen);
+		case SCPI_PORT:
+			return m_scpi.OnRxData(state, payload, payloadLen);
+
+		//ignore it
+		default:
+			return true;
+	}
 }

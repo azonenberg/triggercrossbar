@@ -29,55 +29,52 @@
 
 /**
 	@file
-	@brief Configuration file for staticnet on trigger-crossbar
+	@brief Declaration of CrossbarSCPIServer
  */
+#ifndef CrossbarSCPIServer_h
+#define CrossbarSCPIServer_h
 
-#ifndef staticnet_config_h
-#define staticnet_config_h
+#include "SCPIServer.h"
 
-///@brief Maximum size of an Ethernet frame (payload only, headers not included)
-#define ETHERNET_PAYLOAD_MTU 1500
+class CrossbarSCPIConnectionState
+{
+public:
+	CrossbarSCPIConnectionState()
+	{ Clear(); }
 
-///@brief Define this to zeroize all frame buffers between uses
-//#define ZEROIZE_BUFFERS_BEFORE_USE
+	///@brief Clears connection state
+	void Clear()
+	{
+		m_valid = false;
+		m_socket = nullptr;
+		m_rxBuffer.Reset();
+	}
 
-///@brief Define this to enable performance counters
-#define STATICNET_PERFORMANCE_COUNTERS
+	///@brief True if the connection is valid
+	bool	m_valid;
 
-///@brief Number of ways of associativity for the ARP cache
-#define ARP_CACHE_WAYS 4
+	///@brief Socket state handle
+	TCPTableEntry* m_socket;
 
-///@brief Number of lines per set in the ARP cache
-#define ARP_CACHE_LINES 256
+	///@brief Packet reassembly buffer (may span multiple TCP segments)
+	CircularFIFO<SCPI_RX_BUFFER_SIZE> m_rxBuffer;
+};
 
-///@brief Number of entries in the TCP socket table
-#define TCP_TABLE_WAYS 2
+/**
+	@brief SCPI server for the crossbar
+ */
+class CrossbarSCPIServer : public SCPIServer<MAX_SCPI_CONNS, CrossbarSCPIConnectionState>
+{
+public:
+	CrossbarSCPIServer(TCPProtocol& tcp);
+	virtual ~CrossbarSCPIServer();
 
-///@brief Number of lines per set in the TCP socket table
-#define TCP_TABLE_LINES 16
+	virtual void OnConnectionAccepted(TCPTableEntry* socket);
+	virtual void OnConnectionClosed(TCPTableEntry* socket);
+	virtual void GracefulDisconnect(int id, TCPTableEntry* socket);
 
-///@brief Maximum number of SSH connections supported
-#define SSH_TABLE_SIZE 2
-
-///@brief SSH socket RX buffer size
-#define SSH_RX_BUFFER_SIZE 2048
-
-///@brief CLI TX buffer size
-#define CLI_TX_BUFFER_SIZE 1024
-
-///@brief Maximum length of a SSH username
-#define SSH_MAX_USERNAME	32
-
-///@brief Max length of a CLI username
-#define CLI_USERNAME_MAX SSH_MAX_USERNAME
-
-///@brief Maximum length of a SSH password
-#define SSH_MAX_PASSWORD	128
-
-///@brief Max number of concurrent SCPI connections
-#define MAX_SCPI_CONNS	2
-
-///@brief SCPI socket RX buffer size
-#define SCPI_RX_BUFFER_SIZE 2048
+protected:
+	virtual void OnCommand(const char* line) override;
+};
 
 #endif

@@ -29,55 +29,53 @@
 
 /**
 	@file
-	@brief Configuration file for staticnet on trigger-crossbar
+	@brief Implementation of CrossbarSCPIServer
  */
+#include "triggercrossbar.h"
 
-#ifndef staticnet_config_h
-#define staticnet_config_h
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Construction / destruction
 
-///@brief Maximum size of an Ethernet frame (payload only, headers not included)
-#define ETHERNET_PAYLOAD_MTU 1500
+CrossbarSCPIServer::CrossbarSCPIServer(TCPProtocol& tcp)
+	: SCPIServer(tcp)
+{
+}
 
-///@brief Define this to zeroize all frame buffers between uses
-//#define ZEROIZE_BUFFERS_BEFORE_USE
+CrossbarSCPIServer::~CrossbarSCPIServer()
+{
+}
 
-///@brief Define this to enable performance counters
-#define STATICNET_PERFORMANCE_COUNTERS
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Socket event handlers
 
-///@brief Number of ways of associativity for the ARP cache
-#define ARP_CACHE_WAYS 4
+void CrossbarSCPIServer::OnConnectionAccepted(TCPTableEntry* socket)
+{
+	//Make a new entry in the socket state table
+	int id = AllocateConnectionID(socket);
+	if(id < 0)
+		return;
 
-///@brief Number of lines per set in the ARP cache
-#define ARP_CACHE_LINES 256
+	//TODO: do stuff
+}
 
-///@brief Number of entries in the TCP socket table
-#define TCP_TABLE_WAYS 2
+void CrossbarSCPIServer::OnConnectionClosed(TCPTableEntry* socket)
+{
+	//Connection was terminated by the other end, close our state so we can reuse it
+	auto id = GetConnectionID(socket);
+	if(id >= 0)
+		m_state[id].Clear();
+}
 
-///@brief Number of lines per set in the TCP socket table
-#define TCP_TABLE_LINES 16
+void CrossbarSCPIServer::GracefulDisconnect(int id, TCPTableEntry* socket)
+{
+	m_state[id].Clear();
+	m_tcp.CloseSocket(socket);
+}
 
-///@brief Maximum number of SSH connections supported
-#define SSH_TABLE_SIZE 2
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Command handling
 
-///@brief SSH socket RX buffer size
-#define SSH_RX_BUFFER_SIZE 2048
-
-///@brief CLI TX buffer size
-#define CLI_TX_BUFFER_SIZE 1024
-
-///@brief Maximum length of a SSH username
-#define SSH_MAX_USERNAME	32
-
-///@brief Max length of a CLI username
-#define CLI_USERNAME_MAX SSH_MAX_USERNAME
-
-///@brief Maximum length of a SSH password
-#define SSH_MAX_PASSWORD	128
-
-///@brief Max number of concurrent SCPI connections
-#define MAX_SCPI_CONNS	2
-
-///@brief SCPI socket RX buffer size
-#define SCPI_RX_BUFFER_SIZE 2048
-
-#endif
+void CrossbarSCPIServer::OnCommand(const char* line)
+{
+	g_log("Got SCPI command: %s\n", line);
+}

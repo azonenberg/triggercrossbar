@@ -100,25 +100,25 @@ protected:
 
 	void OnSetCommand();
 	void OnSetRegister();
-	void OnSetMmdRegister();/*
-	void OnSpeed();
+	void OnSetMmdRegister();
+	//void OnSpeed();
 
-	void OnShowARPCache();*/
-	void OnShowCommand();/*
+	void OnShowARPCache();
+	void OnShowCommand();
 	void OnShowFlash();
 	void OnShowFlashDetail();
 	void OnShowHardware();
-	void OnShowInterfaceCommand();
+	/*void OnShowInterfaceCommand();
 	void OnShowInterfaceCounters(uint8_t interface);
-	void OnShowInterfaceStatus();
+	void OnShowInterfaceStatus();*/
 	void OnShowIPAddress();
-	void OnShowIPRoute();*/
+	void OnShowIPRoute();
 	void OnShowMMDRegister();
-	void OnShowRegister();/*
+	void OnShowRegister();
 	void OnShowSSHFingerprint();
-	void OnShowTemperature();
+	//void OnShowTemperature();
 	void OnShowVersion();
-
+	/*
 	void OnTest();
 	void OnTestPattern();
 

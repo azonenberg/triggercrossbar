@@ -29,55 +29,87 @@
 
 /**
 	@file
-	@brief Configuration file for staticnet on trigger-crossbar
+	@brief Declaration of SCPIServer
  */
+#ifndef SCPIServer_h
+#define SCPIServer_h
 
-#ifndef staticnet_config_h
-#define staticnet_config_h
+#include "../../staticnet/net/tcp/TCPServer.h"
 
-///@brief Maximum size of an Ethernet frame (payload only, headers not included)
-#define ETHERNET_PAYLOAD_MTU 1500
+/**
+	@brief Base class for a generic SCPI server
+ */
+template<int MAXCONNS, class ContextType>
+class SCPIServer
+	: public TCPServer<MAXCONNS, ContextType>
+{
+public:
+	SCPIServer(TCPProtocol& tcp)
+		: TCPServer<MAXCONNS, ContextType>(tcp)
+	{}
 
-///@brief Define this to zeroize all frame buffers between uses
-//#define ZEROIZE_BUFFERS_BEFORE_USE
+	virtual ~SCPIServer()
+	{}
 
-///@brief Define this to enable performance counters
-#define STATICNET_PERFORMANCE_COUNTERS
+	__attribute__((noinline))
+	virtual bool OnRxData(TCPTableEntry* socket, uint8_t* payload, uint16_t payloadLen) override
+	{
+		//Look up the connection ID for the incoming session
+		auto id = TCPServer<MAXCONNS, ContextType>::GetConnectionID(socket);
+		if(id < 0)
+			return true;
 
-///@brief Number of ways of associativity for the ARP cache
-#define ARP_CACHE_WAYS 4
+		//Push the segment data into our RX FIFO
+		if(!TCPServer<MAXCONNS, ContextType>::m_state[id].m_rxBuffer.Push(payload, payloadLen))
+			return false;
 
-///@brief Number of lines per set in the ARP cache
-#define ARP_CACHE_LINES 256
+		//Rewind the FIFO then see if there's a newline in the buffer
+		auto& fifo = TCPServer<MAXCONNS, ContextType>::m_state[id].m_rxBuffer;
+		auto line = fifo.Rewind();
+		auto len = fifo.ReadSize();
 
-///@brief Number of entries in the TCP socket table
-#define TCP_TABLE_WAYS 2
+		//Search for a \n
+		bool newlineFound = false;
+		size_t lineLen = 0;
+		for(size_t i=0; i<len; i++)
+		{
+			if(line[i] == '\n')
+			{
+				//Convert the newline to a nul so we can use c string functions on it
+				line[i] = '\0';
 
-///@brief Number of lines per set in the TCP socket table
-#define TCP_TABLE_LINES 16
+				//Done, we found it
+				lineLen = i+1;
+				newlineFound = true;
+				break;
+			}
+		}
 
-///@brief Maximum number of SSH connections supported
-#define SSH_TABLE_SIZE 2
+		//If NO newline was found, look at the overall line length.
+		if(!newlineFound)
+		{
+			//If line was more than 512 bytes long and still no newline, assume something is screwy
+			//and drop the connection
+			if(len > 512)
+			{
+				TCPServer<MAXCONNS, ContextType>::m_state[id].Clear();
+				TCPServer<MAXCONNS, ContextType>::m_tcp.CloseSocket(socket);
+			}
+			return false;
+		}
 
-///@brief SSH socket RX buffer size
-#define SSH_RX_BUFFER_SIZE 2048
+		//We found a newline, process it
+		OnCommand(reinterpret_cast<char*>(line));
 
-///@brief CLI TX buffer size
-#define CLI_TX_BUFFER_SIZE 1024
+		//Pop the line data so we have space for more commands
+		fifo.Pop(lineLen);
 
-///@brief Maximum length of a SSH username
-#define SSH_MAX_USERNAME	32
+		return true;
+	}
 
-///@brief Max length of a CLI username
-#define CLI_USERNAME_MAX SSH_MAX_USERNAME
 
-///@brief Maximum length of a SSH password
-#define SSH_MAX_PASSWORD	128
-
-///@brief Max number of concurrent SCPI connections
-#define MAX_SCPI_CONNS	2
-
-///@brief SCPI socket RX buffer size
-#define SCPI_RX_BUFFER_SIZE 2048
+protected:
+	virtual void OnCommand(const char* line) =0;
+};
 
 #endif

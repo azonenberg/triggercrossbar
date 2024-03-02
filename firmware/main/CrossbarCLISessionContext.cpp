@@ -39,30 +39,30 @@ enum cmdid_t
 {
 	/*CMD_10,
 	CMD_100,
-	CMD_1000,
+	CMD_1000,*/
 	CMD_ADDRESS,
-	CMD_AUTO,
-	CMD_AUTONEGOTIATION,
+	/*CMD_AUTO,
+	CMD_AUTONEGOTIATION,*/
 	CMD_ARP,
 	CMD_CACHE,
-	CMD_CLEAR,
+	/*CMD_CLEAR,
 	CMD_COMMIT,
 	CMD_COUNTERS,
 	CMD_CROSSOVER,
-	CMD_DESCRIPTION,
+	CMD_DESCRIPTION,*/
 	CMD_DETAIL,
-	CMD_DEBUG,
+	/*CMD_DEBUG,
 	CMD_DISTORTION,
 	CMD_END,*/
 	CMD_EXIT,
-	/*CMD_FINGERPRINT,
+	CMD_FINGERPRINT,
 	CMD_FLASH,
-	CMD_GATEWAY,
+	//CMD_GATEWAY,
 	CMD_HARDWARE,
-	CMD_HOSTNAME,
-	CMD_INTERFACE,
+	/*CMD_HOSTNAME,
+	CMD_INTERFACE,*/
 	CMD_IP,
-	CMD_JITTER,
+	/*CMD_JITTER,
 	CMD_MASTER,
 	CMD_MDI,
 	CMD_MLT3,*/
@@ -75,38 +75,22 @@ enum cmdid_t
 	CMD_RELOAD,*/
 	CMD_REGISTER,
 	//CMD_ROLLBACK,
-	//CMD_ROUTE,
+	CMD_ROUTE,
 	CMD_SET,
 	CMD_SHOW,
 	/*CMD_SLAVE,
-	CMD_SPEED,
-	CMD_SSH,
+	CMD_SPEED,*/
+	CMD_SSH,/*
 	CMD_STRAIGHT,
 	CMD_STATUS,
 	CMD_TEMPERATURE,
 	CMD_TEST,
-	CMD_TESTPATTERN,
-	CMD_VERSION,
+	CMD_TESTPATTERN,*/
+	CMD_VERSION,/*
 	CMD_VLAN,
 	CMD_WAVEFORM_TEST,
 	CMD_ZEROIZE,
 
-	//must be in order separately outside the alphabetical block
-	//so we can just add/subtract CMD_G0 to get an interface number
-	CMD_G0,
-	CMD_G1,
-	CMD_G2,
-	CMD_G3,
-	CMD_G4,
-	CMD_G5,
-	CMD_G6,
-	CMD_G7,
-	CMD_G8,
-	CMD_G9,
-	CMD_G10,
-	CMD_G11,
-	CMD_G12,
-	CMD_G13,
 	CMD_XG0,
 	CMD_MGMT0
 	*/
@@ -118,20 +102,6 @@ enum cmdid_t
 // Out of alphabetical order so it can be referred to by other commands operating on interfaces to avoid duplication
 static const clikeyword_t g_interfaceCommands[] =
 {
-	{"g0",			CMD_G0,				nullptr,	"Gigabit0"},
-	{"g1",			CMD_G1,				nullptr,	"Gigabit1"},
-	{"g2",			CMD_G2,				nullptr,	"Gigabit2"},
-	{"g3",			CMD_G3,				nullptr,	"Gigabit3"},
-	{"g4",			CMD_G4,				nullptr,	"Gigabit4"},
-	{"g5",			CMD_G5,				nullptr,	"Gigabit5"},
-	{"g6",			CMD_G6,				nullptr,	"Gigabit6"},
-	{"g7",			CMD_G7,				nullptr,	"Gigabit7"},
-	{"g8",			CMD_G8,				nullptr,	"Gigabit8"},
-	{"g9",			CMD_G9,				nullptr,	"Gigabit9"},
-	{"g10",			CMD_G10,			nullptr,	"Gigabit10"},
-	{"g11",			CMD_G11,			nullptr,	"Gigabit11"},
-	{"g12",			CMD_G12,			nullptr,	"Gigabit12"},
-	{"g13",			CMD_G13,			nullptr,	"Gigabit13"},
 	{"mgmt0",		CMD_MGMT0,			nullptr,	"Management0"},
 	{"xg0",			CMD_XG0,			nullptr,	"10Gigabit0"},
 
@@ -324,7 +294,7 @@ static const clikeyword_t g_showMmdCommands[] =
 
 	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
 };
-/*
+
 static const clikeyword_t g_showArpCommands[] =
 {
 	{"cache",			CMD_CACHE,				nullptr,				"Show contents of the ARP cache"},
@@ -343,7 +313,7 @@ static const clikeyword_t g_showSshCommands[] =
 	{"fingerprint",		CMD_FINGERPRINT,		nullptr,				"Show the SSH host key fingerprint (in OpenSSH base64 SHA256 format)"},
 	{nullptr,			INVALID_COMMAND,		nullptr,				nullptr}
 };
-
+/*
 static const clikeyword_t g_showIntSuffixCommands[] =
 {
 	//{"<cr>",			OPTIONAL_TOKEN,		nullptr,	""},
@@ -353,27 +323,13 @@ static const clikeyword_t g_showIntSuffixCommands[] =
 
 static const clikeyword_t g_showInterfaceCommands[] =
 {
-	{"g0",				CMD_G0,				g_showIntSuffixCommands,	"Gigabit0"},
-	{"g1",				CMD_G1,				g_showIntSuffixCommands,	"Gigabit1"},
-	{"g2",				CMD_G2,				g_showIntSuffixCommands,	"Gigabit2"},
-	{"g3",				CMD_G3,				g_showIntSuffixCommands,	"Gigabit3"},
-	{"g4",				CMD_G4,				g_showIntSuffixCommands,	"Gigabit4"},
-	{"g5",				CMD_G5,				g_showIntSuffixCommands,	"Gigabit5"},
-	{"g6",				CMD_G6,				g_showIntSuffixCommands,	"Gigabit6"},
-	{"g7",				CMD_G7,				g_showIntSuffixCommands,	"Gigabit7"},
-	{"g8",				CMD_G8,				g_showIntSuffixCommands,	"Gigabit8"},
-	{"g9",				CMD_G9,				g_showIntSuffixCommands,	"Gigabit9"},
-	{"g10",				CMD_G10,			g_showIntSuffixCommands,	"Gigabit10"},
-	{"g11",				CMD_G11,			g_showIntSuffixCommands,	"Gigabit11"},
-	{"g12",				CMD_G12,			g_showIntSuffixCommands,	"Gigabit12"},
-	{"g13",				CMD_G13,			g_showIntSuffixCommands,	"Gigabit13"},
 	{"mgmt0",			CMD_MGMT0,			g_showIntSuffixCommands,	"Management0"},
 	{"xg0",				CMD_XG0,			g_showIntSuffixCommands,	"10Gigabit0"},
 
 	{"status",			CMD_STATUS,			nullptr,					"Display summary of all network interfaces"},
 	{nullptr,			INVALID_COMMAND,	nullptr,					nullptr}
 };
-
+*/
 static const clikeyword_t g_showFlashDetailCommands[] =
 {
 	{"<objname>",		FREEFORM_TOKEN,		nullptr,					"Name of the flash object to display"},
@@ -386,17 +342,17 @@ static const clikeyword_t g_showFlashCommands[] =
 	{"detail",			CMD_DETAIL,			g_showFlashDetailCommands,	"Show detailed flash object contents"},
 	{nullptr,			INVALID_COMMAND,	nullptr,					nullptr}
 };
-*/
+
 static const clikeyword_t g_showCommands[] =
 {
-	/*{"arp",				CMD_ARP,			g_showArpCommands,			"Print ARP information"},
+	{"arp",				CMD_ARP,			g_showArpCommands,			"Print ARP information"},
 	{"flash",			CMD_FLASH,			g_showFlashCommands,		"Display flash usage and log data"},
 	{"hardware",		CMD_HARDWARE,		nullptr,					"Print hardware information"},
-	{"interface",		CMD_INTERFACE,		g_showInterfaceCommands,	"Display interface properties and stats"},
+	//{"interface",		CMD_INTERFACE,		g_showInterfaceCommands,	"Display interface properties and stats"},*/
 	{"ip",				CMD_IP,				g_showIpCommands,			"Print IPv4 information"},
 	{"ssh",				CMD_SSH,			g_showSshCommands,			"Print SSH information"},
-	{"temperature",		CMD_TEMPERATURE,	nullptr,					"Display temperature sensor values"},
-	{"version",			CMD_VERSION,		nullptr,					"Show firmware / FPGA version"},*/
+	//{"temperature",		CMD_TEMPERATURE,	nullptr,					"Display temperature sensor values"},
+	{"version",			CMD_VERSION,		nullptr,					"Show firmware / FPGA version"},
 	{"mmd",				CMD_MMD,			g_showMmdCommands,			"Read MMD registers"},
 	{"register",		CMD_REGISTER,		g_showRegisterCommands,		"Read PHY registers"},
 	{nullptr,			INVALID_COMMAND,	nullptr,					nullptr}
@@ -973,7 +929,7 @@ void CrossbarCLISessionContext::OnShowCommand()
 {
 	switch(m_command[1].m_commandID)
 	{
-		/*
+
 		case CMD_ARP:
 			switch(m_command[2].m_commandID)
 			{
@@ -989,11 +945,11 @@ void CrossbarCLISessionContext::OnShowCommand()
 		case CMD_FLASH:
 			OnShowFlash();
 			break;
-
+		/*
 		case CMD_INTERFACE:
 			OnShowInterfaceCommand();
 			break;
-
+		*/
 		case CMD_IP:
 			switch(m_command[2].m_commandID)
 			{
@@ -1009,7 +965,7 @@ void CrossbarCLISessionContext::OnShowCommand()
 					break;
 			}
 			break;
-		*/
+
 		case CMD_MMD:
 			OnShowMMDRegister();
 			break;
@@ -1017,7 +973,7 @@ void CrossbarCLISessionContext::OnShowCommand()
 		case CMD_REGISTER:
 			OnShowRegister();
 			break;
-		/*
+
 		case CMD_SSH:
 			switch(m_command[2].m_commandID)
 			{
@@ -1030,20 +986,20 @@ void CrossbarCLISessionContext::OnShowCommand()
 			}
 			break;
 
-		case CMD_TEMPERATURE:
+		/*case CMD_TEMPERATURE:
 			OnShowTemperature();
-			break;
+			break;*/
 
 		case CMD_VERSION:
 			OnShowVersion();
 			break;
-		*/
+
 		default:
 			m_stream->Printf("Unrecognized command\n");
 			break;
 	}
 }
-/*
+
 void CrossbarCLISessionContext::OnShowARPCache()
 {
 	auto cache = g_ethProtocol->GetARP()->GetCache();
@@ -1171,8 +1127,7 @@ void CrossbarCLISessionContext::OnShowHardware()
 	uint16_t rev = DBGMCU.IDCODE >> 16;
 	uint16_t device = DBGMCU.IDCODE & 0xfff;
 
-	m_stream->Printf("MCU:\n");
-	if(device == 0x451)
+	if(device == 0x483)
 	{
 		//Look up the stepping number
 		const char* srev = NULL;
@@ -1190,36 +1145,58 @@ void CrossbarCLISessionContext::OnShowHardware()
 				srev = "(unknown)";
 		}
 
-		uint8_t pkg = (PKG_ID >> 8) & 0x7;
+		uint8_t pkg = SYSCFG.PKGR;
+		const char* package = "";
 		switch(pkg)
 		{
-			case 7:
-				m_stream->Printf("    STM32F767 / 777 LQFP208/TFBGA216 rev %s (0x%04x)\n", srev, rev);
-				break;
-			case 6:
-				m_stream->Printf("    STM32F769 / 779 LQFP208/TFBGA216 rev %s (0x%04x)\n", srev, rev);
-				break;
-			case 5:
-				m_stream->Printf("    STM32F767 / 777 LQFP176 rev %s (0x%04x)\n", srev, rev);
-				break;
-			case 4:
-				m_stream->Printf("    STM32F769 / 779 LQFP176 rev %s (0x%04x)\n", srev, rev);
-				break;
-			case 3:
-				m_stream->Printf("    STM32F778 / 779 WLCSP180 rev %s (0x%04x)\n", srev, rev);
-				break;
-			case 2:
-				m_stream->Printf("    STM32F767 / 777 LQFP144 rev %s (0x%04x)\n", srev, rev);
+			case 0:
+				package = "VQFPN68 (industrial)";
 				break;
 			case 1:
-				m_stream->Printf("    STM32F767 / 777 LQFP100 rev %s (0x%04x)\n", srev, rev);
+				package = "LQFP100/TFBGA100 (legacy)";
+				break;
+			case 2:
+				package = "LQFP100 (industrial)";
+				break;
+			case 3:
+				package = "TFBGA100 (industrial)";
+				break;
+			case 4:
+				package = "WLCSP115 (industrial)";
+				break;
+			case 5:
+				package = "LQFP144 (legacy)";
+				break;
+			case 6:
+				package = "UFBGA144 (legacy)";
+				break;
+			case 7:
+				package = "LQFP144 (industrial)";
+				break;
+			case 8:
+				package = "UFBGA169 (industrial)";
+				break;
+			case 9:
+				package = "UFBGA176+25 (industrial)";
+				break;
+			case 10:
+				package = "LQFP176 (industrial)";
 				break;
 			default:
-				m_stream->Printf("    Unknown/reserved STM32F76x/F77x rev %s (0x%04x)\n", srev, rev);
+				package = "unknown package";
 				break;
 		}
-		m_stream->Printf("    512 kB total SRAM, 128 kB DTCM, 16 kB ITCM, 4 kB backup SRAM\n");
-		m_stream->Printf("    %d kB Flash\n", F_ID);
+
+		m_stream->Printf("STM32%c%c%c%c stepping %s, %s\n",
+			(L_ID >> 24) & 0xff,
+			(L_ID >> 16) & 0xff,
+			(L_ID >> 8) & 0xff,
+			(L_ID >> 0) & 0xff,
+			srev,
+			package
+			);
+		m_stream->Printf("564 kB total SRAM, 128 kB DTCM, up to 256 kB ITCM, 4 kB backup SRAM\n");
+		m_stream->Printf("%d kB Flash\n", F_ID);
 
 		//U_ID fields documented in 45.1 of STM32 programming manual
 		uint16_t waferX = U_ID[0] >> 16;
@@ -1236,10 +1213,7 @@ void CrossbarCLISessionContext::OnShowHardware()
 			static_cast<char>((U_ID[2] >> 0) & 0xff),
 			'\0'
 		};
-		m_stream->Printf("    Lot %s, wafer %d, die (%d, %d)\n", waferLot, waferNum, waferX, waferY);
-
-		if(g_hasRmiiErrata)
-			m_stream->Printf("    RMII RXD0 errata present\n");
+		m_stream->Printf("Lot %s, wafer %d, die (%d, %d)\n", waferLot, waferNum, waferX, waferY);
 	}
 	else
 		m_stream->Printf("Unknown device (0x%06x)\n", device);
@@ -1280,7 +1254,7 @@ void CrossbarCLISessionContext::OnShowHardware()
 		g_macAddress[0], g_macAddress[1], g_macAddress[2], g_macAddress[3], g_macAddress[4], g_macAddress[5]);
 
 }
-
+/*
 void CrossbarCLISessionContext::OnShowInterfaceCommand()
 {
 	//Interface number?
@@ -1352,7 +1326,7 @@ void CrossbarCLISessionContext::OnShowInterfaceStatus()
 		}
 	}
 }
-
+*/
 void CrossbarCLISessionContext::OnShowIPAddress()
 {
 	m_stream->Printf("IPv4 address: %d.%d.%d.%d\n",
@@ -1387,7 +1361,7 @@ void CrossbarCLISessionContext::OnShowIPRoute()
 		g_ipConfig.m_gateway.m_octets[2],
 		g_ipConfig.m_gateway.m_octets[3]);
 }
-*/
+
 void CrossbarCLISessionContext::OnShowMMDRegister()
 {
 	int mmd = strtol(m_command[2].m_text, nullptr, 16);
@@ -1404,7 +1378,7 @@ void CrossbarCLISessionContext::OnShowRegister()
 
 	m_stream->Printf("Register 0x%02x = 0x%04x\n", regid, value);
 }
-/*
+
 void CrossbarCLISessionContext::OnShowSSHFingerprint()
 {
 	char buf[64] = {0};
@@ -1412,7 +1386,7 @@ void CrossbarCLISessionContext::OnShowSSHFingerprint()
 	tmp.GetHostKeyFingerprint(buf, sizeof(buf));
 	m_stream->Printf("ED25519 key fingerprint is SHA256:%s.\n", buf);
 }
-
+/*
 void CrossbarCLISessionContext::OnShowTemperature()
 {
 	//Read fans
@@ -1456,15 +1430,15 @@ void CrossbarCLISessionContext::OnShowTemperature()
 	temp = g_dts->GetTemperature();
 	m_stream->Printf("MCU:                                   %2d.%02d C\n",
 		(temp >> 8), static_cast<int>(((temp & 0xff) / 256.0) * 100));
-}
+}*/
 
 void CrossbarCLISessionContext::OnShowVersion()
 {
-	m_stream->Printf("LATENTPINK Ethernet switch v0.1\n");
+	m_stream->Printf("Trigger crossbar v0.1\n");
 	m_stream->Printf("by Andrew D. Zonenberg\n");
 	m_stream->Printf("\n");
 	m_stream->Printf("This system is open hardware! Board design files and firmware/gateware source code are at:\n");
-	m_stream->Printf("https://github.com/azonenberg/latentpacket\n");
+	m_stream->Printf("https://github.com/azonenberg/triggercrossbar\n");
 	m_stream->Printf("\n");
 	m_stream->Printf("Firmware compiled at %s on %s\n", __TIME__, __DATE__);
 	#ifdef __GNUC__
@@ -1472,7 +1446,7 @@ void CrossbarCLISessionContext::OnShowVersion()
 	m_stream->Printf("CLI source code last modified: %s\n", __TIMESTAMP__);
 	#endif
 }
-
+/*
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "testpattern"
 

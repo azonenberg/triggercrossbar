@@ -337,10 +337,10 @@ module top(
 		.gt0_gtxrxp_in(rx1_n),
 
 		//Output swing control and equalizer taps
-		.gt0_txdiffctrl_in(/*4'b0100*/tx_swing),	//543 mV p-p differential
-		.gt0_txprecursor_in(tx_precursor),
-		.gt0_txpostcursor_in(tx_postcursor),
-		.gt0_txmaincursor_in(tx_maincursor),
+		.gt0_txdiffctrl_in(/*4'b0100*/tx_swing),	//04 works well
+		.gt0_txprecursor_in(tx_precursor),			//00 works well
+		.gt0_txpostcursor_in(tx_postcursor),		//03 works well
+		.gt0_txmaincursor_in(tx_maincursor),		//00 works well
 
 		//Clock to/from CPLL
 		.gt0_cpllfbclklost_out(),

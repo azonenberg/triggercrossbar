@@ -30,6 +30,7 @@
 #ifndef ManagementTCPProtocol_h
 #define ManagementTCPProtocol_h
 
+#include "CrossbarSCPIServer.h"
 #include "ManagementSSHTransportServer.h"
 
 class ManagementTCPProtocol : public TCPProtocol
@@ -38,11 +39,13 @@ public:
 	ManagementTCPProtocol(IPv4Protocol* ipv4);
 
 protected:
-	virtual bool IsPortOpen(uint16_t port);
-	virtual void OnConnectionAccepted(TCPTableEntry* state);
-	virtual bool OnRxData(TCPTableEntry* state, uint8_t* payload, uint16_t payloadLen);
+	virtual bool IsPortOpen(uint16_t port) override;
+	virtual void OnConnectionAccepted(TCPTableEntry* state) override;
+	virtual void OnConnectionClosed(TCPTableEntry* state) override;
+	virtual bool OnRxData(TCPTableEntry* state, uint8_t* payload, uint16_t payloadLen) override;
 
-	ManagementSSHTransportServer m_server;
+	ManagementSSHTransportServer m_ssh;
+	CrossbarSCPIServer m_scpi;
 };
 
 #endif
