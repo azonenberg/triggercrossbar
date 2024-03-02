@@ -32,6 +32,7 @@
 	@brief Implementation of CrossbarSCPIServer
  */
 #include "triggercrossbar.h"
+#include <ctype.h>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
@@ -75,7 +76,55 @@ void CrossbarSCPIServer::GracefulDisconnect(int id, TCPTableEntry* socket)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Command handling
 
-void CrossbarSCPIServer::OnCommand(const char* line)
+void CrossbarSCPIServer::OnCommand(char* line)
 {
 	g_log("Got SCPI command: %s\n", line);
+	LogIndenter li(g_log);
+
+	//Chunk the SCPI command up into subject, command, query flag, and arguments
+	//At first, assume we have a command with no subject
+	char* subject = nullptr;
+	char* command = line;
+	char* args = nullptr;
+	bool query = false;
+
+	//Then loop over the string and figure out what it actually is
+	for(int i=0; line[i] != '\0'; i++)
+	{
+		//If we get a colon, everything left of it is the subject, then the command
+		if(line[i] == ':')
+		{
+			line[i] = '\0';
+			subject = line;
+			command = line + i + 1;
+			continue;
+		}
+
+		//If we get a space and don't have args yet, everything right of it is the args
+		if(isspace(line[i]) && !args)
+		{
+			line[i] = '\0';
+			args = line + i + 1;
+		}
+
+		//If it's a query, stop
+		if(line[i] == '?')
+		{
+			line[i] = '\0';
+			query = true;
+			break;
+		}
+	}
+
+	if(query)
+		g_log("Query\n");
+	if(subject)
+		g_log("Subject: %s\n", subject);
+	else
+		g_log("(no subject)\n");
+	g_log("Command: %s\n", command);
+	if(args)
+		g_log("Args: %s\n", args);
+	else
+		g_log("(no args)\n");
 }

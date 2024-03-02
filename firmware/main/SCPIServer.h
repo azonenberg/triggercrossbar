@@ -109,7 +109,7 @@ public:
 
 
 protected:
-	virtual void OnCommand(const char* line) =0;
+	virtual void OnCommand(char* line) =0;
 };
 
 #endif

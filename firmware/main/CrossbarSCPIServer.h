@@ -74,7 +74,7 @@ public:
 	virtual void GracefulDisconnect(int id, TCPTableEntry* socket);
 
 protected:
-	virtual void OnCommand(const char* line) override;
+	virtual void OnCommand(char* line) override;
 };
 
 #endif
