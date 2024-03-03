@@ -112,3 +112,12 @@ bool g_sfpFaulted = false;
 
 ///@brief SFP module inserted (does not imply link is up)
 bool g_sfpPresent = false;
+
+///@brief FPGA die serial number
+uint8_t g_fpgaSerial[8] = {0};
+
+///@brief DACs for RX channels
+OctalDAC* g_rxDacs[2] = {nullptr, nullptr};
+
+///@brief DACs for TX channels
+OctalDAC* g_txDac = nullptr;

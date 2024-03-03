@@ -65,6 +65,12 @@ module ManagementSubsystem(
 	//Tachometers for fans
 	input wire[1:0]					fan_tach,
 
+	//Configuration registers in core clock domain
+	output wire						relay_en,
+	output wire						relay_dir,
+	output wire[1:0]				relay_channel,
+	input wire						relay_done,
+
 	//Configuration registers in crypto clock domain
 	input wire						clk_crypt,
 	output wire						crypt_en,
@@ -329,6 +335,10 @@ module ManagementSubsystem(
 		.txfifo_wr_en(txfifo_wr_en),
 		.txfifo_wr_data(txfifo_wr_data),
 		.txfifo_wr_commit(txfifo_wr_commit),
+		.relay_en(relay_en),
+		.relay_dir(relay_dir),
+		.relay_channel(relay_channel),
+		.relay_done(relay_done),
 
 		//Control registers (port RX clock domain)
 		.xg0_rx_clk(xg0_rx_clk),
@@ -342,13 +352,5 @@ module ManagementSubsystem(
 		.crypt_out_valid(crypt_out_valid),
 		.crypt_work_out(crypt_work_out)
 	);
-
-	//Debug ILA
-	ila_0 ila(
-		.clk(mgmt0_rx_clk),
-		.probe0(mgmt0_rx_bus),
-		.probe1(mgmt0_link_up),
-		.probe2(rx_fifo.dropping)
-		);
 
 endmodule

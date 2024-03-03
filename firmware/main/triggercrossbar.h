@@ -153,4 +153,8 @@ enum mdioreg_t
 	REG_KSZ9031_MMD2_CLKSKEW	= 0x0008
 };
 
+extern uint8_t g_fpgaSerial[8];
+extern OctalDAC* g_rxDacs[2];
+extern OctalDAC* g_txDac;
+
 #endif

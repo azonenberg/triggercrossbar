@@ -30,6 +30,18 @@
 /**
 	@file
 	@brief Implementation of CrossbarSCPIServer
+
+	Channel names: IN0...7, OUT0...7, IO8...11
+
+	Commands:
+		[chan]:DIR [IN|OUT] (only for IO8..11)
+		Set bidirectional channel direction
+
+		[chan]:LEVEL [mV] (only for OUT4...7, IO8...11)
+		Set logic-1 level for the channel
+
+		[chan]:THRESH [mV]
+		Set input threshold
  */
 #include "triggercrossbar.h"
 #include <ctype.h>
@@ -76,7 +88,7 @@ void CrossbarSCPIServer::GracefulDisconnect(int id, TCPTableEntry* socket)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Command handling
 
-void CrossbarSCPIServer::OnCommand(char* line)
+void CrossbarSCPIServer::OnCommand(char* line, TCPTableEntry* socket)
 {
 	g_log("Got SCPI command: %s\n", line);
 	LogIndenter li(g_log);
@@ -116,6 +128,7 @@ void CrossbarSCPIServer::OnCommand(char* line)
 		}
 	}
 
+	//DEBUG: log the parsed command
 	if(query)
 		g_log("Query\n");
 	if(subject)
@@ -127,4 +140,125 @@ void CrossbarSCPIServer::OnCommand(char* line)
 		g_log("Args: %s\n", args);
 	else
 		g_log("(no args)\n");
+
+	//Process queries
+	if(query)
+	{
+		if(!strcmp(command, "*IDN"))
+		{
+			//Build the string into the outbound TCP buffer
+			auto segment = m_tcp.GetTxSegment(socket);
+			auto payload = reinterpret_cast<char*>(segment->Payload());
+			StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+			buf.Printf("AntikernelLabs,AKL-TXB1,%02x%02x%02x%02x%02x%02x%02x%02x,0.1\n",
+				g_fpgaSerial[0], g_fpgaSerial[1], g_fpgaSerial[2], g_fpgaSerial[3],
+				g_fpgaSerial[4], g_fpgaSerial[5], g_fpgaSerial[6], g_fpgaSerial[7]);
+
+			//And send the reply
+			m_tcp.SendTxSegment(socket, segment, strlen(payload));
+		}
+	}
+
+	//Not a query, just a regular command
+	else
+	{
+		//Threshold for input
+		if(!strcmp(command, "THRESH"))
+		{
+			//need to have a channel and value
+			if(!subject || !args)
+				return;
+
+			int chan = GetChannelID(subject);
+			int mv = atoi(args);
+
+			//Figure out which DAC channel to use for each channel
+			//No rhyme or reason here, depends on PCB layout
+			static const int channels[12] = {7, 6, 1, 0, 5, 4, 3, 2, 4, 5, 3, 6};
+			static const int dacs[12] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 };
+			g_rxDacs[dacs[chan]]->SetChannelMillivolts(channels[chan], mv);
+		}
+
+		//Level for output ports
+		else if(!strcmp(command, "LEV"))
+		{
+			//need to have a channel and value
+			if(!subject || !args)
+				return;
+
+			int chan = GetChannelID(subject);
+			int mv = atoi(args);
+
+			//Figure out which DAC channel to use for each channel
+			//No rhyme or reason here, depends on PCB layout
+			static const int channels[12] = {0, 0, 0, 0, 7, 6, 5, 4, 3, 1, 2, 0};
+			g_txDac->SetChannelMillivolts(channels[chan], mv);
+		}
+
+		//Direction for bidir ports
+		else if(!strcmp(command, "DIR"))
+		{
+			//need to have a channel and value
+			if(!subject || !args)
+				return;
+
+			//need valid channel ID (IO port)
+			int chan = GetChannelID(subject);
+			if( (chan < 8) || (chan > 11) )
+				return;
+
+			if(!strcmp(args, "IN"))
+				g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x8000 | (chan - 8));
+			else
+				g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x0000 | (chan - 8));
+
+			//Poll until not busy
+			while(g_fpga->BlockingRead16(REG_RELAY_STAT) != 0)
+			{}
+		}
+	}
+}
+
+/**
+	@brief Gets the port number given the hwname
+ */
+int CrossbarSCPIServer::GetChannelID(const char* name)
+{
+	//Input channels
+	if( (name[0] == 'I') && (name[1] == 'N') )
+	{
+		int chnum = name[2] - '0';
+		if(chnum > 7)
+			chnum = 7;
+		if(chnum < 0)
+			chnum = 0;
+		return chnum;
+	}
+
+	//Output channels
+	if( (name[0] == 'O') && (name[1] == 'U') && (name[2] == 'T') )
+	{
+		int chnum = name[3] - '0';
+		if(chnum > 7)
+			chnum = 7;
+		if(chnum < 0)
+			chnum = 0;
+		return chnum;
+	}
+
+	//Bidir channels
+	if( (name[0] == 'I') && (name[1] == 'O') )
+	{
+		int chnum = atoi(name+2);
+		if(chnum > 11)
+			chnum = 11;
+		if(chnum < 8)
+			chnum = 8;
+
+		return chnum;
+	}
+
+	//invalid
+	else
+		return 0;
 }

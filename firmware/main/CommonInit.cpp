@@ -103,7 +103,7 @@ void InitFPGA()
 		uint8_t buf[8];
 		g_fpga->BlockingRead(REG_FPGA_IDCODE, buf, 4);
 		uint32_t idcode = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
-		g_fpga->BlockingRead(REG_FPGA_SERIAL, buf, 8);
+		g_fpga->BlockingRead(REG_FPGA_SERIAL, g_fpgaSerial, 8);
 
 		//If IDCODE is all zeroes, poll again
 		if(idcode == 0)
@@ -125,7 +125,8 @@ void InitFPGA()
 				break;
 		}
 		g_log("Serial: %02x%02x%02x%02x%02x%02x%02x%02x\n",
-			buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
+			g_fpgaSerial[0], g_fpgaSerial[1], g_fpgaSerial[2], g_fpgaSerial[3],
+			g_fpgaSerial[4], g_fpgaSerial[5], g_fpgaSerial[6], g_fpgaSerial[7]);
 
 		break;
 	}

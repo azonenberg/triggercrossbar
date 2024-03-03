@@ -193,7 +193,9 @@ set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_cl
 
 create_pblock pblock_crypt25519
 add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519]]
+resize_pblock [get_pblocks pblock_crypt25519] -add {SLICE_X24Y0:SLICE_X35Y49}
 resize_pblock [get_pblocks pblock_crypt25519] -add {CLOCKREGION_X1Y0:CLOCKREGION_X1Y1}
+set_property IS_SOFT FALSE [get_pblocks pblock_crypt25519]
 
 create_pblock pblock_port_xg0
 add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/port_xg0]]
@@ -216,6 +218,12 @@ set_property IS_SOFT FALSE [get_pblocks pblock_port_mgmt0]
 
 
 set_property PACKAGE_PIN C4 [get_ports rx1_n]
+
+create_pblock pblock_xg0_pcs
+add_cells_to_pblock [get_pblocks pblock_xg0_pcs] [get_cells -quiet [list network/port_xg0/pcs]]
+resize_pblock [get_pblocks pblock_xg0_pcs] -add {SLICE_X44Y101:SLICE_X53Y124}
+resize_pblock [get_pblocks pblock_xg0_pcs] -add {DSP48_X2Y42:DSP48_X2Y49}
+set_property IS_SOFT FALSE [get_pblocks pblock_xg0_pcs]
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
 set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
 set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]

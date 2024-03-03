@@ -33,7 +33,7 @@
 	@brief Controller for the relays on the bidirectional ports
  */
 module RelayController(
-	input wire			clk_125mhz,
+	input wire			clk_250mhz,
 
 	input wire			toggle_en,
 	input wire			toggle_dir,			//1 = in, 0 = out
@@ -48,11 +48,11 @@ module RelayController(
 	// Cycle all of the relays once during startup and place them in input mode
 
 	//Relays spec max 5ms operating time
-	//1M cycles at 125 MHz is 8 ns which should be plenty of margin
+	//2M cycles at 250 MHz is 8 ns which should be plenty of margin
 
-	logic[19:0] relayCount = 0;
+	logic[20:0] relayCount = 0;
 
-	always_ff @(posedge clk_125mhz) begin
+	always_ff @(posedge clk_250mhz) begin
 
 		toggle_done	<= 0;
 
@@ -92,6 +92,5 @@ module RelayController(
 		end
 
 	end
-
 
 endmodule

@@ -444,13 +444,13 @@ module top(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Relays
 
-	logic			toggle_en = 0;
-	logic			toggle_dir = 0;
-	logic[1:0]		toggle_channel = 0;
+	wire			toggle_en;
+	wire			toggle_dir;
+	wire[1:0]		toggle_channel;
 	wire			toggle_done;
 
 	RelayController relays(
-		.clk_125mhz(clk_125mhz),
+		.clk_250mhz(clk_250mhz),
 
 		.toggle_en(toggle_en),
 		.toggle_dir(toggle_dir),
@@ -460,49 +460,6 @@ module top(
 		.relay_a(relay_a),
 		.relay_b(relay_b)
 		);
-
-	//force lane 8-9 to input and 10-11 to output
-	enum logic[1:0]
-	{
-		RELAY_START = 0,
-		RELAY_WAIT,
-		RELAY_DONE
-	} relay_state = RELAY_START;
-
-	always_ff @(posedge clk_125mhz) begin
-
-		toggle_en	<= 0;
-
-		//Set toggle direction: 8-9 input, 10-11 output
-		toggle_dir	<= (toggle_channel < 2);
-
-		if(toggle_en)
-			toggle_channel	<= toggle_channel + 1;
-
-		case(relay_state)
-
-			RELAY_START: begin
-				toggle_en	<= 1;
-				relay_state	<= RELAY_WAIT;
-			end
-
-			RELAY_WAIT: begin
-				if(toggle_done) begin
-					if(toggle_channel == 3)
-						relay_state	<= RELAY_DONE;
-					else begin
-						relay_state	<= RELAY_WAIT;
-						toggle_en	<= 1;
-					end
-				end
-			end
-
-			RELAY_DONE: begin
-			end
-
-		endcase
-
-	end
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Management register interface
@@ -532,6 +489,11 @@ module top(
 		.xg0_link_up(xg0_link_up),
 
 		.fan_tach(fan_tach),
+
+		.relay_en(toggle_en),
+		.relay_dir(toggle_dir),
+		.relay_channel(toggle_channel),
+		.relay_done(toggle_done),
 
 		.clk_crypt(clk_250mhz),
 		.crypt_en(crypt_en),

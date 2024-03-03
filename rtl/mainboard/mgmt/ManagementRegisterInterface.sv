@@ -82,6 +82,11 @@ module ManagementRegisterInterface(
 	output logic					mgmt0_phy_reg_rd = 0,
 	output logic[4:0]				mgmt0_phy_md_addr = 0,
 
+	output logic					relay_en = 0,
+	output logic					relay_dir = 0,
+	output logic[1:0]				relay_channel = 0,
+	input wire						relay_done,
+
 	output logic					rxfifo_rd_en = 0,
 	output logic					rxfifo_rd_pop_single = 0,
 	input wire[31:0]				rxfifo_rd_data,
@@ -217,6 +222,15 @@ module ManagementRegisterInterface(
 		//10G interface
 		REG_XG0_STAT		= 16'h0060,		//0 = link up
 
+		//Relay controller
+		REG_RELAY_TOGGLE	= 16'h0070,		//15	= direction (1 = in, 0 = out)
+		REG_RELAY_TOGGLE_1	= 16'h0071,		//1:0	= channel number
+											//Writes are self timed
+
+		REG_RELAY_STAT		= 16'h0072,		//0		= relay busy flag
+		REG_RELAY_STAT_1	= 16'h0073,
+											//If set, no new relay commands are allowed
+
 		//Ethernet MAC frame buffer
 		//Any address in this range will be treated as reading from the top of the buffer
 		REG_EMAC_BUFFER_LO	= 16'h1000,
@@ -258,6 +272,8 @@ module ManagementRegisterInterface(
 	logic					dp_mdio_busy_latched	= 0;
 	logic					vsc_mdio_busy_latched	= 0;
 
+	logic					relay_busy	= 0;
+
 	always_ff @(posedge clk) begin
 
 		//Clear single cycle flags
@@ -270,6 +286,7 @@ module ManagementRegisterInterface(
 		rxfifo_rd_pop_single	<= 0;
 		txfifo_wr_en			<= 0;
 		txfifo_wr_commit		<= 0;
+		relay_en				<= 0;
 
 		//Start a new read
 		if(rd_en)
@@ -282,6 +299,12 @@ module ManagementRegisterInterface(
 		//Set interrupt line if something's changed
 		if(!rxheader_rd_empty)
 			irq					<= 1;
+
+		//Manage relay states
+		if(relay_done)
+			relay_busy			<= 0;
+		if(relay_en)
+			relay_busy			<= 1;
 
 		//Continue a read
 		if(rd_en || reading) begin
@@ -397,6 +420,9 @@ module ManagementRegisterInterface(
 
 					REG_XG0_STAT:		rd_data <= {7'b0, xg0_link_up_sync };
 
+					REG_RELAY_STAT:		rd_data	<= 8'h0;
+					REG_RELAY_STAT_1:	rd_data	<= {7'b0, relay_busy};
+
 					default: begin
 						rd_data	<= 0;
 					end
@@ -455,6 +481,14 @@ module ManagementRegisterInterface(
 						mgmt0_phy_md_addr[4:3]	<= wr_data[1:0];
 						mgmt0_phy_reg_rd		<= wr_data[5];
 						mgmt0_phy_reg_wr		<= wr_data[6];
+					end
+
+					REG_RELAY_TOGGLE: begin
+						relay_channel	<= wr_data[1:0];
+					end
+					REG_RELAY_TOGGLE_1: begin
+						relay_dir		<= wr_data[7];
+						relay_en		<= 1;
 					end
 
 					REG_EMAC_COMMIT:	txfifo_wr_commit <= 1;

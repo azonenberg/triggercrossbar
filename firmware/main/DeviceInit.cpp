@@ -270,6 +270,9 @@ void InitDACs()
 	static OctalDAC tx_dac(dac_spi, tx_dac_cs_n);
 	static OctalDAC rx_dac0(dac_spi, rx_dac0_cs_n);
 	static OctalDAC rx_dac1(dac_spi, rx_dac1_cs_n);
+	g_rxDacs[0] = &rx_dac0;
+	g_rxDacs[1] = &rx_dac1;
+	g_txDac = &tx_dac;
 
 	//Set all output channels to 2.5V
 	for(int i=0; i<8; i++)

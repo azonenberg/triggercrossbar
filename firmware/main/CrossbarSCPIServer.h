@@ -74,7 +74,9 @@ public:
 	virtual void GracefulDisconnect(int id, TCPTableEntry* socket);
 
 protected:
-	virtual void OnCommand(char* line) override;
+	virtual void OnCommand(char* line, TCPTableEntry* socket) override;
+
+	int GetChannelID(const char* name);
 };
 
 #endif

@@ -63,53 +63,59 @@ public:
 		if(!TCPServer<MAXCONNS, ContextType>::m_state[id].m_rxBuffer.Push(payload, payloadLen))
 			return false;
 
-		//Rewind the FIFO then see if there's a newline in the buffer
-		auto& fifo = TCPServer<MAXCONNS, ContextType>::m_state[id].m_rxBuffer;
-		auto line = fifo.Rewind();
-		auto len = fifo.ReadSize();
-
-		//Search for a \n
-		bool newlineFound = false;
-		size_t lineLen = 0;
-		for(size_t i=0; i<len; i++)
+		//Process commands (may be >1 in a single segment)
+		while(1)
 		{
-			if(line[i] == '\n')
-			{
-				//Convert the newline to a nul so we can use c string functions on it
-				line[i] = '\0';
-
-				//Done, we found it
-				lineLen = i+1;
-				newlineFound = true;
+			//Rewind the FIFO then see if there's a newline in the buffer
+			auto& fifo = TCPServer<MAXCONNS, ContextType>::m_state[id].m_rxBuffer;
+			auto line = fifo.Rewind();
+			auto len = fifo.ReadSize();
+			if(len == 0)
 				break;
-			}
-		}
 
-		//If NO newline was found, look at the overall line length.
-		if(!newlineFound)
-		{
-			//If line was more than 512 bytes long and still no newline, assume something is screwy
-			//and drop the connection
-			if(len > 512)
+			//Search for a \n
+			bool newlineFound = false;
+			size_t lineLen = 0;
+			for(size_t i=0; i<len; i++)
 			{
-				TCPServer<MAXCONNS, ContextType>::m_state[id].Clear();
-				TCPServer<MAXCONNS, ContextType>::m_tcp.CloseSocket(socket);
+				if(line[i] == '\n')
+				{
+					//Convert the newline to a nul so we can use c string functions on it
+					line[i] = '\0';
+
+					//Done, we found it
+					lineLen = i+1;
+					newlineFound = true;
+					break;
+				}
 			}
-			return false;
+
+			//If NO newline was found, look at the overall line length.
+			if(!newlineFound)
+			{
+				//If line was more than 512 bytes long and still no newline, assume something is screwy
+				//and drop the connection
+				if(len > 512)
+				{
+					TCPServer<MAXCONNS, ContextType>::m_state[id].Clear();
+					TCPServer<MAXCONNS, ContextType>::m_tcp.CloseSocket(socket);
+				}
+				return false;
+			}
+
+			//We found a newline, process it
+			OnCommand(reinterpret_cast<char*>(line), socket);
+
+			//Pop the line data so we have space for more commands
+			fifo.Pop(lineLen);
 		}
-
-		//We found a newline, process it
-		OnCommand(reinterpret_cast<char*>(line));
-
-		//Pop the line data so we have space for more commands
-		fifo.Pop(lineLen);
 
 		return true;
 	}
 
 
 protected:
-	virtual void OnCommand(char* line) =0;
+	virtual void OnCommand(char* line, TCPTableEntry* socket) =0;
 };
 
 #endif
