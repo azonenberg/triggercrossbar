@@ -31,6 +31,7 @@
 
 `include "EthernetBus.svh"
 `include "GmiiBus.svh"
+`include "CrossbarTypes.svh"
 
 /**
 	@file
@@ -87,6 +88,8 @@ module ManagementRegisterInterface(
 	output logic[1:0]				relay_channel = 0,
 	input wire						relay_done,
 
+	output muxsel_t[11:0]			muxsel = 0,
+
 	output logic					rxfifo_rd_en = 0,
 	output logic					rxfifo_rd_pop_single = 0,
 	input wire[31:0]				rxfifo_rd_data,
@@ -105,6 +108,14 @@ module ManagementRegisterInterface(
 	input wire						crypt_out_valid,
 	input wire[255:0]				crypt_work_out
 	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Pipeline registers for some external flags
+
+	logic	mgmt0_mdio_busy_ff = 0;
+	always_ff @(posedge clk) begin
+		mgmt0_mdio_busy_ff	<= mgmt0_mdio_busy;
+	end
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Synchronizers for crypto stuff
@@ -230,6 +241,10 @@ module ManagementRegisterInterface(
 		REG_RELAY_STAT		= 16'h0072,		//0		= relay busy flag
 		REG_RELAY_STAT_1	= 16'h0073,
 											//If set, no new relay commands are allowed
+
+		//Mux selectors
+		REG_MUXSEL_BASE		= 16'h0080,		//3:0 = mux selector
+		//next 11 addresses are subsequent channels
 
 		//Ethernet MAC frame buffer
 		//Any address in this range will be treated as reading from the top of the buffer
@@ -412,7 +427,7 @@ module ManagementRegisterInterface(
 
 					REG_MGMT0_MDIO: begin
 						rd_data					<= mgmt0_phy_rd_data[7:0];
-						mgmt0_mdio_busy_latched	<= mgmt0_mdio_busy;
+						mgmt0_mdio_busy_latched	<= mgmt0_mdio_busy_ff;
 					end
 					REG_MGMT0_MDIO_1:	rd_data	<= mgmt0_phy_rd_data[15:8];
 					REG_MGMT0_MDIO_2:	rd_data	<= 0;
@@ -465,6 +480,11 @@ module ManagementRegisterInterface(
 			else if(wr_addr >= REG_EMAC_BUFFER_LO) begin
 				txfifo_wr_en	<= 1;
 				txfifo_wr_data	<= wr_data;
+			end
+
+			//Mux selectors are decoded separately
+			else if(wr_addr >= REG_MUXSEL_BASE) begin
+				muxsel[wr_addr[3:0]]	<= wr_data[3:0];
 			end
 
 			else begin

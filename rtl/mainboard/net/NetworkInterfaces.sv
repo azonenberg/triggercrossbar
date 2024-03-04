@@ -89,30 +89,20 @@ module NetworkInterfaces(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Output MAC buses
 
-	output wire							xg0_mac_rx_clk,
-	output wire EthernetRxBus			xg0_mac_rx_bus,
+	output wire					xg0_mac_rx_clk,
+	output wire EthernetRxBus	xg0_mac_rx_bus,
 
-	output wire							xg0_mac_tx_clk,
-	input wire EthernetTxBus			xg0_mac_tx_bus,
+	output wire					xg0_mac_tx_clk,
+	input wire EthernetTxBus	xg0_mac_tx_bus,
 
-	output wire							xg0_link_up,
+	output wire					xg0_link_up,
 
-	output wire							mgmt0_rx_clk_buf,
-	output EthernetRxBus				mgmt0_rx_bus,
-	input EthernetTxBus					mgmt0_tx_bus,
-	output wire							mgmt0_tx_ready,
-	output wire							mgmt0_link_up,
-	output lspeed_t						mgmt0_link_speed/*,
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Performance counter access
-
-	input wire					perf_rd,
-	input wire[PORT_BITS-1:0]	perf_rd_port,
-	input wire[15:0]			perf_regid,
-	output logic				perf_valid	= 0,
-	output logic[47:0]			perf_value	= 0,
-	input wire[15:0]			perf_rst*/
+	output wire					mgmt0_rx_clk_buf,
+	output EthernetRxBus		mgmt0_rx_bus,
+	input EthernetTxBus			mgmt0_tx_bus,
+	output wire					mgmt0_tx_ready,
+	output wire					mgmt0_link_up,
+	output lspeed_t				mgmt0_link_speed
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -314,127 +304,5 @@ module NetworkInterfaces(
 		.link_up(mgmt0_link_up),
 		.link_speed(mgmt0_link_speed)
 		);
-
-	/*
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Performance counters
-
-	wire[6:0][47:0]	perf_values;
-	wire[6:0] 		perf_valids;
-
-	//clock domain shifted resets
-	wire[15:0]			perf_rst_mac_rx;
-	wire[15:0]			perf_rst_mac_tx;
-
-	//Discrete port perf counters
-	EthernetMacPerformanceData	xg0_macdata;
-	EthernetMacPerformanceData	mgmt0_macdata;
-
-	PulseSynchronizer sync_perf_rst_xg0_rx(
-		.clk_a(clk_ram_ctl),
-		.pulse_a(perf_rst[14]),
-		.clk_b(xg0_mac_rx_clk),
-		.pulse_b(perf_rst_mac_rx[14]));
-	PulseSynchronizer sync_perf_rst_xg0_tx(
-		.clk_a(clk_ram_ctl),
-		.pulse_a(perf_rst[14]),
-		.clk_b(xg0_mac_tx_clk),
-		.pulse_b(perf_rst_mac_tx[14]));
-
-	EthernetPerformanceCounters #(
-		.PIPELINED_INCREMENT(1)
-	) xg0_count (
-		.rx_clk(xg0_mac_rx_clk),
-		.tx_clk(xg0_mac_tx_clk),
-
-		.rx_bus(xg0_mac_rx_bus),
-		.tx_bus(xg0_mac_tx_bus),
-
-		.rst_rx(perf_rst_mac_rx[14]),
-		.rst_tx(perf_rst_mac_tx[14]),
-
-		.counters(xg0_macdata)
-	);
-
-	PulseSynchronizer sync_perf_rst_mgmt0_rx(
-		.clk_a(clk_ram_ctl),
-		.pulse_a(perf_rst[15]),
-		.clk_b(mgmt0_rx_clk_buf),
-		.pulse_b(perf_rst_mac_rx[15]));
-	PulseSynchronizer sync_perf_rst_mgmt0_tx(
-		.clk_a(clk_ram_ctl),
-		.pulse_a(perf_rst[15]),
-		.clk_b(clk_125mhz),
-		.pulse_b(perf_rst_mac_tx[15]));
-
-	EthernetPerformanceCounters mgmt0_count(
-		.rx_clk(mgmt0_rx_clk_buf),
-		.tx_clk(clk_125mhz),
-
-		.rx_bus(mgmt0_rx_bus),
-		.tx_bus(mgmt0_tx_bus),
-
-		.rst_rx(perf_rst_mac_rx[15]),
-		.rst_tx(perf_rst_mac_tx[15]),
-
-		.counters(mgmt0_macdata)
-	);
-
-	NetworkInterfacePerfReadout #(
-		.MAC_TX_RX_SAME_CLOCK(0)
-	) xg0_readout (
-
-		.clk_sgmii_rx(1'b0),
-		.clk_sgmii_tx(1'b0),
-		.clk_mac_rx(xg0_mac_rx_clk),
-		.clk_mac_tx(xg0_mac_tx_clk),
-
-		.sgmii_perf({$bits(SGMIIPerformanceCounters){1'b0}}),
-		.mac_perf(xg0_macdata),
-
-		.clk_mgmt(clk_ram_ctl),
-		.rd_en(perf_rd && (perf_rd_port == 14)),
-		.rd_addr(perf_regid),
-		.rd_valid(perf_valids[5]),
-		.rd_data(perf_values[5])
-	);
-
-	NetworkInterfacePerfReadout #(
-		.MAC_TX_RX_SAME_CLOCK(0)
-	) mgmt0_readout (
-
-		.clk_sgmii_rx(1'b0),
-		.clk_sgmii_tx(1'b0),
-		.clk_mac_rx(mgmt0_rx_clk_buf),
-		.clk_mac_tx(clk_125mhz),
-
-		.sgmii_perf({$bits(SGMIIPerformanceCounters){1'b0}}),
-		.mac_perf(mgmt0_macdata),
-
-		.clk_mgmt(clk_ram_ctl),
-		.rd_en(perf_rd && (perf_rd_port == 15)),
-		.rd_addr(perf_regid),
-		.rd_valid(perf_valids[6]),
-		.rd_data(perf_values[6])
-	);
-
-	//Final output pipeline stages and muxing
-	logic[6:0][47:0]	perf_values_ff;
-	logic[6:0] 		perf_valids_ff = 0;
-
-	always_ff @(posedge clk_ram_ctl) begin
-		perf_valid	<= 0;
-
-		perf_values_ff	<= perf_values;
-		perf_valids_ff	<= perf_valids;
-
-		for(integer i=0; i<7; i=i+1) begin
-			if(perf_valids_ff[i]) begin
-				perf_valid	<= 1;
-				perf_value	<= perf_values_ff[i];
-			end
-		end
-	end
-	*/
 
 endmodule

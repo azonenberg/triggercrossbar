@@ -40,6 +40,9 @@
 		[chan]:LEVEL [mV] (only for OUT4...7, IO8...11)
 		Set logic-1 level for the channel
 
+		[chan]:MUX [index]
+		Set mux selector for given output or bidirectional channel
+
 		[chan]:THRESH [mV]
 		Set input threshold
  */
@@ -90,8 +93,8 @@ void CrossbarSCPIServer::GracefulDisconnect(int id, TCPTableEntry* socket)
 
 void CrossbarSCPIServer::OnCommand(char* line, TCPTableEntry* socket)
 {
-	g_log("Got SCPI command: %s\n", line);
-	LogIndenter li(g_log);
+	/*g_log("Got SCPI command: %s\n", line);
+	LogIndenter li(g_log);*/
 
 	//Chunk the SCPI command up into subject, command, query flag, and arguments
 	//At first, assume we have a command with no subject
@@ -129,7 +132,7 @@ void CrossbarSCPIServer::OnCommand(char* line, TCPTableEntry* socket)
 	}
 
 	//DEBUG: log the parsed command
-	if(query)
+	/*if(query)
 		g_log("Query\n");
 	if(subject)
 		g_log("Subject: %s\n", subject);
@@ -140,6 +143,7 @@ void CrossbarSCPIServer::OnCommand(char* line, TCPTableEntry* socket)
 		g_log("Args: %s\n", args);
 	else
 		g_log("(no args)\n");
+	*/
 
 	//Process queries
 	if(query)
@@ -193,6 +197,19 @@ void CrossbarSCPIServer::OnCommand(char* line, TCPTableEntry* socket)
 			//No rhyme or reason here, depends on PCB layout
 			static const int channels[12] = {0, 0, 0, 0, 7, 6, 5, 4, 3, 1, 2, 0};
 			g_txDac->SetChannelMillivolts(channels[chan], mv);
+		}
+
+		//Mux selector
+		else if(!strcmp(command, "MUX"))
+		{
+			//need to have a channel and value
+			if(!subject || !args)
+				return;
+
+			int chan = GetChannelID(subject);
+			int muxsel = atoi(args);
+
+			g_fpga->BlockingWrite8(REG_MUXSEL_BASE + chan, muxsel);
 		}
 
 		//Direction for bidir ports

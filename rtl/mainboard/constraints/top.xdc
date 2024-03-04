@@ -205,7 +205,7 @@ resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB18_X2Y50:RAMB18_X2Y59}
 resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB36_X2Y25:RAMB36_X2Y29}
 
 create_pblock pblock_port_mgmt0
-add_cells_to_pblock [get_pblocks pblock_port_mgmt0] [get_cells -quiet [list network/port_mgmt0]]
+add_cells_to_pblock [get_pblocks pblock_port_mgmt0] [get_cells -quiet [list mgmt/mgmt0_mdio_obuf mgmt/mgmt0_mdio_txvr mgmt/sync_link_up_txclk network/port_mgmt0]]
 resize_pblock [get_pblocks pblock_port_mgmt0] -add {SLICE_X0Y150:SLICE_X11Y178}
 resize_pblock [get_pblocks pblock_port_mgmt0] -add {DSP48_X0Y60:DSP48_X0Y69}
 resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB18_X0Y60:RAMB18_X0Y69}
@@ -224,6 +224,17 @@ add_cells_to_pblock [get_pblocks pblock_xg0_pcs] [get_cells -quiet [list network
 resize_pblock [get_pblocks pblock_xg0_pcs] -add {SLICE_X44Y101:SLICE_X53Y124}
 resize_pblock [get_pblocks pblock_xg0_pcs] -add {DSP48_X2Y42:DSP48_X2Y49}
 set_property IS_SOFT FALSE [get_pblocks pblock_xg0_pcs]
+
+set_property PACKAGE_PIN B6 [get_ports rx0_n]
+
+create_pblock pblock_qspi
+add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/tach0 mgmt/tach1]]
+resize_pblock [get_pblocks pblock_qspi] -add {SLICE_X0Y50:SLICE_X11Y99}
+resize_pblock [get_pblocks pblock_qspi] -add {DSP48_X0Y20:DSP48_X0Y39}
+resize_pblock [get_pblocks pblock_qspi] -add {RAMB18_X0Y20:RAMB18_X0Y39}
+resize_pblock [get_pblocks pblock_qspi] -add {RAMB36_X0Y10:RAMB36_X0Y19}
+set_property IS_SOFT FALSE [get_pblocks pblock_qspi]
+
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
 set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
 set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]

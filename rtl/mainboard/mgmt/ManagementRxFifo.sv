@@ -39,10 +39,10 @@
 module ManagementRxFifo(
 	input wire					sys_clk,
 
-	input wire					mgmt0_rx_clk,
+	input wire					eth_rx_clk,
 
-	input wire EthernetRxBus	mgmt0_rx_bus,
-	input wire					mgmt0_link_up,
+	input wire EthernetRxBus	eth_rx_bus,
+	input wire					eth_link_up,
 
 	input wire					rxfifo_rd_en,
 	input wire					rxfifo_rd_pop_single,
@@ -59,12 +59,12 @@ module ManagementRxFifo(
 	logic[31:0]	rxfifo_wr_data		= 0;
 
 	wire		wr_reset;
-	assign		wr_reset = !mgmt0_link_up;
+	assign		wr_reset = !eth_link_up;
 
 	wire		rd_reset;
 
 	ThreeStageSynchronizer sync_fifo_rst(
-		.clk_in(mgmt0_rx_clk),
+		.clk_in(eth_rx_clk),
 		.din(wr_reset),
 		.clk_out(sys_clk),
 		.dout(rd_reset)
@@ -77,12 +77,12 @@ module ManagementRxFifo(
 		.WIDTH(32),
 		.DEPTH(4096)	//at least 8 packets worth
 	) rx_cdc_fifo (
-		.wr_clk(mgmt0_rx_clk),
+		.wr_clk(eth_rx_clk),
 		.wr_en(rxfifo_wr_en),
 		.wr_data(rxfifo_wr_data),
 		.wr_reset(wr_reset),
 		.wr_size(rxfifo_wr_size),
-		.wr_commit(mgmt0_rx_bus.commit),
+		.wr_commit(eth_rx_bus.commit),
 		.wr_rollback(rxfifo_wr_drop),
 
 		.rd_clk(sys_clk),
@@ -108,8 +108,8 @@ module ManagementRxFifo(
 		.USE_BLOCK(0),
 		.OUT_REG(0)
 	) rx_framelen_fifo (
-		.wr_clk(mgmt0_rx_clk),
-		.wr_en(mgmt0_rx_bus.commit && !dropping),
+		.wr_clk(eth_rx_clk),
+		.wr_en(eth_rx_bus.commit && !dropping),
 		.wr_data(framelen),
 		.wr_size(),
 		.wr_full(header_wfull),
@@ -125,17 +125,17 @@ module ManagementRxFifo(
 		.rd_reset(rd_reset)
 	);
 
-	always_ff @(posedge mgmt0_rx_clk) begin
+	always_ff @(posedge eth_rx_clk) begin
 
 		rxfifo_wr_drop		<= 0;
 
-		if(mgmt0_rx_bus.drop) begin
+		if(eth_rx_bus.drop) begin
 			rxfifo_wr_drop	<= 1;
 			dropping		<= 1;
 		end
 
 		//Frame delimiter
-		if(mgmt0_rx_bus.start) begin
+		if(eth_rx_bus.start) begin
 
 			//Not enough space for a full sized frame? Give up
 			if( (rxfifo_wr_size < 375) || header_wfull )
@@ -157,9 +157,9 @@ module ManagementRxFifo(
 
 		//Nope, push data as needed
 		else if(!dropping) begin
-			rxfifo_wr_en	<= mgmt0_rx_bus.data_valid;
-			rxfifo_wr_data	<= mgmt0_rx_bus.data;
-			framelen		<= framelen + mgmt0_rx_bus.bytes_valid;
+			rxfifo_wr_en	<= eth_rx_bus.data_valid;
+			rxfifo_wr_data	<= eth_rx_bus.data;
+			framelen		<= framelen + eth_rx_bus.bytes_valid;
 		end
 
 	end

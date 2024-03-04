@@ -75,7 +75,7 @@ module top(
 	output wire[3:0]	relay_b,
 
 	//Trigger outputs
-	output logic[11:0]	trig_out	= 0,
+	output wire[11:0]	trig_out,
 
 	//Trigger inputs
 	input wire[11:0]	trig_in_p,
@@ -96,6 +96,12 @@ module top(
 	input wire			cdrtrig_n,
 
 	//Front panel differential BERT/pattern generator port
+	output wire			tx0_p,
+	output wire			tx0_n,
+
+	input wire			rx0_p,
+	input wire			rx0_n,
+
 	output wire			tx1_p,
 	output wire			tx1_n,
 
@@ -150,14 +156,18 @@ module top(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Differential input buffers for LVDS trigger inputs
 
-	wire[11:0]	trig_in;
+	wire[11:0]	trig_in_raw;
 
 	DifferentialInputBuffer #(
 		.WIDTH(12)
 	) ibuf_trigin (
 		.pad_in_p(trig_in_p),
 		.pad_in_n(trig_in_n),
-		.fabric_out(trig_in));
+		.fabric_out(trig_in_raw));
+
+	//Flip a few trigger inputs that had P/N swapped on the PCB for layout reasons
+	wire[11:0]	trig_in;
+	assign trig_in = trig_in_raw ^ 12'h65;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Output PRBS generation on sync port (also runs CDR trigger input)
@@ -263,100 +273,37 @@ module top(
 		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Output PRBS generation on TX1 port
+	// BERT subsystem (2x GTX)
 
-	wire lane1_rxclk;
-	wire lane1_txclk;
+	wire[1:0]	cpll_lock;
 
-	wire lane1_rxclk_raw;
-	wire lane1_txclk_raw;
+	BERTSubsystem bert(
 
-	BUFH bufh_lane1_rx(.I(lane1_rxclk_raw), .O(lane1_rxclk));
-	BUFH bufh_lane1_tx(.I(lane1_txclk_raw), .O(lane1_txclk));
+		.clk_125mhz(clk_125mhz),
+		.pll_rgmii_lock(pll_rgmii_lock),
 
-	wire	cpll_lock;
+		.qpll_lock(qpll_lock),
+		.qpll_refclk(qpll_refclk),
+		.qpll_refclk_lost(qpll_refclk_lost),
+		.qpll_clkout_10g3125(qpll_clkout_10g3125),
 
-	gtx_frontlane1 lane1_transceiver(
-		.sysclk_in(clk_125mhz),
+		.serdes_refclk_156m25(serdes_refclk_156m25),
+		.serdes_refclk_200m(serdes_refclk_200m),
 
-		//TODO: do we need any of this
-		.soft_reset_tx_in(1'b0),
-		.soft_reset_rx_in(1'b0),
-		.dont_reset_on_data_error_in(1'b0),
-		.gt0_tx_fsm_reset_done_out(),
-		.gt0_rx_fsm_reset_done_out(),
-		.gt0_tx_mmcm_lock_in(pll_rgmii_lock),
-		.gt0_tx_mmcm_reset_out(),
-		.gt0_rx_mmcm_lock_in(pll_rgmii_lock),
-		.gt0_rx_mmcm_reset_out(),
+		.tx0_p(tx0_p),
+		.tx0_n(tx0_n),
 
-		//Tie off unused ports
-		.gt0_drpaddr_in(9'b0),
-		.gt0_drpclk_in(clk_125mhz),
-		.gt0_drpdi_in(16'b0),
-		.gt0_drpdo_out(),
-		.gt0_drpen_in(1'b0),
-		.gt0_drprdy_out(),
-		.gt0_drpwe_in(1'b0),
-		.gt0_dmonitorout_out(),
-		.gt0_eyescanreset_in(1'b0),
-		.gt0_eyescandataerror_out(),
-		.gt0_eyescantrigger_in(1'b0),
-		//.gt0_rxphmonitor_out(),
-		//.gt0_rxphslipmonitor_out(),
-		.gt0_rxmonitorout_out(),
-		.gt0_rxmonitorsel_in(2'b0),
-		.gt0_gtrxreset_in(1'b0),
-		.gt0_gttxreset_in(1'b0),
+		.rx0_p(rx0_p),
+		.rx0_n(rx0_n),
 
-		//Transmit interface
-		.gt0_txuserrdy_in(pll_rgmii_lock),
-		.gt0_txusrclk_in(lane1_txclk),
-		.gt0_txusrclk2_in(lane1_txclk),
-		.gt0_data_valid_in(1'b1),
-		.gt0_txdata_in(32'h00000000),
-		.gt0_txoutclk_out(lane1_txclk_raw),
-		.gt0_txoutclkfabric_out(),
-		.gt0_txoutclkpcs_out(),
-		.gt0_txresetdone_out(),
+		.tx1_p(tx1_p),
+		.tx1_n(tx1_n),
 
-		//Fabric RX interface
-		.gt0_rxusrclk_in(lane1_rxclk),
-		.gt0_rxusrclk2_in(lane1_rxclk),
-		.gt0_rxdata_out(),
-		//.gt0_rxoutclk_out(lane1_rxclk_raw),
-		.gt0_rxoutclkfabric_out(),
+		.rx1_p(rx1_p),
+		.rx1_n(rx1_n),
 
-		//Output pattern selection
-		.gt0_txprbssel_in(3'b010),	//PRBS-15
-
-		//Top level diff pairs
-		.gt0_gtxtxn_out(tx1_p),
-		.gt0_gtxtxp_out(tx1_n),
-		.gt0_gtxrxn_in(rx1_p),
-		.gt0_gtxrxp_in(rx1_n),
-
-		//Output swing control and equalizer taps
-		.gt0_txdiffctrl_in(/*4'b0100*/tx_swing),	//04 works well
-		.gt0_txprecursor_in(tx_precursor),			//00 works well
-		.gt0_txpostcursor_in(tx_postcursor),		//03 works well
-		.gt0_txmaincursor_in(tx_maincursor),		//00 works well
-
-		//Clock to/from CPLL
-		.gt0_cpllfbclklost_out(),
-		.gt0_cplllock_out(cpll_lock),
-		.gt0_cplllockdetclk_in(clk_125mhz),
-		.gt0_cpllreset_in(1'b0),
-		.gt0_gtrefclk0_in(serdes_refclk_156m25),
-		.gt0_gtrefclk1_in(serdes_refclk_200m),
-
-		//Clock from QPLL
-		//.gt0_qplllock_in(qpll_lock),
-		//.gt0_qpllrefclklost_in(qpll_refclk_lost),
-		//.gt0_qpllreset_out(),
-		.gt0_qplloutclk_in(qpll_clkout_10g3125),
-		.gt0_qplloutrefclk_in(qpll_refclk)
-		);
+		.cpll_lock(cpll_lock)
+	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Network interfaces
@@ -421,7 +368,63 @@ module top(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// TODO: arbitration/muxing for SFP vs RGMII PHY to allow management from either
+	// RX side muxing for SFP vs RGMII PHY to allow management from either
+
+	EthernetRxBus	baset_cdc_rx_bus;
+	EthernetRxBus	baser_cdc_rx_bus;
+
+	//Synchronize link state into core clock domain
+	wire			sfp_link_up_core;
+	wire			rgmii_link_up_core;
+	ThreeStageSynchronizer sync_sfp_link_up(
+		.clk_in(xg0_mac_rx_clk), .din(xg0_link_up), .clk_out(clk_250mhz), .dout(sfp_link_up_core));
+	ThreeStageSynchronizer sync_rgmii_link_up(
+		.clk_in(mgmt0_rx_clk_buf), .din(mgmt0_link_up), .clk_out(clk_250mhz), .dout(rgmii_link_up_core));
+
+	EthernetRxClockCrossing baset_rx_cdc(
+		.gmii_rxc(mgmt0_rx_clk_buf),
+		.mac_rx_bus(mgmt0_rx_bus),
+
+		.sys_clk(clk_250mhz),
+		.cdc_rx_bus(baset_cdc_rx_bus),
+
+		.perf_rx_cdc_frames()
+	);
+
+	EthernetRxClockCrossing baser_rx_cdc(
+		.gmii_rxc(xg0_mac_rx_clk),
+		.mac_rx_bus(xg0_mac_rx_bus),
+
+		.sys_clk(clk_250mhz),
+		.cdc_rx_bus(baser_cdc_rx_bus),
+
+		.perf_rx_cdc_frames()
+	);
+
+	logic			eth_link_up = 0;
+	EthernetRxBus	eth_rx_bus;
+	always_ff @(posedge clk_250mhz) begin
+
+		eth_link_up	<= sfp_link_up_core || rgmii_link_up_core;
+
+		//If SFP is up, use that bus
+		if(sfp_link_up_core)
+			eth_rx_bus	<= baser_cdc_rx_bus;
+
+		//otherwise use baseT if that's up
+		else if(rgmii_link_up_core)
+			eth_rx_bus	<= baset_cdc_rx_bus;
+
+		//neither
+		else
+			eth_rx_bus	<= 0;
+
+	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// TX side muxing for SFP vs RGMII PHY to allow management from either
+
+	//TODO: actually make this work, we need to handle different bus widths which will mean changes to ManagementTxFifo
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Curve25519 crypto_scalarmult accelerator (for speeding up SSH key exchange)
@@ -462,6 +465,21 @@ module top(
 		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// The actual crossbar itself
+
+	`include "CrossbarTypes.svh"
+
+	muxsel_t[11:0]	muxsel;
+
+	(* keep_hierarchy = "yes" *)
+	CrossbarMatrix matrix(
+		.trig_in(trig_in),
+		.trig_out(trig_out),
+
+		.muxsel(muxsel)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Management register interface
 
 	ManagementSubsystem mgmt(
@@ -473,14 +491,13 @@ module top(
 		.qspi_dq(qspi_dq),
 		.irq(irq),
 
-		.mgmt0_rx_clk(mgmt0_rx_clk_buf),
-		.mgmt0_tx_clk(clk_125mhz),
+		.eth_rx_clk(clk_250mhz),
+		.eth_rx_bus(eth_rx_bus),
+		.eth_link_up(eth_link_up),
 
-		.mgmt0_rx_bus(mgmt0_rx_bus),
+		.mgmt0_tx_clk(clk_125mhz),
 		.mgmt0_tx_bus(mgmt0_tx_bus),
 		.mgmt0_tx_ready(mgmt0_tx_ready),
-		.mgmt0_link_up(mgmt0_link_up),
-		.mgmt0_link_speed(mgmt0_link_speed),
 
 		.mgmt0_mdio(rgmii_mdio),
 		.mgmt0_mdc(rgmii_mdc),
@@ -494,6 +511,8 @@ module top(
 		.relay_dir(toggle_dir),
 		.relay_channel(toggle_channel),
 		.relay_done(toggle_done),
+
+		.muxsel(muxsel),
 
 		.clk_crypt(clk_250mhz),
 		.crypt_en(crypt_en),
@@ -509,16 +528,13 @@ module top(
 	always_comb begin
 		led[0]		= xg0_link_up;
 		led[1]		= mgmt0_link_up;
-		led[2]		= cpll_lock;
-		led[3]	= 1'b1;
+		led[3:2]	= cpll_lock;
 	end
 
-	//forward trigger inputs to outputs 1:1
-	always_comb begin
-		trig_out	= trig_in;
-
-		//but special case: out4 is in8
-		trig_out[4]	= trig_in[8];
-	end
+	ila_0 ila(
+		.clk(clk_250mhz),
+		.probe0(trig_in),
+		.probe1(trig_out),
+		.probe2(muxsel[4]));
 
 endmodule

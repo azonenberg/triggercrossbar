@@ -274,14 +274,14 @@ void InitDACs()
 	g_rxDacs[1] = &rx_dac1;
 	g_txDac = &tx_dac;
 
-	//Set all output channels to 2.5V
+	//Set all output channels to 2.0V
 	for(int i=0; i<8; i++)
-		tx_dac.SetChannelMillivolts(i, 2500);
+		tx_dac.SetChannelMillivolts(i, 2000);
 
-	//Set channel 7 (out4) to 3.3V
-	tx_dac.SetChannelMillivolts(7, 3300);
+	//Set CDR trigger to 5 mV threshold
+	rx_dac1.SetChannelMillivolts(7, 5);
 
-	//Set all input channels to 500 mV threshold
+	//Set all input channels to 850 mV threshold
 	for(int i=0; i<8; i++)
 	{
 		rx_dac0.SetChannelMillivolts(i, 850);

@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+`default_nettype none
 /***********************************************************************************************************************
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
@@ -27,97 +29,31 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef fpgainterface_h
-#define fpgainterface_h
+`include "CrossbarTypes.svh"
 
-class FPGAInterface
-{
-public:
-	virtual ~FPGAInterface()
-	{}
+/**
+	@file
+	@author Andrew D. Zonenberg
+	@brief The actual switch crossbar
 
-	virtual void Nop()
-	{};
+	Completely combinatorial
+ */
+module CrossbarMatrix(
+	input wire[11:0]			trig_in,
+	output logic[11:0]			trig_out,
 
-	#ifdef SIMULATION
-	/**
-		@brief Advance simulation time until the crypto engine has finished
-	 */
-	virtual void CryptoEngineBlock()
-	{}
-	#endif
+	input wire muxsel_t[11:0]	muxsel
+);
 
-	virtual void BlockingRead(uint32_t insn, uint8_t* data, uint32_t len) = 0;
-	virtual void BlockingWrite(uint32_t insn, const uint8_t* data, uint32_t len) = 0;
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// The actual muxes
 
-	uint32_t BlockingRead32(uint32_t insn)
-	{
-		uint32_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+	always_comb begin
 
-	uint8_t BlockingRead8(uint32_t insn)
-	{
-		uint8_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+		for(integer i=0; i<12; i=i+1) begin
+			trig_out[i]	= trig_in[muxsel[i]];
+		end
 
-	uint16_t BlockingRead16(uint32_t insn)
-	{
-		uint16_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+	end
 
-	void BlockingWrite8(uint32_t insn, uint8_t data)
-	{ BlockingWrite(insn, &data, sizeof(data)); }
-
-	void BlockingWrite16(uint32_t insn, uint16_t data)
-	{ BlockingWrite(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
-
-	void BlockingWrite32(uint32_t insn, uint32_t data)
-	{ BlockingWrite(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
-
-};
-
-//must match regid_t in ManagementRegisterInterface.sv
-enum regid_t
-{
-	REG_FPGA_IDCODE		= 0x0000,
-	REG_FPGA_SERIAL		= 0x0004,
-	REG_FAN0_RPM		= 0x0010,
-	REG_FAN1_RPM		= 0x0012,
-	REG_DIE_TEMP		= 0x0014,
-	REG_VOLT_CORE		= 0x0016,
-	REG_VOLT_RAM		= 0x0018,
-	REG_VOLT_AUX		= 0x001a,
-
-	REG_FPGA_IRQSTAT	= 0x0020,
-	REG_EMAC_RXLEN		= 0x0024,
-	REG_EMAC_COMMIT		= 0x0028,
-
-	REG_MGMT0_MDIO		= 0x0048,
-
-	REG_XG0_STAT		= 0x0060,
-
-	REG_RELAY_TOGGLE	= 0x0070,
-	REG_RELAY_STAT		= 0x0072,
-
-	REG_MUXSEL_BASE		= 0x0080,
-
-	REG_EMAC_BUFFER		= 0x1000,
-
-	REG_CRYPT_BASE		= 0x3800,
-};
-
-enum cryptreg_t
-{
-	REG_WORK			= 0x0000,
-	REG_E				= 0x0020,
-	REG_CRYPT_STATUS	= 0x0040,
-	REG_WORK_OUT		= 0x0060
-};
-
-#endif
+endmodule

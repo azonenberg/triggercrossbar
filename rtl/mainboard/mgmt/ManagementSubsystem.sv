@@ -31,6 +31,7 @@
 
 `include "EthernetBus.svh"
 `include "GmiiBus.svh"
+`include "CrossbarTypes.svh"
 
 /**
 	@file
@@ -47,14 +48,13 @@ module ManagementSubsystem(
 	output wire						irq,
 
 	//Management network bus
-	input wire						mgmt0_rx_clk,
+	input wire						eth_rx_clk,
 	input wire						mgmt0_tx_clk,
 
-	input wire EthernetRxBus		mgmt0_rx_bus,
+	input wire EthernetRxBus		eth_rx_bus,
 	output EthernetTxBus			mgmt0_tx_bus,
 	input wire						mgmt0_tx_ready,
-	input wire						mgmt0_link_up,
-	input wire lspeed_t				mgmt0_link_speed,
+	input wire						eth_link_up,
 
 	inout wire						mgmt0_mdio,
 	output wire						mgmt0_mdc,
@@ -70,6 +70,7 @@ module ManagementSubsystem(
 	output wire						relay_dir,
 	output wire[1:0]				relay_channel,
 	input wire						relay_done,
+	output muxsel_t[11:0]			muxsel,
 
 	//Configuration registers in crypto clock domain
 	input wire						clk_crypt,
@@ -155,9 +156,10 @@ module ManagementSubsystem(
 
 	ManagementRxFifo rx_fifo(
 		.sys_clk(sys_clk),
-		.mgmt0_rx_clk(mgmt0_rx_clk),
-		.mgmt0_rx_bus(mgmt0_rx_bus),
-		.mgmt0_link_up(mgmt0_link_up),
+
+		.eth_rx_clk(eth_rx_clk),
+		.eth_rx_bus(eth_rx_bus),
+		.eth_link_up(eth_link_up),
 
 		.rxfifo_rd_en(rxfifo_rd_en),
 		.rxfifo_rd_pop_single(rxfifo_rd_pop_single),
@@ -171,12 +173,12 @@ module ManagementSubsystem(
 	wire[7:0]	txfifo_wr_data;
 	wire		txfifo_wr_commit;
 
-	wire		mgmt0_link_up_txclk;
+	wire		eth_link_up_txclk;
 	ThreeStageSynchronizer sync_link_up_txclk(
-		.clk_in(mgmt0_rx_clk),
-		.din(mgmt0_link_up),
+		.clk_in(eth_rx_clk),
+		.din(eth_link_up),
 		.clk_out(mgmt0_tx_clk),
-		.dout(mgmt0_link_up_txclk)
+		.dout(eth_link_up_txclk)
 	);
 
 	ManagementTxFifo tx_fifo(
@@ -187,7 +189,7 @@ module ManagementSubsystem(
 		.wr_commit(txfifo_wr_commit),
 
 		.tx_clk(mgmt0_tx_clk),
-		.link_up(mgmt0_link_up_txclk),
+		.link_up(eth_link_up_txclk),
 		.tx_ready(mgmt0_tx_ready),
 		.tx_bus(mgmt0_tx_bus)
 	);
@@ -204,7 +206,10 @@ module ManagementSubsystem(
 	wire[15:0]	mgmt_wr_addr;
 	wire[7:0]	mgmt_wr_data;
 
+	(* retiming_backward = 1 *)
 	logic		mgmt_rd_valid_out	= 0;
+
+	(* retiming_backward = 1 *)
 	logic[7:0]	mgmt_rd_data_out	= 0;
 
 	//Prevent any logic from the rest of this module from being optimized into the bridge
@@ -229,8 +234,8 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Optionally pipeline read data by one cycle
 
-	//always_ff @(posedge sys_clk) begin
-	always_comb begin
+	//always_comb begin
+	always_ff @(posedge sys_clk) begin
 		mgmt_rd_valid_out	= mgmt_rd_valid;
 		mgmt_rd_data_out	= mgmt_rd_data;
 	end
@@ -339,6 +344,7 @@ module ManagementSubsystem(
 		.relay_dir(relay_dir),
 		.relay_channel(relay_channel),
 		.relay_done(relay_done),
+		.muxsel(muxsel),
 
 		//Control registers (port RX clock domain)
 		.xg0_rx_clk(xg0_rx_clk),
