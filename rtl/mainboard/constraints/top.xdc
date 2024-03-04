@@ -235,6 +235,23 @@ resize_pblock [get_pblocks pblock_qspi] -add {RAMB18_X0Y20:RAMB18_X0Y39}
 resize_pblock [get_pblocks pblock_qspi] -add {RAMB36_X0Y10:RAMB36_X0Y19}
 set_property IS_SOFT FALSE [get_pblocks pblock_qspi]
 
+
+
+create_pblock pblock_rgmii_cdc
+add_cells_to_pblock [get_pblocks pblock_rgmii_cdc] [get_cells -quiet [list rx_mux/baset_rx_cdc]]
+resize_pblock [get_pblocks pblock_rgmii_cdc] -add {SLICE_X12Y150:SLICE_X35Y163}
+resize_pblock [get_pblocks pblock_rgmii_cdc] -add {DSP48_X1Y60:DSP48_X1Y63}
+resize_pblock [get_pblocks pblock_rgmii_cdc] -add {RAMB18_X1Y60:RAMB18_X1Y63}
+resize_pblock [get_pblocks pblock_rgmii_cdc] -add {RAMB36_X1Y30:RAMB36_X1Y31}
+set_property IS_SOFT FALSE [get_pblocks pblock_rgmii_cdc]
+create_pblock pblock_rx_mux
+add_cells_to_pblock [get_pblocks pblock_rx_mux] [get_cells -quiet [list rx_mux/baser_rx_cdc]]
+resize_pblock [get_pblocks pblock_rx_mux] -add {SLICE_X12Y100:SLICE_X23Y149}
+resize_pblock [get_pblocks pblock_rx_mux] -add {DSP48_X1Y40:DSP48_X1Y59}
+resize_pblock [get_pblocks pblock_rx_mux] -add {RAMB18_X1Y40:RAMB18_X1Y59}
+resize_pblock [get_pblocks pblock_rx_mux] -add {RAMB36_X1Y20:RAMB36_X1Y29}
+set_property IS_SOFT FALSE [get_pblocks pblock_rx_mux]
+
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
 set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
 set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]

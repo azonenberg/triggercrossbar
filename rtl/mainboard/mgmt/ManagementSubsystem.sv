@@ -206,10 +206,10 @@ module ManagementSubsystem(
 	wire[15:0]	mgmt_wr_addr;
 	wire[7:0]	mgmt_wr_data;
 
-	(* retiming_backward = 1 *)
+	//(* retiming_backward = 1 *)
 	logic		mgmt_rd_valid_out	= 0;
 
-	(* retiming_backward = 1 *)
+	//(* retiming_backward = 1 *)
 	logic[7:0]	mgmt_rd_data_out	= 0;
 
 	//Prevent any logic from the rest of this module from being optimized into the bridge
@@ -234,14 +234,17 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Optionally pipeline read data by one cycle
 
-	//always_comb begin
-	always_ff @(posedge sys_clk) begin
+	always_comb begin
+	//always_ff @(posedge sys_clk) begin
 		mgmt_rd_valid_out	= mgmt_rd_valid;
 		mgmt_rd_data_out	= mgmt_rd_data;
 	end
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Pipeline register on write data
+	// Pipeline register on write data plus read address bus
+
+	logic		mgmt_rd_en_ff	= 0;
+	logic[15:0]	mgmt_rd_addr_ff	= 0;
 
 	logic		mgmt_wr_en_ff	= 0;
 	logic[15:0]	mgmt_wr_addr_ff	= 0;
@@ -251,6 +254,9 @@ module ManagementSubsystem(
 		mgmt_wr_en_ff	<= mgmt_wr_en;
 		mgmt_wr_addr_ff	<= mgmt_wr_addr;
 		mgmt_wr_data_ff	<= mgmt_wr_data;
+
+		mgmt_rd_en_ff	<= mgmt_rd_en;
+		mgmt_rd_addr_ff	<= mgmt_rd_addr;
 	end
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -302,8 +308,8 @@ module ManagementSubsystem(
 		.irq(irq),
 
 		//Memory bus
-		.rd_en(mgmt_rd_en),
-		.rd_addr(mgmt_rd_addr),
+		.rd_en(mgmt_rd_en_ff),
+		.rd_addr(mgmt_rd_addr_ff),
 		.rd_valid(mgmt_rd_valid),
 		.rd_data(mgmt_rd_data),
 

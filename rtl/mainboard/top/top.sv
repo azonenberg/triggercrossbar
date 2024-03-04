@@ -370,56 +370,22 @@ module top(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// RX side muxing for SFP vs RGMII PHY to allow management from either
 
-	EthernetRxBus	baset_cdc_rx_bus;
-	EthernetRxBus	baser_cdc_rx_bus;
+	wire					eth_link_up;
+	wire EthernetRxBus		eth_rx_bus;
 
-	//Synchronize link state into core clock domain
-	wire			sfp_link_up_core;
-	wire			rgmii_link_up_core;
-	ThreeStageSynchronizer sync_sfp_link_up(
-		.clk_in(xg0_mac_rx_clk), .din(xg0_link_up), .clk_out(clk_250mhz), .dout(sfp_link_up_core));
-	ThreeStageSynchronizer sync_rgmii_link_up(
-		.clk_in(mgmt0_rx_clk_buf), .din(mgmt0_link_up), .clk_out(clk_250mhz), .dout(rgmii_link_up_core));
+	NetworkRxMuxing rx_mux(
+		.clk_250mhz(clk_250mhz),
 
-	EthernetRxClockCrossing baset_rx_cdc(
-		.gmii_rxc(mgmt0_rx_clk_buf),
-		.mac_rx_bus(mgmt0_rx_bus),
+		.mgmt0_link_up(mgmt0_link_up),
+		.mgmt0_rx_clk_buf(mgmt0_rx_clk_buf),
+		.mgmt0_rx_bus(mgmt0_rx_bus),
 
-		.sys_clk(clk_250mhz),
-		.cdc_rx_bus(baset_cdc_rx_bus),
+		.xg0_link_up(xg0_link_up),
+		.xg0_mac_rx_clk(xg0_mac_rx_clk),
+		.xg0_mac_rx_bus(xg0_mac_rx_bus),
 
-		.perf_rx_cdc_frames()
-	);
-
-	EthernetRxClockCrossing baser_rx_cdc(
-		.gmii_rxc(xg0_mac_rx_clk),
-		.mac_rx_bus(xg0_mac_rx_bus),
-
-		.sys_clk(clk_250mhz),
-		.cdc_rx_bus(baser_cdc_rx_bus),
-
-		.perf_rx_cdc_frames()
-	);
-
-	logic			eth_link_up = 0;
-	EthernetRxBus	eth_rx_bus;
-	always_ff @(posedge clk_250mhz) begin
-
-		eth_link_up	<= sfp_link_up_core || rgmii_link_up_core;
-
-		//If SFP is up, use that bus
-		if(sfp_link_up_core)
-			eth_rx_bus	<= baser_cdc_rx_bus;
-
-		//otherwise use baseT if that's up
-		else if(rgmii_link_up_core)
-			eth_rx_bus	<= baset_cdc_rx_bus;
-
-		//neither
-		else
-			eth_rx_bus	<= 0;
-
-	end
+		.eth_link_up(eth_link_up),
+		.eth_rx_bus(eth_rx_bus));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// TX side muxing for SFP vs RGMII PHY to allow management from either

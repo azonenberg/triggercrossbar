@@ -86,7 +86,7 @@ module BERTSubsystem(
 	wire lane0_rxclk_raw;
 	wire lane0_txclk_raw;
 
-	BUFH bufh_lane0_rx(.I(lane0_rxclk_raw), .O(lane0_rxclk));
+	BUFG bufg_lane0_rx(.I(lane0_rxclk_raw), .O(lane0_rxclk));
 	BUFH bufh_lane0_tx(.I(lane0_txclk_raw), .O(lane0_txclk));
 
 	gtx_frontlane0 lane0_transceiver(
@@ -179,6 +179,9 @@ module BERTSubsystem(
 	BUFH bufh_lane1_rx(.I(lane1_rxclk_raw), .O(lane1_rxclk));
 	BUFH bufh_lane1_tx(.I(lane1_txclk_raw), .O(lane1_txclk));
 
+	wire[31:0]	lane1_rx_data;
+	wire		lane1_prbs_err;
+
 	gtx_frontlane1 lane1_transceiver(
 		.sysclk_in(clk_125mhz),
 
@@ -188,6 +191,9 @@ module BERTSubsystem(
 		.dont_reset_on_data_error_in(1'b0),
 		.gt0_tx_fsm_reset_done_out(),
 		.gt0_rx_fsm_reset_done_out(),
+
+		.gt0_tx_mmcm_lock_in(pll_rgmii_lock),
+		.gt0_rx_mmcm_lock_in(pll_rgmii_lock),
 
 		//Tie off unused ports
 		.gt0_drpaddr_in(9'b0),
@@ -222,12 +228,16 @@ module BERTSubsystem(
 		//Fabric RX interface
 		.gt0_rxusrclk_in(lane1_rxclk),
 		.gt0_rxusrclk2_in(lane1_rxclk),
-		.gt0_rxdata_out(),
-		//.gt0_rxoutclk_out(lane1_rxclk_raw),
+		.gt0_rxdata_out(lane1_rx_data),
+		.gt0_rxoutclk_out(lane1_rxclk_raw),
 		.gt0_rxoutclkfabric_out(),
 
 		//Output pattern selection
 		.gt0_txprbssel_in(3'b010),	//PRBS-15
+
+		//Input PRBS detector
+		.gt0_rxprbssel_in(3'b010),	//PRBS-15
+		.gt0_rxprbserr_out(lane1_prbs_err),
 
 		//Top level diff pairs
 		.gt0_gtxtxn_out(tx1_p),
@@ -242,19 +252,30 @@ module BERTSubsystem(
 		.gt0_txmaincursor_in(tx_maincursor),		//00 works well
 
 		//Clock to/from CPLL
-		.gt0_cpllfbclklost_out(),
+		/*.gt0_cpllfbclklost_out(),
 		.gt0_cplllock_out(cpll_lock[1]),
 		.gt0_cplllockdetclk_in(clk_125mhz),
 		.gt0_cpllreset_in(1'b0),
 		.gt0_gtrefclk0_in(serdes_refclk_156m25),
-		.gt0_gtrefclk1_in(serdes_refclk_200m),
+		.gt0_gtrefclk1_in(serdes_refclk_200m),*/
 
 		//Clock from QPLL
-		//.gt0_qplllock_in(qpll_lock),
-		//.gt0_qpllrefclklost_in(qpll_refclk_lost),
-		//.gt0_qpllreset_out(),
+		.gt0_qplllock_in(qpll_lock),
+		.gt0_qpllrefclklost_in(qpll_refclk_lost),
+		.gt0_qpllreset_out(),
 		.gt0_qplloutclk_in(qpll_clkout_10g3125),
 		.gt0_qplloutrefclk_in(qpll_refclk)
 		);
+
+	assign cpll_lock[1] = 0;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Debug ILAs
+
+	ila_1 ila(
+		.clk(lane1_rxclk),
+		.probe0(lane1_rx_data),
+		.probe1(lane1_prbs_err)
+	);
 
 endmodule
