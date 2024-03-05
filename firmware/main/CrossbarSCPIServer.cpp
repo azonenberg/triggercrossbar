@@ -53,6 +53,14 @@
 
 	BERT commands:
 		[chan]:PATTERN USER, PRBS7, PRBS15, PRBS23, PRBS31, FASTSQUARE, SLOWSQUARE
+
+		[chan]:SWING [step]
+
+		[chan]:PRECURSOR [step]
+
+		[chan]:POSTCURSOR [step]
+
+		[chan]:INVERT [0|1]
  */
 #include "triggercrossbar.h"
 #include <ctype.h>
@@ -62,6 +70,18 @@ uint8_t g_bertTxPattern[2] = {0};
 
 ///@brief Receive pattern IDs
 uint8_t g_bertRxPattern[2] = {0};
+
+///@brief Transmit swing steps
+uint8_t g_bertTxSwing[2] = {0};
+
+///@brief Transmit precursor steps
+uint8_t g_bertTxPreCursor[2] = {0};
+
+///@brief Transmit postcursor steps
+uint8_t g_bertTxPostCursor[2] = {0};
+
+///@brief Transmit invert flag
+bool g_bertTxInvert[2] = {0};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
@@ -248,6 +268,87 @@ void CrossbarSCPIServer::OnCommand(char* line, TCPTableEntry* socket)
 			{}
 		}
 
+		//Output amplitude
+		else if(!strcmp(command, "SWING"))
+		{
+			//need to have a channel and value
+			if(!subject || !args)
+				return;
+
+			//need valid channel ID (BERT port)
+			int chan = GetChannelID(subject);
+			if( (chan < 0) || (chan > 1) )
+				return;
+			if(subject[0] != 'T')
+				return;
+
+			//TX amplitude
+			g_bertTxSwing[chan] = atoi(args) & 0x0f;
+
+			UpdateTxLane(chan);
+		}
+
+		//Output FFE taps
+		else if(!strcmp(command, "PRECURSOR"))
+		{
+			//need to have a channel and value
+			if(!subject || !args)
+				return;
+
+			//need valid channel ID (BERT port)
+			int chan = GetChannelID(subject);
+			if( (chan < 0) || (chan > 1) )
+				return;
+			if(subject[0] != 'T')
+				return;
+
+			//TX amplitude
+			g_bertTxPreCursor[chan] = atoi(args) & 0x1f;
+
+			UpdateTxLane(chan);
+		}
+		else if(!strcmp(command, "POSTCURSOR"))
+		{
+			//need to have a channel and value
+			if(!subject || !args)
+				return;
+
+			//need valid channel ID (BERT port)
+			int chan = GetChannelID(subject);
+			if( (chan < 0) || (chan > 1) )
+				return;
+			if(subject[0] != 'T')
+				return;
+
+			//TX amplitude
+			g_bertTxPostCursor[chan] = atoi(args) & 0x1f;
+
+			UpdateTxLane(chan);
+		}
+
+		//Output inversion
+		else if(!strcmp(command, "INVERT"))
+		{
+			//need to have a channel and value
+			if(!subject || !args)
+				return;
+
+			//need valid channel ID (BERT port)
+			int chan = GetChannelID(subject);
+			if( (chan < 0) || (chan > 1) )
+				return;
+			if(subject[0] != 'T')
+				return;
+
+			//TX amplitude
+			if(!strcmp(args, "1"))
+				g_bertTxInvert[chan] = true;
+			else
+				g_bertTxInvert[chan] = false;
+
+			UpdateTxLane(chan);
+		}
+
 		//PRBS pattern
 		else if(!strcmp(command, "PATTERN"))
 		{
@@ -255,7 +356,7 @@ void CrossbarSCPIServer::OnCommand(char* line, TCPTableEntry* socket)
 			if(!subject || !args)
 				return;
 
-			//need valid channel ID (IO port)
+			//need valid channel ID (BERT port)
 			int chan = GetChannelID(subject);
 			if( (chan < 0) || (chan > 1) )
 				return;
@@ -286,13 +387,26 @@ void CrossbarSCPIServer::OnCommand(char* line, TCPTableEntry* socket)
 
 			//Push to hardware
 			uint8_t regval = (g_bertTxPattern[chan] << 4) | g_bertRxPattern[chan];
-			g_log("changing prbs state to %02x\n", regval);
 			if(chan == 0)
 				g_fpga->BlockingWrite8(REG_BERT_LANE0_PRBS, regval);
 			else
 				g_fpga->BlockingWrite8(REG_BERT_LANE1_PRBS, regval);
 		}
 	}
+}
+
+void CrossbarSCPIServer::UpdateTxLane(int lane)
+{
+	uint16_t regval = g_bertTxSwing[lane];
+	if(g_bertTxInvert[lane])
+		regval |= 0x8000;
+	regval |= g_bertTxPostCursor[lane] << 9;
+	regval |= g_bertTxPreCursor[lane] << 4;
+
+	if(lane == 0)
+		g_fpga->BlockingWrite16(REG_BERT_LANE0_TX, regval);
+	else
+		g_fpga->BlockingWrite16(REG_BERT_LANE1_TX, regval);
 }
 
 /**

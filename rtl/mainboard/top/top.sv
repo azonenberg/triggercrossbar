@@ -171,6 +171,7 @@ module top(
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Output PRBS generation on sync port (also runs CDR trigger input)
+	// TODO: Figure out what to do with this
 
 	//Dummy GTX clocking
 	wire	cdrtrig_rxclk;
@@ -191,12 +192,10 @@ module top(
 	wire[4:0]	tx_postcursor;		//best results for 10Gbase-R 'h08
 	wire[6:0]	tx_maincursor;		//best results for 10Gbase-R 'h00
 
-	vio_0 vio(
-		.clk(clk_125mhz),
-		.probe_out0(tx_swing),
-		.probe_out1(tx_precursor),
-		.probe_out2(tx_postcursor),
-		.probe_out3(tx_maincursor));
+	assign tx_swing = 4'h05;
+	assign tx_precursor = 5'h07;
+	assign tx_postcursor = 5'h08;
+	assign tx_maincursor = 7'h0;
 
 	gtx_syncout_cdrtrig prbs_transceiver(
 		.sysclk_in(clk_125mhz),
@@ -279,11 +278,13 @@ module top(
 
 	wire		serdes_config_updated;
 
-	wire[2:0]	rx0_prbs_mode;
-	wire[2:0]	rx1_prbs_mode;
+	`include "BERTConfig.svh"
 
-	wire[2:0]	tx0_prbs_mode;
-	wire[2:0]	tx1_prbs_mode;
+	bert_txconfig_t	tx0_config;
+	bert_txconfig_t	tx1_config;
+
+	bert_rxconfig_t	rx0_config;
+	bert_rxconfig_t	rx1_config;
 
 	BERTSubsystem bert(
 
@@ -314,10 +315,10 @@ module top(
 
 		.clk_250mhz(clk_250mhz),
 		.config_updated(serdes_config_updated),
-		.rx0_prbs_mode(rx0_prbs_mode),
-		.rx1_prbs_mode(rx1_prbs_mode),
-		.tx0_prbs_mode(tx0_prbs_mode),
-		.tx1_prbs_mode(tx1_prbs_mode)
+		.tx0_config(tx0_config),
+		.tx1_config(tx1_config),
+		.rx0_config(rx0_config),
+		.rx1_config(rx1_config)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -496,10 +497,10 @@ module top(
 		.muxsel(muxsel),
 
 		.serdes_config_updated(serdes_config_updated),
-		.rx0_prbs_mode(rx0_prbs_mode),
-		.rx1_prbs_mode(rx1_prbs_mode),
-		.tx0_prbs_mode(tx0_prbs_mode),
-		.tx1_prbs_mode(tx1_prbs_mode),
+		.rx0_config(rx0_config),
+		.rx1_config(rx1_config),
+		.tx0_config(tx0_config),
+		.tx1_config(tx1_config),
 
 		.clk_crypt(clk_250mhz),
 		.crypt_en(crypt_en),

@@ -32,6 +32,7 @@
 `include "EthernetBus.svh"
 `include "GmiiBus.svh"
 `include "CrossbarTypes.svh"
+`include "BERTConfig.svh"
 
 /**
 	@file
@@ -72,10 +73,10 @@ module ManagementSubsystem(
 	input wire						relay_done,
 	output muxsel_t[11:0]			muxsel,
 	output wire						serdes_config_updated,
-	output wire[2:0]				rx0_prbs_mode,
-	output wire[2:0]				rx1_prbs_mode,
-	output wire[2:0]				tx0_prbs_mode,
-	output wire[2:0]				tx1_prbs_mode,
+	output bert_txconfig_t			tx0_config,
+	output bert_txconfig_t			tx1_config,
+	output bert_rxconfig_t			rx0_config,
+	output bert_rxconfig_t			rx1_config,
 
 	//Configuration registers in crypto clock domain
 	input wire						clk_crypt,
@@ -357,10 +358,10 @@ module ManagementSubsystem(
 		.relay_done(relay_done),
 		.muxsel(muxsel),
 		.serdes_config_updated(serdes_config_updated),
-		.rx0_prbs_mode(rx0_prbs_mode),
-		.rx1_prbs_mode(rx1_prbs_mode),
-		.tx0_prbs_mode(tx0_prbs_mode),
-		.tx1_prbs_mode(tx1_prbs_mode),
+		.rx0_config(rx0_config),
+		.rx1_config(rx1_config),
+		.tx0_config(tx0_config),
+		.tx1_config(tx1_config),
 
 		//Control registers (port RX clock domain)
 		.xg0_rx_clk(xg0_rx_clk),

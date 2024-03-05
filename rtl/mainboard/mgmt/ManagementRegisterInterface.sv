@@ -32,6 +32,7 @@
 `include "EthernetBus.svh"
 `include "GmiiBus.svh"
 `include "CrossbarTypes.svh"
+`include "BERTConfig.svh"
 
 /**
 	@file
@@ -102,10 +103,10 @@ module ManagementRegisterInterface(
 
 	//still in core clock domain, synchronizer in serdes module
 	output logic					serdes_config_updated = 0,
-	output logic[2:0]				rx0_prbs_mode = 0,
-	output logic[2:0]				rx1_prbs_mode = 0,
-	output logic[2:0]				tx0_prbs_mode = 0,
-	output logic[2:0]				tx1_prbs_mode = 0,
+	output bert_txconfig_t			tx0_config = 0,
+	output bert_txconfig_t			tx1_config = 0,
+	output bert_rxconfig_t			rx0_config = 0,
+	output bert_rxconfig_t			rx1_config = 0,
 
 	//Configuration registers in crypto clock domain
 	input wire						clk_crypt,
@@ -250,10 +251,19 @@ module ManagementRegisterInterface(
 											//If set, no new relay commands are allowed
 
 		//BERT configuration
-		REG_BERT_LANE0_PRBS	= 16'h0080,		//6:4 = TX PRBS mode (GTX TXPRBSSEL see table 3-22 of UG476)
-											//2:0 = RX PRBS mode (GTX RXPRBSSEL see table 4-30 of UG476)
+		REG_BERT_LANE0_PRBS	= 16'h0080,		//6:4  = TX PRBS mode (GTX TXPRBSSEL see table 3-22 of UG476)
+											//2:0  = RX PRBS mode (GTX RXPRBSSEL see table 4-30 of UG476)
+
+		REG_BERT_LANE0_TX	= 16'h0082,		//15   = invert
+											//14   = reserved
+											//13:9 = postcursor
+											//8:4  = precursor
+											//3:0  = swing
+		REG_BERT_LANE0_TX_1 = 16'h0083,
 
 		REG_BERT_LANE1_PRBS = 16'h00a0,		//same as LANE0
+		REG_BERT_LANE1_TX	= 16'h00a2,
+		REG_BERT_LANE1_TX_1 = 16'h00a3,
 
 		//Mux selectors
 		REG_MUXSEL_BASE		= 16'h00f0,		//3:0 = mux selector
@@ -508,33 +518,56 @@ module ManagementRegisterInterface(
 					REG_MGMT0_MDIO:		mgmt0_phy_wr_data[7:0]	<= wr_data;
 					REG_MGMT0_MDIO_1:	mgmt0_phy_wr_data[15:8]	<= wr_data;
 					REG_MGMT0_MDIO_2: begin
-						mgmt0_phy_reg_addr		<= wr_data[4:0];
-						mgmt0_phy_md_addr[2:0]	<= wr_data[7:5];
+						mgmt0_phy_reg_addr			<= wr_data[4:0];
+						mgmt0_phy_md_addr[2:0]		<= wr_data[7:5];
 					end
 					REG_MGMT0_MDIO_3: begin
-						mgmt0_phy_md_addr[4:3]	<= wr_data[1:0];
-						mgmt0_phy_reg_rd		<= wr_data[5];
-						mgmt0_phy_reg_wr		<= wr_data[6];
+						mgmt0_phy_md_addr[4:3]		<= wr_data[1:0];
+						mgmt0_phy_reg_rd			<= wr_data[5];
+						mgmt0_phy_reg_wr			<= wr_data[6];
 					end
 
 					REG_RELAY_TOGGLE: begin
-						relay_channel	<= wr_data[1:0];
+						relay_channel				<= wr_data[1:0];
 					end
 					REG_RELAY_TOGGLE_1: begin
-						relay_dir		<= wr_data[7];
-						relay_en		<= 1;
+						relay_dir					<= wr_data[7];
+						relay_en					<= 1;
 					end
 
 					REG_BERT_LANE0_PRBS: begin
-						serdes_config_updated	<= 1;
-						rx0_prbs_mode			<= wr_data[2:0];
-						tx0_prbs_mode			<= wr_data[6:4];
+						serdes_config_updated		<= 1;
+						rx0_config.prbsmode			<= wr_data[2:0];
+						tx0_config.prbsmode			<= wr_data[6:4];
 					end
 
+					REG_BERT_LANE0_TX: begin
+						tx0_config.swing			<= wr_data[3:0];
+						tx0_config.precursor[3:0]	<= wr_data[7:4];
+					end
+					REG_BERT_LANE0_TX_1: begin
+						tx0_config.precursor[4]		<= wr_data[0];
+						tx0_config.postcursor		<= wr_data[5:1];
+						tx0_config.invert			<= wr_data[7];
+						serdes_config_updated		<= 1;
+					end
+
+
 					REG_BERT_LANE1_PRBS: begin
-						serdes_config_updated	<= 1;
-						rx1_prbs_mode			<= wr_data[2:0];
-						tx1_prbs_mode			<= wr_data[6:4];
+						serdes_config_updated		<= 1;
+						rx1_config.prbsmode			<= wr_data[2:0];
+						tx1_config.prbsmode			<= wr_data[6:4];
+					end
+
+					REG_BERT_LANE1_TX: begin
+						tx1_config.swing			<= wr_data[3:0];
+						tx1_config.precursor[3:0]	<= wr_data[7:4];
+					end
+					REG_BERT_LANE1_TX_1: begin
+						tx1_config.precursor[4]		<= wr_data[0];
+						tx1_config.postcursor		<= wr_data[5:1];
+						tx1_config.invert			<= wr_data[7];
+						serdes_config_updated		<= 1;
 					end
 
 					REG_EMAC_COMMIT:	txfifo_wr_commit <= 1;

@@ -29,65 +29,50 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
+`include "BERTConfig.svh"
+
 module BERTSubsystem(
 
 	//Top level clocks
-	input wire			clk_125mhz,
-	input wire			pll_rgmii_lock,
+	input wire					clk_125mhz,
+	input wire					pll_rgmii_lock,
 
 	//QPLL signals
-	input wire			qpll_lock,
-	input wire			qpll_refclk,
-	input wire			qpll_refclk_lost,
-	input wire			qpll_clkout_10g3125,
+	input wire					qpll_lock,
+	input wire					qpll_refclk,
+	input wire					qpll_refclk_lost,
+	input wire					qpll_clkout_10g3125,
 
 	//Refclks to CPLLs
-	input wire			serdes_refclk_156m25,
-	input wire			serdes_refclk_200m,
+	input wire					serdes_refclk_156m25,
+	input wire					serdes_refclk_200m,
 
 	//Front panel differential BERT/pattern generator port
-	output wire			tx0_p,
-	output wire			tx0_n,
+	output wire					tx0_p,
+	output wire					tx0_n,
 
-	input wire			rx0_p,
-	input wire			rx0_n,
+	input wire					rx0_p,
+	input wire					rx0_n,
 
-	output wire			tx1_p,
-	output wire			tx1_n,
+	output wire					tx1_p,
+	output wire					tx1_n,
 
-	input wire			rx1_p,
-	input wire			rx1_n,
+	input wire					rx1_p,
+	input wire					rx1_n,
 
 	//Control registers (clk_250mhz domain, synchronized internally)
-	input wire			clk_250mhz,
-	input wire			config_updated,			//update strobe
-	input wire[2:0]		rx0_prbs_mode,			//0 = normal
-	input wire[2:0]		tx0_prbs_mode,			//1 = PRBS-7
-	input wire[2:0]		rx1_prbs_mode,			//2 = PRBS-15
-	input wire[2:0]		tx1_prbs_mode,			//3 = PRBS-23
-												//4 = PRBS-31
-												//5 = reserved (PCIe compliance pattern but only in 20/40 bit bus width)
-												//6 = 2 UI period squarewave
-												//7 = 32 UI period squarewave
+	input wire					clk_250mhz,
+	input wire					config_updated,			//update strobe
+
+	input wire bert_txconfig_t	tx0_config,
+	input wire bert_txconfig_t	tx1_config,
+
+	input wire bert_rxconfig_t	rx0_config,
+	input wire bert_rxconfig_t	rx1_config,
 
 	//Status outputs
-	output wire[1:0]	cpll_lock
+	output wire[1:0]			cpll_lock
 	);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Controls for drive strength and FFT
-
-	wire[3:0]	tx_swing;			//best results for 10gbase-R 'h05
-	wire[4:0]	tx_precursor;		//best results for 10gbase-R 'h07
-	wire[4:0]	tx_postcursor;		//best results for 10Gbase-R 'h08
-	wire[6:0]	tx_maincursor;		//best results for 10Gbase-R 'h00
-
-	vio_0 vio(
-		.clk(clk_125mhz),
-		.probe_out0(tx_swing),
-		.probe_out1(tx_precursor),
-		.probe_out2(tx_postcursor),
-		.probe_out3(tx_maincursor));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Clock buffers
@@ -113,66 +98,66 @@ module BERTSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Synchronizers for control registers
 
-	wire[2:0]		rx0_prbs_mode_sync;
-	wire[2:0]		rx1_prbs_mode_sync;
-	wire[2:0]		tx0_prbs_mode_sync;
-	wire[2:0]		tx1_prbs_mode_sync;
+	bert_rxconfig_t		rx0_config_sync;
+	bert_rxconfig_t		rx1_config_sync;
+	bert_txconfig_t		tx0_config_sync;
+	bert_txconfig_t		tx1_config_sync;
 
 	RegisterSynchronizer #(
-		.WIDTH(3),
+		.WIDTH($bits(bert_rxconfig_t)),
 		.INIT(0),
 		.IN_REG(1)
-	) sync_rx0_prbs_mode (
+	) sync_rx0_config (
 		.clk_a(clk_250mhz),
 		.en_a(config_updated),
 		.ack_a(),
-		.reg_a(rx0_prbs_mode),
+		.reg_a(rx0_config),
 		.clk_b(lane0_rxclk),
 		.updated_b(),
 		.reset_b(1'b0),
-		.reg_b(rx0_prbs_mode_sync));
+		.reg_b(rx0_config_sync));
 
 	RegisterSynchronizer #(
-		.WIDTH(3),
+		.WIDTH($bits(bert_txconfig_t)),
 		.INIT(0),
 		.IN_REG(1)
-	) sync_tx0_prbs_mode (
+	) sync_tx0_config (
 		.clk_a(clk_250mhz),
 		.en_a(config_updated),
 		.ack_a(),
-		.reg_a(tx0_prbs_mode),
+		.reg_a(tx0_config),
 		.clk_b(lane0_txclk),
 		.updated_b(),
 		.reset_b(1'b0),
-		.reg_b(tx0_prbs_mode_sync));
+		.reg_b(tx0_config_sync));
 
 	RegisterSynchronizer #(
-		.WIDTH(3),
+		.WIDTH($bits(bert_rxconfig_t)),
 		.INIT(0),
 		.IN_REG(1)
-	) sync_rx1_prbs_mode (
+	) sync_rx1_config (
 		.clk_a(clk_250mhz),
 		.en_a(config_updated),
 		.ack_a(),
-		.reg_a(rx1_prbs_mode),
+		.reg_a(rx1_config),
 		.clk_b(lane1_rxclk),
 		.updated_b(),
 		.reset_b(1'b0),
-		.reg_b(rx1_prbs_mode_sync));
+		.reg_b(rx1_config_sync));
 
 	RegisterSynchronizer #(
-		.WIDTH(3),
+		.WIDTH($bits(bert_txconfig_t)),
 		.INIT(0),
 		.IN_REG(1)
-	) sync_tx1_prbs_mode (
+	) sync_tx1_config (
 		.clk_a(clk_250mhz),
 		.en_a(config_updated),
 		.ack_a(),
-		.reg_a(tx1_prbs_mode),
+		.reg_a(tx1_config),
 		.clk_b(lane1_txclk),
 		.updated_b(),
 		.reset_b(1'b0),
-		.reg_b(tx1_prbs_mode_sync));
+		.reg_b(tx1_config_sync));
 
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -229,10 +214,10 @@ module BERTSubsystem(
 		.gt0_rxoutclkfabric_out(),
 
 		//Output pattern selection
-		.gt0_txprbssel_in(tx0_prbs_mode_sync),
+		.gt0_txprbssel_in(tx0_config_sync.prbsmode),
 
 		//Input PRBS detector
-		.gt0_rxprbssel_in(rx0_prbs_mode_sync),
+		.gt0_rxprbssel_in(rx0_config_sync.prbsmode),
 		.gt0_rxprbserr_out(lane0_prbs_err),
 
 		//Top level diff pairs
@@ -241,11 +226,14 @@ module BERTSubsystem(
 		.gt0_gtxrxn_in(rx0_p),
 		.gt0_gtxrxp_in(rx0_n),
 
+		//Input buffer config
+		.gt0_rxpolarity_in(rx0_config_sync.invert),
+
 		//Output swing control and equalizer taps
-		.gt0_txdiffctrl_in(/*4'b0100*/tx_swing),	//04 works well
-		.gt0_txprecursor_in(tx_precursor),			//00 works well
-		.gt0_txpostcursor_in(tx_postcursor),		//03 works well
-		.gt0_txmaincursor_in(tx_maincursor),		//00 works well
+		.gt0_txpolarity_in(tx0_config_sync.invert),
+		.gt0_txdiffctrl_in(tx0_config_sync.swing),
+		.gt0_txprecursor_in(tx0_config_sync.precursor),
+		.gt0_txpostcursor_in(tx0_config_sync.postcursor),
 
 		//Clock to/from CPLL
 		/*.gt0_cpllfbclklost_out(),
@@ -319,10 +307,10 @@ module BERTSubsystem(
 		.gt0_rxoutclkfabric_out(),
 
 		//Output pattern selection
-		.gt0_txprbssel_in(tx1_prbs_mode_sync),
+		.gt0_txprbssel_in(tx1_config_sync.prbsmode),
 
 		//Input PRBS detector
-		.gt0_rxprbssel_in(rx1_prbs_mode_sync),
+		.gt0_rxprbssel_in(rx1_config_sync.prbsmode),
 		.gt0_rxprbserr_out(lane1_prbs_err),
 
 		//Top level diff pairs
@@ -331,11 +319,14 @@ module BERTSubsystem(
 		.gt0_gtxrxn_in(rx1_p),
 		.gt0_gtxrxp_in(rx1_n),
 
+		//Input buffer config
+		.gt0_rxpolarity_in(rx1_config_sync.invert),
+
 		//Output swing control and equalizer taps
-		.gt0_txdiffctrl_in(/*4'b0100*/tx_swing),	//04 works well
-		.gt0_txprecursor_in(tx_precursor),			//00 works well
-		.gt0_txpostcursor_in(tx_postcursor),		//03 works well
-		.gt0_txmaincursor_in(tx_maincursor),		//00 works well
+		.gt0_txpolarity_in(tx1_config_sync.invert),
+		.gt0_txdiffctrl_in(tx1_config_sync.swing),
+		.gt0_txprecursor_in(tx1_config_sync.precursor),
+		.gt0_txpostcursor_in(tx1_config_sync.postcursor),
 
 		//Clock to/from CPLL
 		/*.gt0_cpllfbclklost_out(),

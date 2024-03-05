@@ -27,58 +27,109 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-/**
-	@file
-	@brief Declaration of CrossbarSCPIServer
- */
-#ifndef CrossbarSCPIServer_h
-#define CrossbarSCPIServer_h
+`ifndef BERTConfig_svh
+`define BERTConfig_svh
 
-#include "SCPIServer.h"
-
-class CrossbarSCPIConnectionState
+typedef struct packed
 {
-public:
-	CrossbarSCPIConnectionState()
-	{ Clear(); }
+	logic[2:0]	prbsmode;	//GTX TXPRBSSEL
+							//0 = normal
+							//1 = PRBS-7
+							//2 = PRBS-15
+							//3 = PRBS-23
+							//4 = PRBS-31
+							//5 = reserved (PCIe compliance pattern but only in 20/40 bit bus width)
+							//6 = 2 UI period squarewave
+							//7 = 32 UI period squarewave
 
-	///@brief Clears connection state
-	void Clear()
-	{
-		m_valid = false;
-		m_socket = nullptr;
-		m_rxBuffer.Reset();
-	}
+	logic		invert;		//1 = invert, 0 = normal
 
-	///@brief True if the connection is valid
-	bool	m_valid;
+	logic[3:0]	swing;		//GTX TXDIFFCTRL
+							//See table 3-30 of UG476, all values assume FFE taps at zero
+							//0 =  269 mV
+							//1 =  336
+							//2 =  407
+							//3 =  474
+							//4 =  543
+							//5 =  609
+							//6 =  677
+							//7 =  741
+							//8 =  807
+							//9 =  866
+							//a =  924
+							//b =  973
+							//c = 1018
+							//d = 1056
+							//e = 1092
+							//f = 1119
 
-	///@brief Socket state handle
-	TCPTableEntry* m_socket;
+	logic[4:0]	postcursor;	//GTX TXPOSTCURSOR
+							//See table 3-30 of UG476
+							//00 =  0.00 dB
+							//01 =  0.22
+							//02 =  0.45
+							//03 =  0.68
+							//04 =  0.92
+							//05 =  1.16
+							//06 =  1.41
+							//07 =  1.67
+							//08 =  1.94
+							//09 =  2.21
+							//0a =  2.50
+							//0b =  2.79
+							//0c =  3.10
+							//0d =  3.41
+							//0e =  3.74
+							//0f =  4.08
+							//10 =  4.44
+							//11 =  4.81
+							//12 =  5.19
+							//13 =  5.60
+							//14 =  6.02
+							//15 =  6.47
+							//16 =  6.94
+							//17 =  7.43
+							//18 =  7.96
+							//19 =  8.52
+							//1a =  9.12
+							//1b =  9.76
+							//1c = 10.46
+							//1d = 11.21
+							//1e = 12.04
+							//1f = 12.96
 
-	///@brief Packet reassembly buffer (may span multiple TCP segments)
-	CircularFIFO<SCPI_RX_BUFFER_SIZE> m_rxBuffer;
-};
+	logic[4:0] precursor;	//GTX TXPRECURSOR
+							//See table 3-30 of UG476
+							//00 =  0.00 dB
+							//01 =  0.22
+							//02 =  0.45
+							//03 =  0.68
+							//04 =  0.92
+							//05 =  1.16
+							//06 =  1.41
+							//07 =  1.67
+							//08 =  1.94
+							//09 =  2.21
+							//0a =  2.50
+							//0b =  2.79
+							//0c =  3.10
+							//0d =  3.41
+							//0e =  3.74
+							//0f =  4.08
+							//10 =  4.44
+							//11 =  4.81
+							//12 =  5.19
+							//13 =  5.60
+							//14 =  6.02
+							//Saturates, codes 15 to 1f are all 6.02 dB
 
-/**
-	@brief SCPI server for the crossbar
- */
-class CrossbarSCPIServer : public SCPIServer<MAX_SCPI_CONNS, CrossbarSCPIConnectionState>
+
+} bert_txconfig_t;
+
+typedef struct packed
 {
-public:
-	CrossbarSCPIServer(TCPProtocol& tcp);
-	virtual ~CrossbarSCPIServer();
+	logic[2:0]	prbsmode;	//GTX RXPRBSSEL
+	logic		invert;
+} bert_rxconfig_t;
 
-	virtual void OnConnectionAccepted(TCPTableEntry* socket);
-	virtual void OnConnectionClosed(TCPTableEntry* socket);
-	virtual void GracefulDisconnect(int id, TCPTableEntry* socket);
-
-protected:
-	virtual void OnCommand(char* line, TCPTableEntry* socket) override;
-
-	int GetChannelID(const char* name);
-
-	void UpdateTxLane(int lane);
-};
-
-#endif
+`endif
