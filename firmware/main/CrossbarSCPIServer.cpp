@@ -31,9 +31,14 @@
 	@file
 	@brief Implementation of CrossbarSCPIServer
 
-	Channel names: IN0...7, OUT0...7, IO8...11
+	Crossbar channel names: IN0...7, OUT0...7, IO8...11
 
-	Commands:
+	BERT channel names: RX0-1, TX0-1
+
+	Common commands:
+		*IDN?
+
+	Crossbar commands:
 		[chan]:DIR [IN|OUT] (only for IO8..11)
 		Set bidirectional channel direction
 
@@ -45,9 +50,18 @@
 
 		[chan]:THRESH [mV]
 		Set input threshold
+
+	BERT commands:
+		[chan]:PATTERN USER, PRBS7, PRBS15, PRBS23, PRBS31, FASTSQUARE, SLOWSQUARE
  */
 #include "triggercrossbar.h"
 #include <ctype.h>
+
+///@brief Transmit pattern IDs
+uint8_t g_bertTxPattern[2] = {0};
+
+///@brief Receive pattern IDs
+uint8_t g_bertRxPattern[2] = {0};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
@@ -233,6 +247,51 @@ void CrossbarSCPIServer::OnCommand(char* line, TCPTableEntry* socket)
 			while(g_fpga->BlockingRead16(REG_RELAY_STAT) != 0)
 			{}
 		}
+
+		//PRBS pattern
+		else if(!strcmp(command, "PATTERN"))
+		{
+			//need to have a channel and value
+			if(!subject || !args)
+				return;
+
+			//need valid channel ID (IO port)
+			int chan = GetChannelID(subject);
+			if( (chan < 0) || (chan > 1) )
+				return;
+
+			//Decode the pattern (unrecognized = "user")
+			int pattern = 0;
+			if(!strcmp(args, "USER"))
+				pattern = 0;
+			else if(!strcmp(args, "PRBS7"))
+				pattern = 1;
+			else if(!strcmp(args, "PRBS15"))
+				pattern = 2;
+			else if(!strcmp(args, "PRBS23"))
+				pattern = 3;
+			else if(!strcmp(args, "PRBS31"))
+				pattern = 4;
+			//pcie compliance pattern 6 not available for 32 bit datapath width
+			else if(!strcmp(args, "FASTSQUARE"))
+				pattern = 6;
+			else if(!strcmp(args, "SLOWSQUARE"))
+				pattern = 7;
+
+			//Figure out if this is the TX or RX lane and update accordingly
+			if(subject[0] == 'T')
+				g_bertTxPattern[chan] = pattern;
+			else
+				g_bertRxPattern[chan] = pattern;
+
+			//Push to hardware
+			uint8_t regval = (g_bertTxPattern[chan] << 4) | g_bertRxPattern[chan];
+			g_log("changing prbs state to %02x\n", regval);
+			if(chan == 0)
+				g_fpga->BlockingWrite8(REG_BERT_LANE0_PRBS, regval);
+			else
+				g_fpga->BlockingWrite8(REG_BERT_LANE1_PRBS, regval);
+		}
 	}
 }
 
@@ -274,6 +333,18 @@ int CrossbarSCPIServer::GetChannelID(const char* name)
 
 		return chnum;
 	}
+
+	//BERT channels
+	if( ( (name[0] == 'T') || (name[0] == 'R') )&& (name[1] == 'X') )
+	{
+		int chnum = name[2] - '0';
+		if(chnum > 1)
+			chnum = 1;
+		if(chnum < 0)
+			chnum = 0;
+		return chnum;
+	}
+
 
 	//invalid
 	else

@@ -58,6 +58,18 @@ module BERTSubsystem(
 	input wire			rx1_p,
 	input wire			rx1_n,
 
+	//Control registers (clk_250mhz domain, synchronized internally)
+	input wire			clk_250mhz,
+	input wire			config_updated,			//update strobe
+	input wire[2:0]		rx0_prbs_mode,			//0 = normal
+	input wire[2:0]		tx0_prbs_mode,			//1 = PRBS-7
+	input wire[2:0]		rx1_prbs_mode,			//2 = PRBS-15
+	input wire[2:0]		tx1_prbs_mode,			//3 = PRBS-23
+												//4 = PRBS-31
+												//5 = reserved (PCIe compliance pattern but only in 20/40 bit bus width)
+												//6 = 2 UI period squarewave
+												//7 = 32 UI period squarewave
+
 	//Status outputs
 	output wire[1:0]	cpll_lock
 	);
@@ -78,7 +90,7 @@ module BERTSubsystem(
 		.probe_out3(tx_maincursor));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Output PRBS generation on TX0 port
+	// Clock buffers
 
 	wire lane0_rxclk;
 	wire lane0_txclk;
@@ -88,6 +100,86 @@ module BERTSubsystem(
 
 	BUFG bufg_lane0_rx(.I(lane0_rxclk_raw), .O(lane0_rxclk));
 	BUFH bufh_lane0_tx(.I(lane0_txclk_raw), .O(lane0_txclk));
+
+	wire lane1_rxclk;
+	wire lane1_txclk;
+
+	wire lane1_rxclk_raw;
+	wire lane1_txclk_raw;
+
+	BUFH bufh_lane1_rx(.I(lane1_rxclk_raw), .O(lane1_rxclk));
+	BUFH bufh_lane1_tx(.I(lane1_txclk_raw), .O(lane1_txclk));
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Synchronizers for control registers
+
+	wire[2:0]		rx0_prbs_mode_sync;
+	wire[2:0]		rx1_prbs_mode_sync;
+	wire[2:0]		tx0_prbs_mode_sync;
+	wire[2:0]		tx1_prbs_mode_sync;
+
+	RegisterSynchronizer #(
+		.WIDTH(3),
+		.INIT(0),
+		.IN_REG(1)
+	) sync_rx0_prbs_mode (
+		.clk_a(clk_250mhz),
+		.en_a(config_updated),
+		.ack_a(),
+		.reg_a(rx0_prbs_mode),
+		.clk_b(lane0_rxclk),
+		.updated_b(),
+		.reset_b(1'b0),
+		.reg_b(rx0_prbs_mode_sync));
+
+	RegisterSynchronizer #(
+		.WIDTH(3),
+		.INIT(0),
+		.IN_REG(1)
+	) sync_tx0_prbs_mode (
+		.clk_a(clk_250mhz),
+		.en_a(config_updated),
+		.ack_a(),
+		.reg_a(tx0_prbs_mode),
+		.clk_b(lane0_txclk),
+		.updated_b(),
+		.reset_b(1'b0),
+		.reg_b(tx0_prbs_mode_sync));
+
+	RegisterSynchronizer #(
+		.WIDTH(3),
+		.INIT(0),
+		.IN_REG(1)
+	) sync_rx1_prbs_mode (
+		.clk_a(clk_250mhz),
+		.en_a(config_updated),
+		.ack_a(),
+		.reg_a(rx1_prbs_mode),
+		.clk_b(lane1_rxclk),
+		.updated_b(),
+		.reset_b(1'b0),
+		.reg_b(rx1_prbs_mode_sync));
+
+	RegisterSynchronizer #(
+		.WIDTH(3),
+		.INIT(0),
+		.IN_REG(1)
+	) sync_tx1_prbs_mode (
+		.clk_a(clk_250mhz),
+		.en_a(config_updated),
+		.ack_a(),
+		.reg_a(tx1_prbs_mode),
+		.clk_b(lane1_txclk),
+		.updated_b(),
+		.reset_b(1'b0),
+		.reg_b(tx1_prbs_mode_sync));
+
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Output PRBS generation on TX0 port
+
+	wire		lane0_prbs_err;
+	wire[31:0]	lane0_rx_data;
 
 	gtx_frontlane0 lane0_transceiver(
 		.sysclk_in(clk_125mhz),
@@ -123,7 +215,7 @@ module BERTSubsystem(
 		.gt0_txusrclk_in(lane0_txclk),
 		.gt0_txusrclk2_in(lane0_txclk),
 		.gt0_data_valid_in(1'b1),
-		.gt0_txdata_in(32'h00000000),
+		.gt0_txdata_in(32'h5555aaaa),
 		.gt0_txoutclk_out(lane0_txclk_raw),
 		.gt0_txoutclkfabric_out(),
 		.gt0_txoutclkpcs_out(),
@@ -132,12 +224,16 @@ module BERTSubsystem(
 		//Fabric RX interface
 		.gt0_rxusrclk_in(lane0_rxclk),
 		.gt0_rxusrclk2_in(lane0_rxclk),
-		.gt0_rxdata_out(),
-		//.gt0_rxoutclk_out(lane0_rxclk_raw),
+		.gt0_rxdata_out(lane0_rx_data),
+		.gt0_rxoutclk_out(lane0_rxclk_raw),
 		.gt0_rxoutclkfabric_out(),
 
 		//Output pattern selection
-		.gt0_txprbssel_in(3'b010),	//PRBS-15
+		.gt0_txprbssel_in(tx0_prbs_mode_sync),
+
+		//Input PRBS detector
+		.gt0_rxprbssel_in(rx0_prbs_mode_sync),
+		.gt0_rxprbserr_out(lane0_prbs_err),
 
 		//Top level diff pairs
 		.gt0_gtxtxn_out(tx0_p),
@@ -152,32 +248,25 @@ module BERTSubsystem(
 		.gt0_txmaincursor_in(tx_maincursor),		//00 works well
 
 		//Clock to/from CPLL
-		.gt0_cpllfbclklost_out(),
+		/*.gt0_cpllfbclklost_out(),
 		.gt0_cplllock_out(cpll_lock[0]),
 		.gt0_cplllockdetclk_in(clk_125mhz),
 		.gt0_cpllreset_in(1'b0),
 		.gt0_gtrefclk0_in(serdes_refclk_156m25),
-		.gt0_gtrefclk1_in(serdes_refclk_200m),
+		.gt0_gtrefclk1_in(serdes_refclk_200m),*/
 
 		//Clock from QPLL
-		//.gt0_qplllock_in(qpll_lock),
-		//.gt0_qpllrefclklost_in(qpll_refclk_lost),
-		//.gt0_qpllreset_out(),
+		.gt0_qplllock_in(qpll_lock),
+		.gt0_qpllrefclklost_in(qpll_refclk_lost),
+		.gt0_qpllreset_out(),
 		.gt0_qplloutclk_in(qpll_clkout_10g3125),
 		.gt0_qplloutrefclk_in(qpll_refclk)
 		);
 
+	assign cpll_lock[0] = 0;
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Output PRBS generation on TX1 port
-
-	wire lane1_rxclk;
-	wire lane1_txclk;
-
-	wire lane1_rxclk_raw;
-	wire lane1_txclk_raw;
-
-	BUFH bufh_lane1_rx(.I(lane1_rxclk_raw), .O(lane1_rxclk));
-	BUFH bufh_lane1_tx(.I(lane1_txclk_raw), .O(lane1_txclk));
 
 	wire[31:0]	lane1_rx_data;
 	wire		lane1_prbs_err;
@@ -191,9 +280,6 @@ module BERTSubsystem(
 		.dont_reset_on_data_error_in(1'b0),
 		.gt0_tx_fsm_reset_done_out(),
 		.gt0_rx_fsm_reset_done_out(),
-
-		.gt0_tx_mmcm_lock_in(pll_rgmii_lock),
-		.gt0_rx_mmcm_lock_in(pll_rgmii_lock),
 
 		//Tie off unused ports
 		.gt0_drpaddr_in(9'b0),
@@ -219,7 +305,7 @@ module BERTSubsystem(
 		.gt0_txusrclk_in(lane1_txclk),
 		.gt0_txusrclk2_in(lane1_txclk),
 		.gt0_data_valid_in(1'b1),
-		.gt0_txdata_in(32'h00000000),
+		.gt0_txdata_in(32'h5555aaaa),
 		.gt0_txoutclk_out(lane1_txclk_raw),
 		.gt0_txoutclkfabric_out(),
 		.gt0_txoutclkpcs_out(),
@@ -233,10 +319,10 @@ module BERTSubsystem(
 		.gt0_rxoutclkfabric_out(),
 
 		//Output pattern selection
-		.gt0_txprbssel_in(3'b010),	//PRBS-15
+		.gt0_txprbssel_in(tx1_prbs_mode_sync),
 
 		//Input PRBS detector
-		.gt0_rxprbssel_in(3'b010),	//PRBS-15
+		.gt0_rxprbssel_in(rx1_prbs_mode_sync),
 		.gt0_rxprbserr_out(lane1_prbs_err),
 
 		//Top level diff pairs
@@ -275,7 +361,11 @@ module BERTSubsystem(
 	ila_1 ila(
 		.clk(lane1_rxclk),
 		.probe0(lane1_rx_data),
-		.probe1(lane1_prbs_err)
-	);
+		.probe1(lane1_prbs_err)	);
+
+	ila_1 ila0(
+		.clk(lane0_rxclk),
+		.probe0(lane0_rx_data),
+		.probe1(lane0_prbs_err)	);
 
 endmodule

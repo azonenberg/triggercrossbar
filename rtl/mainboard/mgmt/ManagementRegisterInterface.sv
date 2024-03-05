@@ -100,6 +100,13 @@ module ManagementRegisterInterface(
 	output logic[7:0] 				txfifo_wr_data = 0,
 	output logic	 				txfifo_wr_commit = 0,
 
+	//still in core clock domain, synchronizer in serdes module
+	output logic					serdes_config_updated = 0,
+	output logic[2:0]				rx0_prbs_mode = 0,
+	output logic[2:0]				rx1_prbs_mode = 0,
+	output logic[2:0]				tx0_prbs_mode = 0,
+	output logic[2:0]				tx1_prbs_mode = 0,
+
 	//Configuration registers in crypto clock domain
 	input wire						clk_crypt,
 	output logic					crypt_en = 0,
@@ -242,8 +249,14 @@ module ManagementRegisterInterface(
 		REG_RELAY_STAT_1	= 16'h0073,
 											//If set, no new relay commands are allowed
 
+		//BERT configuration
+		REG_BERT_LANE0_PRBS	= 16'h0080,		//6:4 = TX PRBS mode (GTX TXPRBSSEL see table 3-22 of UG476)
+											//2:0 = RX PRBS mode (GTX RXPRBSSEL see table 4-30 of UG476)
+
+		REG_BERT_LANE1_PRBS = 16'h00a0,		//same as LANE0
+
 		//Mux selectors
-		REG_MUXSEL_BASE		= 16'h0080,		//3:0 = mux selector
+		REG_MUXSEL_BASE		= 16'h00f0,		//3:0 = mux selector
 		//next 11 addresses are subsequent channels
 
 		//Ethernet MAC frame buffer
@@ -302,6 +315,7 @@ module ManagementRegisterInterface(
 		txfifo_wr_en			<= 0;
 		txfifo_wr_commit		<= 0;
 		relay_en				<= 0;
+		serdes_config_updated	<= 0;
 
 		//Start a new read
 		if(rd_en)
@@ -509,6 +523,18 @@ module ManagementRegisterInterface(
 					REG_RELAY_TOGGLE_1: begin
 						relay_dir		<= wr_data[7];
 						relay_en		<= 1;
+					end
+
+					REG_BERT_LANE0_PRBS: begin
+						serdes_config_updated	<= 1;
+						rx0_prbs_mode			<= wr_data[2:0];
+						tx0_prbs_mode			<= wr_data[6:4];
+					end
+
+					REG_BERT_LANE1_PRBS: begin
+						serdes_config_updated	<= 1;
+						rx1_prbs_mode			<= wr_data[2:0];
+						tx1_prbs_mode			<= wr_data[6:4];
 					end
 
 					REG_EMAC_COMMIT:	txfifo_wr_commit <= 1;

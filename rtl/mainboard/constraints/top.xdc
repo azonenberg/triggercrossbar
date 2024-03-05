@@ -252,6 +252,16 @@ resize_pblock [get_pblocks pblock_rx_mux] -add {RAMB18_X1Y40:RAMB18_X1Y59}
 resize_pblock [get_pblocks pblock_rx_mux] -add {RAMB36_X1Y20:RAMB36_X1Y29}
 set_property IS_SOFT FALSE [get_pblocks pblock_rx_mux]
 
+
+set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane0_transceiver/inst/gtx_frontlane0_i/gt0_gtx_frontlane0_i/gtxe2_i/TXOUTCLK]
+set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane1_transceiver/inst/gtx_frontlane1_i/gt0_gtx_frontlane1_i/gtxe2_i/RXOUTCLK]
+set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane1_transceiver/inst/gtx_frontlane1_i/gt0_gtx_frontlane1_i/gtxe2_i/TXOUTCLK]
+set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/inst/gtx_frontlane0_i/gt0_gtx_frontlane0_i/gtxe2_i/TXOUTCLK] -group [get_clocks clk_250mhz_raw]
+set_clock_groups -asynchronous -group [get_clocks bert/lane1_transceiver/inst/gtx_frontlane1_i/gt0_gtx_frontlane1_i/gtxe2_i/RXOUTCLK] -group [get_clocks clk_250mhz_raw]
+set_clock_groups -asynchronous -group [get_clocks bert/lane1_transceiver/inst/gtx_frontlane1_i/gt0_gtx_frontlane1_i/gtxe2_i/TXOUTCLK] -group [get_clocks clk_250mhz_raw]
+
+set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane0_transceiver/inst/gtx_frontlane0_i/gt0_gtx_frontlane0_i/gtxe2_i/RXOUTCLK]
+set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/inst/gtx_frontlane0_i/gt0_gtx_frontlane0_i/gtxe2_i/RXOUTCLK] -group [get_clocks clk_250mhz_raw]
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
 set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
 set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]

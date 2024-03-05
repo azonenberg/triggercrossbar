@@ -71,6 +71,11 @@ module ManagementSubsystem(
 	output wire[1:0]				relay_channel,
 	input wire						relay_done,
 	output muxsel_t[11:0]			muxsel,
+	output wire						serdes_config_updated,
+	output wire[2:0]				rx0_prbs_mode,
+	output wire[2:0]				rx1_prbs_mode,
+	output wire[2:0]				tx0_prbs_mode,
+	output wire[2:0]				tx1_prbs_mode,
 
 	//Configuration registers in crypto clock domain
 	input wire						clk_crypt,
@@ -351,6 +356,11 @@ module ManagementSubsystem(
 		.relay_channel(relay_channel),
 		.relay_done(relay_done),
 		.muxsel(muxsel),
+		.serdes_config_updated(serdes_config_updated),
+		.rx0_prbs_mode(rx0_prbs_mode),
+		.rx1_prbs_mode(rx1_prbs_mode),
+		.tx0_prbs_mode(tx0_prbs_mode),
+		.tx1_prbs_mode(tx1_prbs_mode),
 
 		//Control registers (port RX clock domain)
 		.xg0_rx_clk(xg0_rx_clk),

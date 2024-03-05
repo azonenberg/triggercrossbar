@@ -277,6 +277,14 @@ module top(
 
 	wire[1:0]	cpll_lock;
 
+	wire		serdes_config_updated;
+
+	wire[2:0]	rx0_prbs_mode;
+	wire[2:0]	rx1_prbs_mode;
+
+	wire[2:0]	tx0_prbs_mode;
+	wire[2:0]	tx1_prbs_mode;
+
 	BERTSubsystem bert(
 
 		.clk_125mhz(clk_125mhz),
@@ -302,7 +310,14 @@ module top(
 		.rx1_p(rx1_p),
 		.rx1_n(rx1_n),
 
-		.cpll_lock(cpll_lock)
+		.cpll_lock(cpll_lock),
+
+		.clk_250mhz(clk_250mhz),
+		.config_updated(serdes_config_updated),
+		.rx0_prbs_mode(rx0_prbs_mode),
+		.rx1_prbs_mode(rx1_prbs_mode),
+		.tx0_prbs_mode(tx0_prbs_mode),
+		.tx1_prbs_mode(tx1_prbs_mode)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -480,6 +495,12 @@ module top(
 
 		.muxsel(muxsel),
 
+		.serdes_config_updated(serdes_config_updated),
+		.rx0_prbs_mode(rx0_prbs_mode),
+		.rx1_prbs_mode(rx1_prbs_mode),
+		.tx0_prbs_mode(tx0_prbs_mode),
+		.tx1_prbs_mode(tx1_prbs_mode),
+
 		.clk_crypt(clk_250mhz),
 		.crypt_en(crypt_en),
 		.crypt_work_in(crypt_work_in),
@@ -496,11 +517,5 @@ module top(
 		led[1]		= mgmt0_link_up;
 		led[3:2]	= cpll_lock;
 	end
-
-	ila_0 ila(
-		.clk(clk_250mhz),
-		.probe0(trig_in),
-		.probe1(trig_out),
-		.probe2(muxsel[4]));
 
 endmodule
