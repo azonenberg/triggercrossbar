@@ -248,8 +248,6 @@ void InitDACs()
 	rx_dac0_cs_n = 1;
 	rx_dac1_cs_n = 1;
 
-	g_leds[0]->Set(1);
-
 	//Initialize the peripherals
 	static GPIOPin dac_spi_sck(&GPIOA, 5, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
 	static GPIOPin dac_spi_miso(&GPIOA, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
@@ -263,8 +261,6 @@ void InitDACs()
 
 	//Wait a while to make sure everything is deselected
 	g_logTimer->Sleep(5);
-
-	g_leds[1]->Set(1);
 
 	//Initialize the DACs
 	static OctalDAC tx_dac(dac_spi, tx_dac_cs_n);
@@ -472,6 +468,23 @@ void InitSFP()
  */
 void PollSFP()
 {
+	//Optic not present?
+	if(g_sfpModAbsPin->Get())
+	{
+		if(g_sfpPresent)
+		{
+			g_log("SFP+ optic removed from port xg0\n");
+			g_sfpTxDisablePin->Set(true);
+			g_sfpPresent = false;
+		}
+		return;
+	}
+
+	//Optic present
+	//Did we already know it was here? If so, nothing's changed
+	else if(g_sfpPresent)
+		return;
+
 	//Detect transmitter faults
 	if(g_sfpTxFaultPin->Get())
 	{
@@ -492,23 +505,6 @@ void PollSFP()
 		g_sfpTxDisablePin->Set(false);
 		return;
 	}
-
-	//Optic not present?
-	if(g_sfpModAbsPin->Get())
-	{
-		if(g_sfpPresent)
-		{
-			g_log("SFP+ optic removed from port xg0\n");
-			g_sfpTxDisablePin->Set(true);
-			g_sfpPresent = false;
-		}
-		return;
-	}
-
-	//Optic present
-	//Did we already know it was here? If so, nothing's changed
-	else if(g_sfpPresent)
-		return;
 
 	//Nope, optic was just inserted
 	g_log("SFP+ optic inserted in port xg0\n");

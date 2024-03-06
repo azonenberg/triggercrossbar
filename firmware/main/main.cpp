@@ -99,16 +99,12 @@ int main()
 	//Show the initial prompt
 	uartContext.PrintPrompt();
 
-	//Main event loop
-	/*int nextRxFrame = 0;
-	uint32_t numRxFrames = 0;
-	uint32_t numRxBad = 0;*/
-
-	uint32_t nextAgingTick = 0;
-
+	//Initialize the FPGA IRQ pin
 	GPIOPin irq(&GPIOH, 6, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
 	irq.SetPullMode(GPIOPin::PULL_DOWN);
 
+	//Main event loop
+	uint32_t nextAgingTick = 0;
 	while(1)
 	{
 		//Wait for an interrupt
@@ -120,11 +116,10 @@ int main()
 
 		//Check if we had a PHY link state change
 		//TODO: add irq bit for this so we don't have to poll nonstop
-		//PollPHYs();
+		PollPHYs();
 
 		//Check if we had an optic inserted or removed
 		PollSFP();
-
 
 		//Poll for UART input
 		if(g_cliUART->HasInput())

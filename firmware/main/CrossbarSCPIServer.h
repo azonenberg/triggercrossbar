@@ -76,6 +76,9 @@ public:
 protected:
 	virtual void OnCommand(char* line, TCPTableEntry* socket) override;
 
+	void DoQuery(const char* subject, const char* command, TCPTableEntry* socket);
+	void DoCommand(const char* subject, const char* command, const char* args);
+
 	int GetChannelID(const char* name);
 
 	void UpdateTxLane(int lane);

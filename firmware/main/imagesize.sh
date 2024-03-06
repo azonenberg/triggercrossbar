@@ -8,8 +8,8 @@ STACKEND=$(arm-none-eabi-objdump -t firmware.elf  | grep __stack | cut -d ' ' -f
 DSTACKSTART=$(echo "obase=10;ibase=16;${STACKSTART^^}" | bc);
 DSTACKEND=$(echo "obase=10;ibase=16;${STACKEND^^}" | bc);
 STACKSIZE=$(expr $DSTACKEND - $DSTACKSTART);
-#STACKKB=$(expr $STACKSIZE / 1024);
-echo "Stack size:         $STACKSIZE bytes";
+STACKKB=$(expr $STACKSIZE / 1024);
+echo "Stack size:         $STACKKB kB";
 
 DATASTART=$(arm-none-eabi-objdump -t firmware.elf  | grep __data_start | cut -d ' ' -f 1);
 DATAEND=$(arm-none-eabi-objdump -t firmware.elf  | grep __data_end | cut -d ' ' -f 1);

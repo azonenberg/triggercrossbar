@@ -36,6 +36,17 @@
 #include "triggercrossbar.h"
 
 /**
+	@brief Mapping of link speed IDs to printable names
+ */
+static const char* g_linkSpeedNamesLong[] =
+{
+	"10 Mbps",
+	"100 Mbps",
+	"1000 Mbps",
+	"10 Gbps"
+};
+
+/**
 	@brief Reads a register from the management PHY
  */
 uint16_t ManagementPHYRead(uint8_t regid)
@@ -93,51 +104,56 @@ void ManagementPHYExtendedWrite(uint8_t mmd, uint8_t regid, uint16_t regval)
 
 	TODO: use IRQ pin to trigger this vs doing it nonstop?
  */
-/*
 void PollPHYs()
 {
-	for(int i=0; i<NUM_PORTS; i++)
+	//Get the baseT link state
+	uint16_t bctl = ManagementPHYRead(REG_BASIC_CONTROL);
+	uint16_t bstat = ManagementPHYRead(REG_BASIC_STATUS);
+	bool bup = (bstat & 4) == 4;
+	if(bup && !g_basetLinkUp)
 	{
-		//if port is not up or down, ignore updates
-		//(it's administratively down, errdisable, or similar)
-		if( (g_linkState[i] != LINK_STATE_UP) && (g_linkState[i] != LINK_STATE_DOWN) )
-			continue;
+		int speed = 0;
+		if( (bctl & 0x40) == 0x40)
+			speed |= 2;
+		if( (bctl & 0x2000) == 0x2000)
+			speed |= 1;
+		g_log("Interface mgmt0: link is up at %s\n", g_linkSpeedNamesLong[speed]);
 
-		if(i == UPLINK_PORT)
+		g_ethProtocol->OnLinkUp();
+	}
+	else if(!bup && g_basetLinkUp)
+	{
+		g_log("Interface mgmt0: link is down\n");
+		g_ethProtocol->OnLinkDown();
+	}
+	g_basetLinkUp = bup;
+
+	//TODO: poll XG0_STAT
+	/*
+	uint32_t status = g_fpga->BlockingRead32(REG_XG0_STAT);
+	if(status & 1)
+	{
+		//Link went up?
+		if(g_linkState[i] != LINK_STATE_UP)
 		{
-			uint32_t status = g_fpga->BlockingRead32(REG_XG0_STAT);
-			if(status & 1)
-			{
-				//Link went up?
-				if(g_linkState[i] != LINK_STATE_UP)
-				{
-					g_linkState[i] = LINK_STATE_UP;
-					g_linkSpeed[i] = LINK_SPEED_10G;
+			g_linkState[i] = LINK_STATE_UP;
+			g_linkSpeed[i] = LINK_SPEED_10G;
 
-					g_log("Interface %s (%s): link is up at %s\n",
-						g_interfaceNames[i],
-						g_interfaceDescriptions[i],
-						g_linkSpeedNamesLong[g_linkSpeed[i]]);
-				}
-			}
-
-			else
-			{
-				//Link went down?
-				if(g_linkState[i] != LINK_STATE_DOWN)
-				{
-					g_linkState[i] = LINK_STATE_DOWN;
-					g_log("Interface %s (%s): link is down\n", g_interfaceNames[i], g_interfaceDescriptions[i]);
-				}
-			}
-		}
-
-		else
-		{
-			uint16_t bctl = InterfacePHYRead(i, REG_BASIC_CONTROL);
-			uint16_t bstat = InterfacePHYRead(i, REG_BASIC_STATUS);
-			UpdateLinkState(i, bctl, bstat);
+			g_log("Interface %s (%s): link is up at %s\n",
+				g_interfaceNames[i],
+				g_interfaceDescriptions[i],
+				g_linkSpeedNamesLong[g_linkSpeed[i]]);
 		}
 	}
+
+	else
+	{
+		//Link went down?
+		if(g_linkState[i] != LINK_STATE_DOWN)
+		{
+			g_linkState[i] = LINK_STATE_DOWN;
+			g_log("Interface %s (%s): link is down\n", g_interfaceNames[i], g_interfaceDescriptions[i]);
+		}
+	}
+	*/
 }
-*/

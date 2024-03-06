@@ -111,6 +111,7 @@ void InitSFP();
 void PollSFP();
 void InitManagementPHY();
 void PollFPGA();
+void PollPHYs();
 
 uint16_t GetFanRPM(uint8_t channel);
 uint16_t GetFPGATemperature();
@@ -156,5 +157,7 @@ enum mdioreg_t
 extern uint8_t g_fpgaSerial[8];
 extern OctalDAC* g_rxDacs[2];
 extern OctalDAC* g_txDac;
+
+extern bool g_basetLinkUp;
 
 #endif

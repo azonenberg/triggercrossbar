@@ -121,3 +121,8 @@ OctalDAC* g_rxDacs[2] = {nullptr, nullptr};
 
 ///@brief DACs for TX channels
 OctalDAC* g_txDac = nullptr;
+
+///@brief BaseT link status
+bool g_basetLinkUp = false;
+
+//TODO: SFP+ link status

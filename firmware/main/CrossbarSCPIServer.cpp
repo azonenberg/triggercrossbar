@@ -83,6 +83,19 @@ uint8_t g_bertTxPostCursor[2] = {0};
 ///@brief Transmit invert flag
 bool g_bertTxInvert[2] = {0};
 
+///Names of PRBS patterns
+static const char* g_patternNames[8] =
+{
+	"USER",
+	"PRBS7",
+	"PRBS15",
+	"PRBS23",
+	"PRBS31",
+	"RESERVED",
+	"FASTSQUARE",
+	"SLOWSQUARE"
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
 
@@ -165,233 +178,331 @@ void CrossbarSCPIServer::OnCommand(char* line, TCPTableEntry* socket)
 		}
 	}
 
-	//DEBUG: log the parsed command
-	/*if(query)
-		g_log("Query\n");
-	if(subject)
-		g_log("Subject: %s\n", subject);
-	else
-		g_log("(no subject)\n");
-	g_log("Command: %s\n", command);
-	if(args)
-		g_log("Args: %s\n", args);
-	else
-		g_log("(no args)\n");
-	*/
-
 	//Process queries
 	if(query)
-	{
-		if(!strcmp(command, "*IDN"))
-		{
-			//Build the string into the outbound TCP buffer
-			auto segment = m_tcp.GetTxSegment(socket);
-			auto payload = reinterpret_cast<char*>(segment->Payload());
-			StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
-			buf.Printf("AntikernelLabs,AKL-TXB1,%02x%02x%02x%02x%02x%02x%02x%02x,0.1\n",
-				g_fpgaSerial[0], g_fpgaSerial[1], g_fpgaSerial[2], g_fpgaSerial[3],
-				g_fpgaSerial[4], g_fpgaSerial[5], g_fpgaSerial[6], g_fpgaSerial[7]);
-
-			//And send the reply
-			m_tcp.SendTxSegment(socket, segment, strlen(payload));
-		}
-	}
+		DoQuery(subject, command, socket);
 
 	//Not a query, just a regular command
 	else
+		DoCommand(subject, command, args);
+}
+
+void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, const char* args)
+{
+	//Threshold for input
+	if(!strcmp(command, "THRESH"))
 	{
-		//Threshold for input
-		if(!strcmp(command, "THRESH"))
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		int chan = GetChannelID(subject);
+		int mv = atoi(args);
+
+		//Figure out which DAC channel to use for each channel
+		//No rhyme or reason here, depends on PCB layout
+		static const int channels[12] = {7, 6, 1, 0, 5, 4, 3, 2, 4, 5, 3, 6};
+		static const int dacs[12] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 };
+		g_rxDacs[dacs[chan]]->SetChannelMillivolts(channels[chan], mv);
+	}
+
+	//Level for output ports
+	else if(!strcmp(command, "LEV"))
+	{
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		int chan = GetChannelID(subject);
+		int mv = atoi(args);
+
+		//Figure out which DAC channel to use for each channel
+		//No rhyme or reason here, depends on PCB layout
+		static const int channels[12] = {0, 0, 0, 0, 7, 6, 5, 4, 3, 1, 2, 0};
+		g_txDac->SetChannelMillivolts(channels[chan], mv);
+	}
+
+	//Mux selector
+	else if(!strcmp(command, "MUX"))
+	{
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		int chan = GetChannelID(subject);
+		int muxsel = atoi(args);
+
+		g_fpga->BlockingWrite8(REG_MUXSEL_BASE + chan, muxsel);
+	}
+
+	//Direction for bidir ports
+	else if(!strcmp(command, "DIR"))
+	{
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		//need valid channel ID (IO port)
+		int chan = GetChannelID(subject);
+		if( (chan < 8) || (chan > 11) )
+			return;
+
+		if(!strcmp(args, "IN"))
+			g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x8000 | (chan - 8));
+		else
+			g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x0000 | (chan - 8));
+
+		//Poll until not busy
+		while(g_fpga->BlockingRead16(REG_RELAY_STAT) != 0)
+		{}
+	}
+
+	//Output amplitude
+	else if(!strcmp(command, "SWING"))
+	{
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		//need valid channel ID (BERT port)
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'T')
+			return;
+
+		//TX amplitude
+		g_bertTxSwing[chan] = atoi(args) & 0x0f;
+
+		UpdateTxLane(chan);
+	}
+
+	//Output FFE taps
+	else if(!strcmp(command, "PRECURSOR"))
+	{
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		//need valid channel ID (BERT port)
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'T')
+			return;
+
+		//TX amplitude
+		g_bertTxPreCursor[chan] = atoi(args) & 0x1f;
+
+		UpdateTxLane(chan);
+	}
+	else if(!strcmp(command, "POSTCURSOR"))
+	{
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		//need valid channel ID (BERT port)
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'T')
+			return;
+
+		//TX amplitude
+		g_bertTxPostCursor[chan] = atoi(args) & 0x1f;
+
+		UpdateTxLane(chan);
+	}
+
+	//Output inversion
+	else if(!strcmp(command, "INVERT"))
+	{
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		//need valid channel ID (BERT port)
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'T')
+			return;
+
+		//TX amplitude
+		if(!strcmp(args, "1"))
+			g_bertTxInvert[chan] = true;
+		else
+			g_bertTxInvert[chan] = false;
+
+		UpdateTxLane(chan);
+	}
+
+	//PRBS pattern
+	else if(!strcmp(command, "PATTERN"))
+	{
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		//need valid channel ID (BERT port)
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+
+		//Decode the pattern (unrecognized = "user")
+		int pattern = 0;
+		for(int i=0; i<8; i++)
 		{
-			//need to have a channel and value
-			if(!subject || !args)
-				return;
-
-			int chan = GetChannelID(subject);
-			int mv = atoi(args);
-
-			//Figure out which DAC channel to use for each channel
-			//No rhyme or reason here, depends on PCB layout
-			static const int channels[12] = {7, 6, 1, 0, 5, 4, 3, 2, 4, 5, 3, 6};
-			static const int dacs[12] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 };
-			g_rxDacs[dacs[chan]]->SetChannelMillivolts(channels[chan], mv);
+			if(!strcmp(args, g_patternNames[i]))
+			{
+				pattern = i;
+				break;
+			}
 		}
 
-		//Level for output ports
-		else if(!strcmp(command, "LEV"))
-		{
-			//need to have a channel and value
-			if(!subject || !args)
-				return;
+		//Figure out if this is the TX or RX lane and update accordingly
+		if(subject[0] == 'T')
+			g_bertTxPattern[chan] = pattern;
+		else
+			g_bertRxPattern[chan] = pattern;
 
-			int chan = GetChannelID(subject);
-			int mv = atoi(args);
+		//Push to hardware
+		uint8_t regval = (g_bertTxPattern[chan] << 4) | g_bertRxPattern[chan];
+		if(chan == 0)
+			g_fpga->BlockingWrite8(REG_BERT_LANE0_PRBS, regval);
+		else
+			g_fpga->BlockingWrite8(REG_BERT_LANE1_PRBS, regval);
+	}
+}
 
-			//Figure out which DAC channel to use for each channel
-			//No rhyme or reason here, depends on PCB layout
-			static const int channels[12] = {0, 0, 0, 0, 7, 6, 5, 4, 3, 1, 2, 0};
-			g_txDac->SetChannelMillivolts(channels[chan], mv);
-		}
+void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTableEntry* socket)
+{
+	if(!strcmp(command, "*IDN"))
+	{
+		//Build the string into the outbound TCP buffer
+		auto segment = m_tcp.GetTxSegment(socket);
+		auto payload = reinterpret_cast<char*>(segment->Payload());
+		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		buf.Printf("AntikernelLabs,AKL-TXB1,%02x%02x%02x%02x%02x%02x%02x%02x,0.1\n",
+			g_fpgaSerial[0], g_fpgaSerial[1], g_fpgaSerial[2], g_fpgaSerial[3],
+			g_fpgaSerial[4], g_fpgaSerial[5], g_fpgaSerial[6], g_fpgaSerial[7]);
 
-		//Mux selector
-		else if(!strcmp(command, "MUX"))
-		{
-			//need to have a channel and value
-			if(!subject || !args)
-				return;
+		//And send the reply
+		m_tcp.SendTxSegment(socket, segment, strlen(payload));
+	}
 
-			int chan = GetChannelID(subject);
-			int muxsel = atoi(args);
+	//Output amplitude
+	else if(!strcmp(command, "SWING"))
+	{
+		//need valid channel ID (BERT port)
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'T')
+			return;
 
-			g_fpga->BlockingWrite8(REG_MUXSEL_BASE + chan, muxsel);
-		}
+		//Build the string into the outbound TCP buffer
+		auto segment = m_tcp.GetTxSegment(socket);
+		auto payload = reinterpret_cast<char*>(segment->Payload());
+		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		buf.Printf("%d\n", g_bertTxSwing[chan]);
 
-		//Direction for bidir ports
-		else if(!strcmp(command, "DIR"))
-		{
-			//need to have a channel and value
-			if(!subject || !args)
-				return;
+		//And send the reply
+		m_tcp.SendTxSegment(socket, segment, strlen(payload));
+	}
 
-			//need valid channel ID (IO port)
-			int chan = GetChannelID(subject);
-			if( (chan < 8) || (chan > 11) )
-				return;
+	//Output FFE taps
+	else if(!strcmp(command, "PRECURSOR"))
+	{
+		//need valid channel ID (BERT port)
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'T')
+			return;
 
-			if(!strcmp(args, "IN"))
-				g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x8000 | (chan - 8));
-			else
-				g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x0000 | (chan - 8));
+		//Build the string into the outbound TCP buffer
+		auto segment = m_tcp.GetTxSegment(socket);
+		auto payload = reinterpret_cast<char*>(segment->Payload());
+		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		buf.Printf("%d\n", g_bertTxPreCursor[chan]);
 
-			//Poll until not busy
-			while(g_fpga->BlockingRead16(REG_RELAY_STAT) != 0)
-			{}
-		}
+		//And send the reply
+		m_tcp.SendTxSegment(socket, segment, strlen(payload));
+	}
 
-		//Output amplitude
-		else if(!strcmp(command, "SWING"))
-		{
-			//need to have a channel and value
-			if(!subject || !args)
-				return;
+	else if(!strcmp(command, "POSTCURSOR"))
+	{
+		//need valid channel ID (BERT port)
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'T')
+			return;
 
-			//need valid channel ID (BERT port)
-			int chan = GetChannelID(subject);
-			if( (chan < 0) || (chan > 1) )
-				return;
-			if(subject[0] != 'T')
-				return;
+		//Build the string into the outbound TCP buffer
+		auto segment = m_tcp.GetTxSegment(socket);
+		auto payload = reinterpret_cast<char*>(segment->Payload());
+		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		buf.Printf("%d\n", g_bertTxPostCursor[chan]);
 
-			//TX amplitude
-			g_bertTxSwing[chan] = atoi(args) & 0x0f;
+		//And send the reply
+		m_tcp.SendTxSegment(socket, segment, strlen(payload));
+	}
 
-			UpdateTxLane(chan);
-		}
+	//Output inversion
+	else if(!strcmp(command, "INVERT"))
+	{
+		//need valid channel ID (BERT port)
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
 
-		//Output FFE taps
-		else if(!strcmp(command, "PRECURSOR"))
-		{
-			//need to have a channel and value
-			if(!subject || !args)
-				return;
+		//Build the string into the outbound TCP buffer
+		auto segment = m_tcp.GetTxSegment(socket);
+		auto payload = reinterpret_cast<char*>(segment->Payload());
+		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		if(subject[0] == 'T')
+			buf.Printf("%d\n", g_bertTxInvert[chan]);
+		//else
+		//	buf.Printf("%d\n", g_bertRxInvert[chan]);
 
-			//need valid channel ID (BERT port)
-			int chan = GetChannelID(subject);
-			if( (chan < 0) || (chan > 1) )
-				return;
-			if(subject[0] != 'T')
-				return;
+		//And send the reply
+		m_tcp.SendTxSegment(socket, segment, strlen(payload));
+	}
 
-			//TX amplitude
-			g_bertTxPreCursor[chan] = atoi(args) & 0x1f;
+	//PRBS pattern
+	else if(!strcmp(command, "PATTERN"))
+	{
+		//need valid channel ID (BERT port)
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
 
-			UpdateTxLane(chan);
-		}
-		else if(!strcmp(command, "POSTCURSOR"))
-		{
-			//need to have a channel and value
-			if(!subject || !args)
-				return;
+		//Build the string into the outbound TCP buffer
+		auto segment = m_tcp.GetTxSegment(socket);
+		auto payload = reinterpret_cast<char*>(segment->Payload());
 
-			//need valid channel ID (BERT port)
-			int chan = GetChannelID(subject);
-			if( (chan < 0) || (chan > 1) )
-				return;
-			if(subject[0] != 'T')
-				return;
+		//Figure out what pattern we're using
+		if(subject[0] == 'T')
+			strncpy(payload, g_patternNames[g_bertTxPattern[chan]], TCP_IPV4_PAYLOAD_MTU);
+		else
+			strncpy(payload, g_patternNames[g_bertRxPattern[chan]], TCP_IPV4_PAYLOAD_MTU);
+		strncat(payload, "\n", TCP_IPV4_PAYLOAD_MTU);
 
-			//TX amplitude
-			g_bertTxPostCursor[chan] = atoi(args) & 0x1f;
-
-			UpdateTxLane(chan);
-		}
-
-		//Output inversion
-		else if(!strcmp(command, "INVERT"))
-		{
-			//need to have a channel and value
-			if(!subject || !args)
-				return;
-
-			//need valid channel ID (BERT port)
-			int chan = GetChannelID(subject);
-			if( (chan < 0) || (chan > 1) )
-				return;
-			if(subject[0] != 'T')
-				return;
-
-			//TX amplitude
-			if(!strcmp(args, "1"))
-				g_bertTxInvert[chan] = true;
-			else
-				g_bertTxInvert[chan] = false;
-
-			UpdateTxLane(chan);
-		}
-
-		//PRBS pattern
-		else if(!strcmp(command, "PATTERN"))
-		{
-			//need to have a channel and value
-			if(!subject || !args)
-				return;
-
-			//need valid channel ID (BERT port)
-			int chan = GetChannelID(subject);
-			if( (chan < 0) || (chan > 1) )
-				return;
-
-			//Decode the pattern (unrecognized = "user")
-			int pattern = 0;
-			if(!strcmp(args, "USER"))
-				pattern = 0;
-			else if(!strcmp(args, "PRBS7"))
-				pattern = 1;
-			else if(!strcmp(args, "PRBS15"))
-				pattern = 2;
-			else if(!strcmp(args, "PRBS23"))
-				pattern = 3;
-			else if(!strcmp(args, "PRBS31"))
-				pattern = 4;
-			//pcie compliance pattern 6 not available for 32 bit datapath width
-			else if(!strcmp(args, "FASTSQUARE"))
-				pattern = 6;
-			else if(!strcmp(args, "SLOWSQUARE"))
-				pattern = 7;
-
-			//Figure out if this is the TX or RX lane and update accordingly
-			if(subject[0] == 'T')
-				g_bertTxPattern[chan] = pattern;
-			else
-				g_bertRxPattern[chan] = pattern;
-
-			//Push to hardware
-			uint8_t regval = (g_bertTxPattern[chan] << 4) | g_bertRxPattern[chan];
-			if(chan == 0)
-				g_fpga->BlockingWrite8(REG_BERT_LANE0_PRBS, regval);
-			else
-				g_fpga->BlockingWrite8(REG_BERT_LANE1_PRBS, regval);
-		}
+		//And send the reply
+		m_tcp.SendTxSegment(socket, segment, strlen(payload));
 	}
 }
 

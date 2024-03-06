@@ -222,10 +222,10 @@ module NetworkInterfaces(
 		.gt0_txresetdone_out(),
 
 		//TX driver control
-		.gt0_txpostcursor_in(5'h08),		//values determined from front panel sync port assuming same pcb loss to sfp
-		.gt0_txprecursor_in(5'h07),
+		.gt0_txpostcursor_in(5'h06),		//values determined from front panel TX1 port assuming same pcb loss to sfp
+		.gt0_txprecursor_in(5'h00),
 		.gt0_txmaincursor_in(6'b0),
-		.gt0_txdiffctrl_in(5'h05),
+		.gt0_txdiffctrl_in(5'h06),
 
 		//Fabric TX interface
 		.gt0_txusrclk_in(xg0_tx_clk),
