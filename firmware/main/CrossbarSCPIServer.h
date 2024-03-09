@@ -82,6 +82,11 @@ protected:
 	int GetChannelID(const char* name);
 
 	void UpdateTxLane(int lane);
+
+	uint16_t SerdesDRPRead(uint8_t lane, uint16_t regid);
+	void SerdesDRPWrite(uint8_t lane, uint16_t regid, uint16_t regval);
+
+	void PrintFloat(StringBuffer& buf, float f);
 };
 
 #endif

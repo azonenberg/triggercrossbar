@@ -107,6 +107,17 @@ module ManagementRegisterInterface(
 	output bert_txconfig_t			tx1_config = 0,
 	output bert_rxconfig_t			rx0_config = 0,
 	output bert_rxconfig_t			rx1_config = 0,
+	output logic					mgmt_lane0_en = 0,
+	output logic					mgmt_lane1_en = 0,
+	output logic					mgmt_we = 0,
+	output logic[8:0]				mgmt_addr = 0,
+	output logic[15:0]				mgmt_wdata = 0,
+	input wire[15:0]				mgmt_lane0_rdata,
+	input wire[15:0]				mgmt_lane1_rdata,
+	input wire						mgmt_lane0_done,
+	input wire						mgmt_lane1_done,
+	input wire						mgmt_lane0_rx_rstdone,
+	input wire						mgmt_lane1_rx_rstdone,
 
 	//Configuration registers in crypto clock domain
 	input wire						clk_crypt,
@@ -255,15 +266,36 @@ module ManagementRegisterInterface(
 											//2:0  = RX PRBS mode (GTX RXPRBSSEL see table 4-30 of UG476)
 
 		REG_BERT_LANE0_TX	= 16'h0082,		//15   = invert
-											//14   = reserved
+											//14   = tx enable
 											//13:9 = postcursor
 											//8:4  = precursor
 											//3:0  = swing
 		REG_BERT_LANE0_TX_1 = 16'h0083,
+		REG_BERT_LANE0_WD	= 16'h0084,		//DRP write data (must write before address)
+		REG_BERT_LANE0_WD_1	= 16'h0085,
+		REG_BERT_LANE0_AD	= 16'h0086,		//DRP address
+		REG_BERT_LANE0_AD_1 = 16'h0087,		//15 = write enable
+											//14:9 = reserved
+											//8:0 = address
+		REG_BERT_LANE0_RD	= 16'h0088,
+		REG_BERT_LANE0_RD_1	= 16'h0089,
+		REG_BERT_LANE0_STAT	= 16'h008a,		//0 = DRP busy
+											//1 = rx reset done
+		REG_BERT_LANE0_CLK	= 16'h008c,		//2:0 = TX clock divider
+		REG_BERT_LANE0_RST	= 16'h008e,		//0 = RX PMA reset
 
 		REG_BERT_LANE1_PRBS = 16'h00a0,		//same as LANE0
 		REG_BERT_LANE1_TX	= 16'h00a2,
 		REG_BERT_LANE1_TX_1 = 16'h00a3,
+		REG_BERT_LANE1_WD	= 16'h00a4,
+		REG_BERT_LANE1_WD_1	= 16'h00a5,
+		REG_BERT_LANE1_AD	= 16'h00a6,
+		REG_BERT_LANE1_AD_1	= 16'h00a7,
+		REG_BERT_LANE1_RD	= 16'h00a8,
+		REG_BERT_LANE1_RD_1	= 16'h00a9,
+		REG_BERT_LANE1_STAT	= 16'h00aa,
+		REG_BERT_LANE1_CLK	= 16'h00ac,
+		REG_BERT_LANE1_RST	= 16'h00ae,		//0 = RX PMA reset
 
 		//Mux selectors
 		REG_MUXSEL_BASE		= 16'h00f0,		//3:0 = mux selector
@@ -297,20 +329,13 @@ module ManagementRegisterInterface(
 	logic 					reading					= 0;
 	logic					crypto_active			= 0;
 
-	//Split interface config into port number and register ID
-	localparam PORT_BITS 				= 4;
-	localparam REGID_BITS				= 10;
-	logic[PORT_BITS-1:0]	rd_port		= 0;
-	logic[REGID_BITS-1:0]	rd_regid	= 0;
-
-	logic[PORT_BITS-1:0]	wr_port		= 0;
-	logic[REGID_BITS-1:0]	wr_regid	= 0;
-
 	logic					mgmt0_mdio_busy_latched = 0;
 	logic					dp_mdio_busy_latched	= 0;
 	logic					vsc_mdio_busy_latched	= 0;
 
 	logic					relay_busy	= 0;
+
+	logic[1:0]				drp_busy	= 0;
 
 	always_ff @(posedge clk) begin
 
@@ -326,6 +351,8 @@ module ManagementRegisterInterface(
 		txfifo_wr_commit		<= 0;
 		relay_en				<= 0;
 		serdes_config_updated	<= 0;
+		mgmt_lane0_en			<= 0;
+		mgmt_lane1_en			<= 0;
 
 		//Start a new read
 		if(rd_en)
@@ -344,6 +371,16 @@ module ManagementRegisterInterface(
 			relay_busy			<= 0;
 		if(relay_en)
 			relay_busy			<= 1;
+
+		//Manage DRP states
+		if(mgmt_lane0_en)
+			drp_busy[0]			<= 1;
+		if(mgmt_lane1_en)
+			drp_busy[1]			<= 1;
+		if(mgmt_lane0_done)
+			drp_busy[0]			<= 0;
+		if(mgmt_lane1_done)
+			drp_busy[1]			<= 0;
 
 		//Continue a read
 		if(rd_en || reading) begin
@@ -462,6 +499,14 @@ module ManagementRegisterInterface(
 					REG_RELAY_STAT:		rd_data	<= 8'h0;
 					REG_RELAY_STAT_1:	rd_data	<= {7'b0, relay_busy};
 
+					REG_BERT_LANE0_RD:		rd_data	<= mgmt_lane0_rdata[7:0];
+					REG_BERT_LANE0_RD_1:	rd_data	<= mgmt_lane0_rdata[15:8];
+					REG_BERT_LANE0_STAT:	rd_data	<= {6'b0, mgmt_lane0_rx_rstdone, drp_busy[0]};
+
+					REG_BERT_LANE1_RD:		rd_data	<= mgmt_lane1_rdata[7:0];
+					REG_BERT_LANE1_RD_1:	rd_data	<= mgmt_lane1_rdata[15:8];
+					REG_BERT_LANE1_STAT:	rd_data	<= {6'b0, mgmt_lane1_rx_rstdone, drp_busy[1]};
+
 					default: begin
 						rd_data	<= 0;
 					end
@@ -474,10 +519,6 @@ module ManagementRegisterInterface(
 
 		//Execute a write
 		if(wr_en) begin
-
-			//Extract port number and register ID
-			wr_port	= wr_addr[REGID_BITS +: PORT_BITS];
-			wr_regid = wr_addr[0 +: REGID_BITS];
 
 			//Crypto accelerator registers are decoded separately
 			if(wr_addr >= REG_CRYPT_BASE) begin
@@ -548,10 +589,29 @@ module ManagementRegisterInterface(
 					REG_BERT_LANE0_TX_1: begin
 						tx0_config.precursor[4]		<= wr_data[0];
 						tx0_config.postcursor		<= wr_data[5:1];
+						tx0_config.enable			<= wr_data[6];
 						tx0_config.invert			<= wr_data[7];
 						serdes_config_updated		<= 1;
 					end
 
+					REG_BERT_LANE0_WD:		mgmt_wdata[7:0]		<= wr_data;
+					REG_BERT_LANE0_WD_1:	mgmt_wdata[15:8]	<= wr_data;
+					REG_BERT_LANE0_AD: 		mgmt_addr[7:0]		<= wr_data;
+					REG_BERT_LANE0_AD_1: begin
+						mgmt_lane0_en				<= 1;
+						mgmt_we						<= wr_data[7];
+						mgmt_addr[8]				<= wr_data[0];
+
+					end
+
+					REG_BERT_LANE0_CLK: begin
+						tx0_config.clkdiv			<= wr_data[2:0];
+						serdes_config_updated		<= 1;
+					end
+
+					REG_BERT_LANE0_RST: begin
+						rx0_config.pmareset			<= wr_data[0];
+					end
 
 					REG_BERT_LANE1_PRBS: begin
 						serdes_config_updated		<= 1;
@@ -566,8 +626,27 @@ module ManagementRegisterInterface(
 					REG_BERT_LANE1_TX_1: begin
 						tx1_config.precursor[4]		<= wr_data[0];
 						tx1_config.postcursor		<= wr_data[5:1];
+						tx1_config.enable			<= wr_data[6];
 						tx1_config.invert			<= wr_data[7];
 						serdes_config_updated		<= 1;
+					end
+
+					REG_BERT_LANE1_WD:		mgmt_wdata[7:0]		<= wr_data;
+					REG_BERT_LANE1_WD_1:	mgmt_wdata[15:8]	<= wr_data;
+					REG_BERT_LANE1_AD:		mgmt_addr[7:0]		<= wr_data;
+					REG_BERT_LANE1_AD_1: begin
+						mgmt_lane1_en				<= 1;
+						mgmt_we						<= wr_data[7];
+						mgmt_addr[8]				<= wr_data[0];
+					end
+
+					REG_BERT_LANE1_CLK: begin
+						tx1_config.clkdiv			<= wr_data[2:0];
+						serdes_config_updated		<= 1;
+					end
+
+					REG_BERT_LANE1_RST: begin
+						rx1_config.pmareset			<= wr_data[0];
 					end
 
 					REG_EMAC_COMMIT:	txfifo_wr_commit <= 1;
@@ -579,5 +658,22 @@ module ManagementRegisterInterface(
 		end
 
 	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Debug ILA
+
+	ila_0 ila(
+		.clk(clk),
+		.probe0(mgmt_we),
+		.probe1(mgmt_lane1_en),
+		.probe2(mgmt_addr),
+		.probe3(mgmt_wdata),
+		.probe4(mgmt_lane1_rdata),
+		.probe5(wr_en),
+		.probe6(rd_en),
+		.probe7(wr_addr),
+		.probe8(wr_data),
+		.probe9(rd_data)
+	);
 
 endmodule

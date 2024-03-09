@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+`default_nettype none
 /***********************************************************************************************************************
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
@@ -27,117 +29,64 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef fpgainterface_h
-#define fpgainterface_h
+module DRPClockDomainShifting(
 
-class FPGAInterface
-{
-public:
-	virtual ~FPGAInterface()
-	{}
+	//Management clock domain
+	input wire			mgmt_clk,
 
-	virtual void Nop()
-	{};
+	input wire			mgmt_en,
+	input wire			mgmt_wr,
+	input wire[8:0]		mgmt_addr,
+	input wire[15:0]	mgmt_wdata,
+	output wire[15:0]	mgmt_rdata,
+	output wire			mgmt_done,
 
-	#ifdef SIMULATION
-	/**
-		@brief Advance simulation time until the crypto engine has finished
-	 */
-	virtual void CryptoEngineBlock()
-	{}
-	#endif
+	//DRP clock domain
+	input wire			drp_clk,
+	output wire			drp_en,
+	output wire			drp_we,
+	output wire[8:0]	drp_addr,
+	output wire[15:0]	drp_di,
+	input wire[15:0]	drp_do,
+	input wire			drp_rdy
+);
 
-	virtual void BlockingRead(uint32_t insn, uint8_t* data, uint32_t len) = 0;
-	virtual void BlockingWrite(uint32_t insn, const uint8_t* data, uint32_t len) = 0;
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Write path synchronizer
 
-	uint32_t BlockingRead32(uint32_t insn)
-	{
-		uint32_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+	RegisterSynchronizer #(
+		.WIDTH(26),
+		.INIT(0),
+		.IN_REG(1)
+	) wr_sync (
+		.clk_a(mgmt_clk),
+		.en_a(mgmt_en),
+		.ack_a(),
+		.reg_a({mgmt_wr, mgmt_addr, mgmt_wdata}),
 
-	uint8_t BlockingRead8(uint32_t insn)
-	{
-		uint8_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+		.clk_b(drp_clk),
+		.updated_b(drp_en),
+		.reset_b(1'b0),
+		.reg_b({drp_we, drp_addr, drp_di})
+	);
 
-	uint16_t BlockingRead16(uint32_t insn)
-	{
-		uint16_t data;
-		BlockingRead(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Read path synchronizer
 
-	void BlockingWrite8(uint32_t insn, uint8_t data)
-	{ BlockingWrite(insn, &data, sizeof(data)); }
+	RegisterSynchronizer #(
+		.WIDTH(16),
+		.INIT(0),
+		.IN_REG(1)
+	) rd_sync (
+		.clk_a(drp_clk),
+		.en_a(drp_rdy),
+		.ack_a(),
+		.reg_a(drp_do),
 
-	void BlockingWrite16(uint32_t insn, uint16_t data)
-	{ BlockingWrite(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
+		.clk_b(mgmt_clk),
+		.updated_b(mgmt_done),
+		.reset_b(1'b0),
+		.reg_b(mgmt_rdata)
+	);
 
-	void BlockingWrite32(uint32_t insn, uint32_t data)
-	{ BlockingWrite(insn, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
-
-};
-
-//must match regid_t in ManagementRegisterInterface.sv
-enum regid_t
-{
-	REG_FPGA_IDCODE		= 0x0000,
-	REG_FPGA_SERIAL		= 0x0004,
-	REG_FAN0_RPM		= 0x0010,
-	REG_FAN1_RPM		= 0x0012,
-	REG_DIE_TEMP		= 0x0014,
-	REG_VOLT_CORE		= 0x0016,
-	REG_VOLT_RAM		= 0x0018,
-	REG_VOLT_AUX		= 0x001a,
-
-	REG_FPGA_IRQSTAT	= 0x0020,
-	REG_EMAC_RXLEN		= 0x0024,
-	REG_EMAC_COMMIT		= 0x0028,
-
-	REG_MGMT0_MDIO		= 0x0048,
-
-	REG_XG0_STAT		= 0x0060,
-
-	REG_RELAY_TOGGLE	= 0x0070,
-	REG_RELAY_STAT		= 0x0072,
-
-	REG_BERT_LANE0_PRBS	= 0x0080,
-	REG_BERT_LANE0_TX	= 0x0082,
-	REG_BERT_LANE0_WD	= 0x0084,
-	REG_BERT_LANE0_AD	= 0x0086,
-	REG_BERT_LANE0_RD	= 0x0088,
-	REG_BERT_LANE0_STAT	= 0x008a,
-	REG_BERT_LANE0_CLK	= 0x008c,
-	REG_BERT_LANE0_RST	= 0x008e,
-
-	REG_BERT_LANE1_PRBS	= 0x00a0,
-	REG_BERT_LANE1_TX	= 0x00a2,
-	REG_BERT_LANE1_WD	= 0x00a4,
-	REG_BERT_LANE1_AD	= 0x00a6,
-	REG_BERT_LANE1_RD	= 0x00a8,
-	REG_BERT_LANE1_STAT	= 0x00aa,
-	REG_BERT_LANE1_CLK	= 0x00ac,
-	REG_BERT_LANE1_RST	= 0x00ae,
-
-	REG_MUXSEL_BASE		= 0x00f0,
-
-	REG_EMAC_BUFFER		= 0x1000,
-
-	REG_CRYPT_BASE		= 0x3800,
-};
-
-#define BERT_LANE_STRIDE 0x20
-
-enum cryptreg_t
-{
-	REG_WORK			= 0x0000,
-	REG_E				= 0x0020,
-	REG_CRYPT_STATUS	= 0x0040,
-	REG_WORK_OUT		= 0x0060
-};
-
-#endif
+endmodule

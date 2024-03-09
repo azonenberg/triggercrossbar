@@ -61,9 +61,16 @@
 		[chan]:POSTCURSOR [step]
 
 		[chan]:INVERT [0|1]
+
+		[chan]:ENABLE [0|1]
+
+		[chan]:CLKDIV [step]
+
+		[chan]:EYESCAN?
  */
 #include "triggercrossbar.h"
 #include <ctype.h>
+#include <math.h>
 
 ///@brief Transmit pattern IDs
 uint8_t g_bertTxPattern[2] = {0};
@@ -82,6 +89,12 @@ uint8_t g_bertTxPostCursor[2] = {0};
 
 ///@brief Transmit invert flag
 bool g_bertTxInvert[2] = {0};
+
+///@brief Transmit enable flag
+bool g_bertTxEnable[2] = {false, false};
+
+///@brief Transmit sub-rate control
+uint8_t g_bertTxClkDiv[2] = {1, 1};
 
 ///Names of PRBS patterns
 static const char* g_patternNames[8] =
@@ -338,6 +351,29 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		UpdateTxLane(chan);
 	}
 
+	//Output inversion
+	else if(!strcmp(command, "ENABLE"))
+	{
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		//need valid channel ID (BERT port)
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'T')
+			return;
+
+		//TX amplitude
+		if(!strcmp(args, "1"))
+			g_bertTxEnable[chan] = true;
+		else
+			g_bertTxEnable[chan] = false;
+
+		UpdateTxLane(chan);
+	}
+
 	//PRBS pattern
 	else if(!strcmp(command, "PATTERN"))
 	{
@@ -374,6 +410,76 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		else
 			g_fpga->BlockingWrite8(REG_BERT_LANE1_PRBS, regval);
 	}
+
+	else if(!strcmp(command, "CLKDIV"))
+	{
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		//need valid channel ID (BERT port)
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'T')
+			return;
+
+		//TX amplitude
+		int step = atoi(args);
+		if(step < 1)
+			step = 1;
+		if(step > 5)
+			step = 5;
+		g_bertTxClkDiv[chan] = step;
+
+		//Push to FPGA
+		if(chan == 0)
+			g_fpga->BlockingWrite8(REG_BERT_LANE0_CLK, step);
+		else
+			g_fpga->BlockingWrite8(REG_BERT_LANE1_CLK, step);
+	}
+}
+
+uint16_t CrossbarSCPIServer::SerdesDRPRead(uint8_t lane, uint16_t regid)
+{
+	uint16_t offset = BERT_LANE_STRIDE * lane;
+
+	//Send the command
+	g_fpga->BlockingWrite16(REG_BERT_LANE0_AD + offset, regid);
+
+	//Make sure we're ready
+	//while(0 != g_fpga->BlockingRead8(REG_BERT_LANE0_STAT + offset))
+	//{}
+
+	//Read the result
+	//(blocking poll shouldn't be needed after all of the CDC delays etc?
+	return g_fpga->BlockingRead16(REG_BERT_LANE0_RD + offset);
+}
+
+void CrossbarSCPIServer::SerdesDRPWrite(uint8_t lane, uint16_t regid, uint16_t regval)
+{
+	uint16_t offset = BERT_LANE_STRIDE * lane;
+
+	g_fpga->BlockingWrite16(REG_BERT_LANE0_WD + offset, regval);
+	g_fpga->BlockingWrite16(REG_BERT_LANE0_AD + offset, regid | 0x8000);
+}
+
+void CrossbarSCPIServer::PrintFloat(StringBuffer& buf, float f)
+{
+	if(fabs(f) < 1e-20)
+	{
+		buf.Printf("0.0");
+		return;
+	}
+
+	int base = floor(log10(f));
+
+	float rescaled = f * pow(10, -base);
+	int ipart = floor(rescaled);
+	float fpart = rescaled - ipart;
+	int ifpart = fpart * 1000;
+
+	buf.Printf("%d.%03de%d", ipart, ifpart, base);
 }
 
 void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTableEntry* socket)
@@ -390,6 +496,195 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 
 		//And send the reply
 		m_tcp.SendTxSegment(socket, segment, strlen(payload));
+	}
+
+	//Eye scan
+	else if(!strcmp(command, "EYESCAN"))
+	{
+		//need valid channel ID (BERT port)
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'R')
+			return;
+
+		//Prepare to send a reply
+		auto segment = m_tcp.GetTxSegment(socket);
+		auto payload = reinterpret_cast<char*>(segment->Payload());
+		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+
+		//Use every bit position so don't touch ES_SDATA_MASK for now
+
+		//for now leave Y position and prescale at whatever the default is
+		//ES_VERT_OFFSET + ES_PRESCALE share register 0x03b
+
+		//note, there's some duplicates
+		enum regids
+		{
+			REG_ES_QUAL_MASK		= 0x031,
+			REG_ES_SDATA_MASK		= 0x036,
+			REG_ES_VERT_OFFSET		= 0x03b,
+			REG_ES_HORZ_OFFSET		= 0x03c,
+			REG_ES_CONTROL 			= 0x03d,
+			REG_PMA_RSV2			= 0x082,
+			REG_ES_CONTROL_STATUS	= 0x151,
+			REG_ES_ERROR_COUNT		= 0x14f,
+			REG_ES_SAMPLE_COUNT		= 0x150
+
+			/*
+			ES_QUALIFIER		= 02c - 030
+			ES_QUAL_MASK		= 031 - 035
+			ES_SDATA_MASK		= 036 - 03a
+			ES_PRESCALE			= 03b 15:11
+			ES_VERT_OFFSET		= 03b 7:0
+			ES_HORZ_OFFSET		= 03c 11:0
+			ES_EYE_SCAN_EN		= 03d bit 8
+			ES_CONTROL			= 03d bit 5:0
+			PMA_RSV2			= 082
+			ES_ERROR_COUNT		= 14f
+			ES_SAMPLE_COUNT		= 150
+			ES_CONTROL_STATUS	= 151
+			ES_RDATA			= 152 - 156
+			ES_SDATA			= 157 - 15b
+			*/
+		};
+
+		//TODO: this should happen during init to avoid glitching links?
+		//Set PMA_RSV2 bit 5 to power up the eye scan
+		//If we do this, we also have to reset the PMA
+		auto rsv2 = SerdesDRPRead(chan, REG_PMA_RSV2);
+		if( (rsv2 & 0x20) == 0)
+		{
+			//Power up the eye scan block
+			rsv2 |= 0x20;
+			SerdesDRPWrite(chan, REG_PMA_RSV2, rsv2);
+
+			//Reset the PMA
+			g_fpga->BlockingWrite8(REG_BERT_LANE0_RST + BERT_LANE_STRIDE*chan, 1);
+			g_fpga->BlockingWrite8(REG_BERT_LANE0_RST + BERT_LANE_STRIDE*chan, 0);
+
+			//Read and throw away a few status values until reset takes effect
+			for(int i=0; i<3; i++)
+				g_fpga->BlockingRead8(REG_BERT_LANE0_STAT + BERT_LANE_STRIDE*chan);
+
+			//Poll until reset completes
+			while(1)
+			{
+				auto stat = g_fpga->BlockingRead8(REG_BERT_LANE0_STAT + BERT_LANE_STRIDE*chan);
+				if((stat & 0x2) == 2)
+					break;
+			}
+		}
+
+		//No qualifier
+		for(int i=0; i<5; i++)
+			SerdesDRPWrite(chan, REG_ES_QUAL_MASK + i, 0xffff);
+
+		//SDATA for 32 bit bus width: 40 1s, 32 0s, 8 1s
+		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 0, 0x00ff);
+		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 1, 0x0000);
+		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 2, 0xff00);
+		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 3, 0xffff);
+		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 4, 0xffff);
+
+		//Sweep vertical offset
+		//GTX step size is 1.89 mV/code
+		//https://support.xilinx.com/s/question/0D52E00006hphfdSAA/gtx-transceiver-margin-analysis-verctical-voltage-range?language=en_US
+		for(int yoff=-127; yoff <= 127; yoff += 4)
+		{
+			//Sweep horizontal offset
+			for(int16_t xoff = -32; xoff <= 32; xoff ++)
+			{
+				float ber = 0;
+				int prescale;
+				uint16_t errcount;
+				uint16_t sampcount;
+				uint64_t realSamples;
+
+				//Loop through prescale values and iterate until we stop saturating the sample counter
+				for(prescale=0; prescale<6; prescale++)
+				{
+					int yoffSigned;
+					if(yoff >= 0)
+						yoffSigned = (yoff & 0x7f);
+					else
+						yoffSigned = 0x80 | (-yoff & 0x7f);
+
+					//Set prescale and horizontal offset
+					SerdesDRPWrite(chan, REG_ES_VERT_OFFSET, (prescale << 11) | yoffSigned);
+
+					//Set horizontal offset
+					uint16_t regval = (xoff & 0xfff);
+
+					//DEBUG: See if phase unification is wrong, try ultrascale version (always 1)
+					//regval &= ~0x800;
+					//g_log("regval=%04x for xoff=%d\n", regval, xoff);
+
+					SerdesDRPWrite(chan, REG_ES_HORZ_OFFSET, regval);
+
+					//Need to read-modify-write since ES_CONTROL shares same register as ES_EYE_SCAN_EN and other stuff
+					//Reset eye scan
+					regval = SerdesDRPRead(chan, REG_ES_CONTROL) & 0xffe0;
+
+					//Go to BER measurement path
+					regval |= 0x01;
+					SerdesDRPWrite(chan, REG_ES_CONTROL, regval);
+
+					//Poll ES_CONTROL_STATUS until the DONE bit goes high
+					while( (SerdesDRPRead(chan, REG_ES_CONTROL_STATUS) & 1) == 0)
+					{}
+
+					//Read count values
+					errcount = SerdesDRPRead(chan, REG_ES_ERROR_COUNT);
+					sampcount = SerdesDRPRead(chan, REG_ES_SAMPLE_COUNT);
+
+					//Correct for prescaler 2^(1+regval)
+					//Also, we count every cycle but have a 32-bit datapath
+					//Does that mean we have to multiply the sample count by 32?
+					uint64_t sampleScale = (1 << (prescale+1)) * 32;
+					realSamples = sampcount * sampleScale;
+
+					//Calculate error rate
+					if(errcount == 0)
+						ber = 0;
+					else
+					{
+						ber = errcount * 1.0 / realSamples;
+
+						//ber = sampcount * 1.0 / errcount;
+					}
+
+					//If sample counter is not saturated, break out of the loop
+					if(sampcount < 65535)
+						break;
+				}
+
+				//Pretty-print BER since we don't have this integrated in our printf yet
+				//buf.Printf("%3d,%2d,%5d,%8d,", xoff, prescale, errcount, (int)realSamples);
+				//PrintFloat(buf, ber);
+				//buf.Printf("\n");
+
+				PrintFloat(buf, ber);
+				buf.Printf(",");
+
+				//If we have more than 1 kB of data in the segment, start a new one
+				//TODO: Make wrapper class for reply buffer that will take care of this
+				if(buf.length() > 1024)
+				{
+					m_tcp.SendTxSegment(socket, segment, buf.length());
+
+					segment = m_tcp.GetTxSegment(socket);
+					payload = reinterpret_cast<char*>(segment->Payload());
+					buf = StringBuffer(payload, TCP_IPV4_PAYLOAD_MTU);
+				}
+			}
+			buf.Printf("\n");
+		}
+
+		//And send the reply
+		m_tcp.SendTxSegment(socket, segment, buf.length());
 	}
 
 	//Output amplitude
@@ -480,6 +775,26 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		m_tcp.SendTxSegment(socket, segment, strlen(payload));
 	}
 
+	//Output enable
+	else if(!strcmp(command, "ENABLE"))
+	{
+		//need valid channel ID (BERT port)
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) || (subject[0] != 'T') )
+			return;
+
+		//Build the string into the outbound TCP buffer
+		auto segment = m_tcp.GetTxSegment(socket);
+		auto payload = reinterpret_cast<char*>(segment->Payload());
+		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		buf.Printf("%d\n", g_bertTxEnable[chan]);
+
+		//And send the reply
+		m_tcp.SendTxSegment(socket, segment, strlen(payload));
+	}
+
 	//PRBS pattern
 	else if(!strcmp(command, "PATTERN"))
 	{
@@ -504,6 +819,26 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		//And send the reply
 		m_tcp.SendTxSegment(socket, segment, strlen(payload));
 	}
+
+	//Output enable
+	else if(!strcmp(command, "CLKDIV"))
+	{
+		//need valid channel ID (BERT port)
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) || (subject[0] != 'T') )
+			return;
+
+		//Build the string into the outbound TCP buffer
+		auto segment = m_tcp.GetTxSegment(socket);
+		auto payload = reinterpret_cast<char*>(segment->Payload());
+		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		buf.Printf("%d\n", g_bertTxClkDiv[chan]);
+
+		//And send the reply
+		m_tcp.SendTxSegment(socket, segment, strlen(payload));
+	}
 }
 
 void CrossbarSCPIServer::UpdateTxLane(int lane)
@@ -511,6 +846,8 @@ void CrossbarSCPIServer::UpdateTxLane(int lane)
 	uint16_t regval = g_bertTxSwing[lane];
 	if(g_bertTxInvert[lane])
 		regval |= 0x8000;
+	if(g_bertTxEnable[lane])
+		regval |= 0x4000;
 	regval |= g_bertTxPostCursor[lane] << 9;
 	regval |= g_bertTxPreCursor[lane] << 4;
 

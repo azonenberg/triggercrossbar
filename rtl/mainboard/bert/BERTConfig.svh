@@ -43,6 +43,15 @@ typedef struct packed
 							//7 = 32 UI period squarewave
 
 	logic		invert;		//1 = invert, 0 = normal
+	logic		enable;		//1 = enabled, 0 = disabled
+
+	logic[2:0]	clkdiv;		//GTX TXRATE
+							//0 = defined by attribute (default is no division)
+							//1 = no division
+							//2 = div 2
+							//3 = div 4
+							//4 = div 8
+							//5 = div 16
 
 	logic[3:0]	swing;		//GTX TXDIFFCTRL
 							//See table 3-30 of UG476, all values assume FFE taps at zero
@@ -130,6 +139,7 @@ typedef struct packed
 {
 	logic[2:0]	prbsmode;	//GTX RXPRBSSEL
 	logic		invert;
+	logic		pmareset;
 } bert_rxconfig_t;
 
 `endif

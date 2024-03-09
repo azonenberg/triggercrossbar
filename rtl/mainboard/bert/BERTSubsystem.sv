@@ -70,6 +70,18 @@ module BERTSubsystem(
 	input wire bert_rxconfig_t	rx0_config,
 	input wire bert_rxconfig_t	rx1_config,
 
+	input wire					mgmt_lane0_en,
+	input wire					mgmt_lane1_en,
+	input wire					mgmt_we,
+	input wire[8:0]				mgmt_addr,
+	input wire[15:0]			mgmt_wdata,
+	output wire[15:0]			mgmt_lane0_rdata,
+	output wire[15:0]			mgmt_lane1_rdata,
+	output wire					mgmt_lane0_done,
+	output wire					mgmt_lane1_done,
+	output wire					mgmt_lane0_rx_rstdone,
+	output wire					mgmt_lane1_rx_rstdone,
+
 	//Status outputs
 	output wire[1:0]			cpll_lock
 	);
@@ -102,6 +114,21 @@ module BERTSubsystem(
 	bert_rxconfig_t		rx1_config_sync;
 	bert_txconfig_t		tx0_config_sync;
 	bert_txconfig_t		tx1_config_sync;
+
+	wire	rx0_rxreset_done;
+	wire	rx1_rxreset_done;
+
+	ThreeStageSynchronizer sync_lane0_rx_rst_done(
+		.clk_in(lane0_rxclk),
+		.din(rx0_rxreset_done),
+		.clk_out(clk_250mhz),
+		.dout(mgmt_lane0_rx_rstdone));
+
+	ThreeStageSynchronizer sync_lane1_rx_rst_done(
+		.clk_in(lane1_rxclk),
+		.din(rx1_rxreset_done),
+		.clk_out(clk_250mhz),
+		.dout(mgmt_lane1_rx_rstdone));
 
 	RegisterSynchronizer #(
 		.WIDTH($bits(bert_rxconfig_t)),
@@ -166,6 +193,15 @@ module BERTSubsystem(
 	wire		lane0_prbs_err;
 	wire[31:0]	lane0_rx_data;
 
+	wire		lane0_drp_en;
+	wire		lane0_drp_we;
+	wire[8:0]	lane0_drp_addr;
+	wire[15:0]	lane0_drp_di;
+	wire[15:0]	lane0_drp_do;
+	wire		lane0_drp_rdy;
+
+	wire		lane0_ratedone;
+
 	gtx_frontlane0 lane0_transceiver(
 		.sysclk_in(clk_125mhz),
 
@@ -176,14 +212,16 @@ module BERTSubsystem(
 		.gt0_tx_fsm_reset_done_out(),
 		.gt0_rx_fsm_reset_done_out(),
 
-		//Tie off unused ports
-		.gt0_drpaddr_in(9'b0),
+		//Register access
 		.gt0_drpclk_in(clk_125mhz),
-		.gt0_drpdi_in(16'b0),
-		.gt0_drpdo_out(),
-		.gt0_drpen_in(1'b0),
-		.gt0_drprdy_out(),
-		.gt0_drpwe_in(1'b0),
+		.gt0_drpaddr_in(lane0_drp_addr),
+		.gt0_drpdi_in(lane0_drp_di),
+		.gt0_drpdo_out(lane0_drp_do),
+		.gt0_drpen_in(lane0_drp_en),
+		.gt0_drprdy_out(lane0_drp_rdy),
+		.gt0_drpwe_in(lane0_drp_we),
+
+		//Tie off unused ports
 		.gt0_dmonitorout_out(),
 		.gt0_eyescanreset_in(1'b0),
 		.gt0_eyescandataerror_out(),
@@ -194,6 +232,10 @@ module BERTSubsystem(
 		.gt0_rxmonitorsel_in(2'b0),
 		.gt0_gtrxreset_in(1'b0),
 		.gt0_gttxreset_in(1'b0),
+
+		//Subsystem resets
+		.gt0_rxpmareset_in(rx0_config.pmareset),
+		.gt0_rxresetdone_out(rx0_rxreset_done),
 
 		//Transmit interface
 		.gt0_txuserrdy_in(pll_rgmii_lock),
@@ -229,7 +271,12 @@ module BERTSubsystem(
 		//Input buffer config
 		.gt0_rxpolarity_in(rx0_config_sync.invert),
 
+		//TX clock configuration
+		.gt0_txrate_in(tx0_config_sync.clkdiv),
+		.gt0_txratedone_out(lane0_ratedone),
+
 		//Output swing control and equalizer taps
+		.gt0_txinhibit_in(!tx0_config_sync.enable),
 		.gt0_txpolarity_in(tx0_config_sync.invert),
 		.gt0_txdiffctrl_in(tx0_config_sync.swing),
 		.gt0_txprecursor_in(tx0_config_sync.precursor),
@@ -259,6 +306,15 @@ module BERTSubsystem(
 	wire[31:0]	lane1_rx_data;
 	wire		lane1_prbs_err;
 
+	wire		lane1_drp_en;
+	wire		lane1_drp_we;
+	wire[8:0]	lane1_drp_addr;
+	wire[15:0]	lane1_drp_di;
+	wire[15:0]	lane1_drp_do;
+	wire		lane1_drp_rdy;
+
+	wire		lane1_ratedone;
+
 	gtx_frontlane1 lane1_transceiver(
 		.sysclk_in(clk_125mhz),
 
@@ -269,14 +325,16 @@ module BERTSubsystem(
 		.gt0_tx_fsm_reset_done_out(),
 		.gt0_rx_fsm_reset_done_out(),
 
-		//Tie off unused ports
-		.gt0_drpaddr_in(9'b0),
+		//Register access
 		.gt0_drpclk_in(clk_125mhz),
-		.gt0_drpdi_in(16'b0),
-		.gt0_drpdo_out(),
-		.gt0_drpen_in(1'b0),
-		.gt0_drprdy_out(),
-		.gt0_drpwe_in(1'b0),
+		.gt0_drpaddr_in(lane1_drp_addr),
+		.gt0_drpdi_in(lane1_drp_di),
+		.gt0_drpdo_out(lane1_drp_do),
+		.gt0_drpen_in(lane1_drp_en),
+		.gt0_drprdy_out(lane1_drp_rdy),
+		.gt0_drpwe_in(lane1_drp_we),
+
+		//Tie off unused ports
 		.gt0_dmonitorout_out(),
 		.gt0_eyescanreset_in(1'b0),
 		.gt0_eyescandataerror_out(),
@@ -287,6 +345,10 @@ module BERTSubsystem(
 		.gt0_rxmonitorsel_in(2'b0),
 		.gt0_gtrxreset_in(1'b0),
 		.gt0_gttxreset_in(1'b0),
+
+		//Subsystem resets
+		.gt0_rxpmareset_in(rx1_config.pmareset),
+		.gt0_rxresetdone_out(rx1_rxreset_done),
 
 		//Transmit interface
 		.gt0_txuserrdy_in(pll_rgmii_lock),
@@ -322,7 +384,12 @@ module BERTSubsystem(
 		//Input buffer config
 		.gt0_rxpolarity_in(rx1_config_sync.invert),
 
+		//TX clock configuration
+		.gt0_txrate_in(tx1_config_sync.clkdiv),
+		.gt0_txratedone_out(lane1_ratedone),
+
 		//Output swing control and equalizer taps
+		.gt0_txinhibit_in(!tx1_config_sync.enable),
 		.gt0_txpolarity_in(tx1_config_sync.invert),
 		.gt0_txdiffctrl_in(tx1_config_sync.swing),
 		.gt0_txprecursor_in(tx1_config_sync.precursor),
@@ -347,16 +414,57 @@ module BERTSubsystem(
 	assign cpll_lock[1] = 0;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// DRP arbitration and clock domain shifting
+
+	DRPClockDomainShifting lane0_drp_cdc(
+		.mgmt_clk(clk_250mhz),
+		.mgmt_en(mgmt_lane0_en),
+		.mgmt_wr(mgmt_we),
+		.mgmt_addr(mgmt_addr),
+		.mgmt_wdata(mgmt_wdata),
+		.mgmt_rdata(mgmt_lane0_rdata),
+		.mgmt_done(mgmt_lane0_done),
+
+		.drp_clk(clk_125mhz),
+		.drp_en(lane0_drp_en),
+		.drp_we(lane0_drp_we),
+		.drp_addr(lane0_drp_addr),
+		.drp_di(lane0_drp_di),
+		.drp_do(lane0_drp_do),
+		.drp_rdy(lane0_drp_rdy)
+		);
+
+	DRPClockDomainShifting lane1_drp_cdc(
+		.mgmt_clk(clk_250mhz),
+		.mgmt_en(mgmt_lane1_en),
+		.mgmt_wr(mgmt_we),
+		.mgmt_addr(mgmt_addr),
+		.mgmt_wdata(mgmt_wdata),
+		.mgmt_rdata(mgmt_lane1_rdata),
+		.mgmt_done(mgmt_lane1_done),
+
+		.drp_clk(clk_125mhz),
+		.drp_en(lane1_drp_en),
+		.drp_we(lane1_drp_we),
+		.drp_addr(lane1_drp_addr),
+		.drp_di(lane1_drp_di),
+		.drp_do(lane1_drp_do),
+		.drp_rdy(lane1_drp_rdy)
+		);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Debug ILAs
 
-	ila_1 ila(
-		.clk(lane1_rxclk),
-		.probe0(lane1_rx_data),
-		.probe1(lane1_prbs_err)	);
-
-	ila_1 ila0(
-		.clk(lane0_rxclk),
-		.probe0(lane0_rx_data),
-		.probe1(lane0_prbs_err)	);
+	ila_1 lane1_ila(
+		.clk(clk_125mhz),
+		.probe0(lane1_drp_en),
+		.probe1(lane1_drp_we),
+		.probe2(lane1_drp_addr),
+		.probe3(lane1_drp_di),
+		.probe4(lane1_drp_do),
+		.probe5(lane1_drp_rdy),
+		.probe6(rx1_config.pmareset),
+		.probe7(rx1_rxreset_done)
+		);
 
 endmodule

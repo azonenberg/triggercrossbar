@@ -286,6 +286,19 @@ module top(
 	bert_rxconfig_t	rx0_config;
 	bert_rxconfig_t	rx1_config;
 
+	wire		mgmt_lane0_en;
+	wire		mgmt_lane1_en;
+	wire		mgmt_we;
+	wire[8:0]	mgmt_addr;
+	wire[15:0]	mgmt_wdata;
+	wire[15:0]	mgmt_lane0_rdata;
+	wire[15:0]	mgmt_lane1_rdata;
+	wire		mgmt_lane0_done;
+	wire		mgmt_lane1_done;
+
+	wire		mgmt_lane0_rx_rstdone;
+	wire		mgmt_lane1_rx_rstdone;
+
 	BERTSubsystem bert(
 
 		.clk_125mhz(clk_125mhz),
@@ -318,7 +331,18 @@ module top(
 		.tx0_config(tx0_config),
 		.tx1_config(tx1_config),
 		.rx0_config(rx0_config),
-		.rx1_config(rx1_config)
+		.rx1_config(rx1_config),
+		.mgmt_lane0_en(mgmt_lane0_en),
+		.mgmt_lane1_en(mgmt_lane1_en),
+		.mgmt_we(mgmt_we),
+		.mgmt_addr(mgmt_addr),
+		.mgmt_wdata(mgmt_wdata),
+		.mgmt_lane0_rdata(mgmt_lane0_rdata),
+		.mgmt_lane1_rdata(mgmt_lane1_rdata),
+		.mgmt_lane0_done(mgmt_lane0_done),
+		.mgmt_lane1_done(mgmt_lane1_done),
+		.mgmt_lane0_rx_rstdone(mgmt_lane0_rx_rstdone),
+		.mgmt_lane1_rx_rstdone(mgmt_lane1_rx_rstdone)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -501,6 +525,17 @@ module top(
 		.rx1_config(rx1_config),
 		.tx0_config(tx0_config),
 		.tx1_config(tx1_config),
+		.mgmt_lane0_en(mgmt_lane0_en),
+		.mgmt_lane1_en(mgmt_lane1_en),
+		.mgmt_we(mgmt_we),
+		.mgmt_addr(mgmt_addr),
+		.mgmt_wdata(mgmt_wdata),
+		.mgmt_lane0_rdata(mgmt_lane0_rdata),
+		.mgmt_lane1_rdata(mgmt_lane1_rdata),
+		.mgmt_lane0_done(mgmt_lane0_done),
+		.mgmt_lane1_done(mgmt_lane1_done),
+		.mgmt_lane0_rx_rstdone(mgmt_lane0_rx_rstdone),
+		.mgmt_lane1_rx_rstdone(mgmt_lane1_rx_rstdone),
 
 		.clk_crypt(clk_250mhz),
 		.crypt_en(crypt_en),
