@@ -86,6 +86,8 @@ protected:
 	uint16_t SerdesDRPRead(uint8_t lane, uint16_t regid);
 	void SerdesDRPWrite(uint8_t lane, uint16_t regid, uint16_t regval);
 
+	void SerdesPMAReset(uint8_t lane);
+
 	void PrintFloat(StringBuffer& buf, float f);
 };
 

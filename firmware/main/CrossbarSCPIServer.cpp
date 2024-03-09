@@ -468,7 +468,7 @@ void CrossbarSCPIServer::PrintFloat(StringBuffer& buf, float f)
 {
 	if(fabs(f) < 1e-20)
 	{
-		buf.Printf("0.0");
+		buf.Printf("0.000e-0");
 		return;
 	}
 
@@ -480,6 +480,27 @@ void CrossbarSCPIServer::PrintFloat(StringBuffer& buf, float f)
 	int ifpart = fpart * 1000;
 
 	buf.Printf("%d.%03de%d", ipart, ifpart, base);
+}
+
+void CrossbarSCPIServer::SerdesPMAReset(uint8_t lane)
+{
+	uint16_t offset = BERT_LANE_STRIDE*lane;
+
+	//Reset the PMA
+	g_fpga->BlockingWrite8(REG_BERT_LANE0_RST + offset, 1);
+	g_fpga->BlockingWrite8(REG_BERT_LANE0_RST + offset, 0);
+
+	//Read and throw away a few status values until reset takes effect
+	for(int i=0; i<3; i++)
+		g_fpga->BlockingRead8(REG_BERT_LANE0_STAT + offset);
+
+	//Poll until reset completes
+	while(1)
+	{
+		auto stat = g_fpga->BlockingRead8(REG_BERT_LANE0_STAT + offset);
+		if((stat & 0x2) == 2)
+			break;
+	}
 }
 
 void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTableEntry* socket)
@@ -557,25 +578,16 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		auto rsv2 = SerdesDRPRead(chan, REG_PMA_RSV2);
 		if( (rsv2 & 0x20) == 0)
 		{
-			//Power up the eye scan block
-			rsv2 |= 0x20;
-			SerdesDRPWrite(chan, REG_PMA_RSV2, rsv2);
-
-			//Reset the PMA
-			g_fpga->BlockingWrite8(REG_BERT_LANE0_RST + BERT_LANE_STRIDE*chan, 1);
-			g_fpga->BlockingWrite8(REG_BERT_LANE0_RST + BERT_LANE_STRIDE*chan, 0);
-
-			//Read and throw away a few status values until reset takes effect
-			for(int i=0; i<3; i++)
-				g_fpga->BlockingRead8(REG_BERT_LANE0_STAT + BERT_LANE_STRIDE*chan);
-
-			//Poll until reset completes
-			while(1)
-			{
-				auto stat = g_fpga->BlockingRead8(REG_BERT_LANE0_STAT + BERT_LANE_STRIDE*chan);
-				if((stat & 0x2) == 2)
-					break;
-			}
+			g_log("Powering up eye scan (PMA_RSV2 bit 5)\n");
+			SerdesDRPWrite(chan, REG_PMA_RSV2, rsv2 | 0x20);
+			SerdesPMAReset(chan);
+		}
+		auto ctl = SerdesDRPRead(chan, REG_ES_CONTROL);
+		if((ctl & 0x100) == 0)
+		{
+			g_log("Enabling eye scan\n");
+			SerdesDRPWrite(chan, REG_ES_CONTROL, ctl | 0x100);
+			SerdesPMAReset(chan);
 		}
 
 		//No qualifier
@@ -604,7 +616,7 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 				uint64_t realSamples;
 
 				//Loop through prescale values and iterate until we stop saturating the sample counter
-				for(prescale=0; prescale<6; prescale++)
+				for(prescale=0; prescale<=5; prescale++)
 				{
 					int yoffSigned;
 					if(yoff >= 0)
@@ -612,25 +624,22 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 					else
 						yoffSigned = 0x80 | (-yoff & 0x7f);
 
+					//Need to read-modify-write since ES_CONTROL shares same register as ES_EYE_SCAN_EN and other stuff
+					//Reset eye scan
+					auto regval = (SerdesDRPRead(chan, REG_ES_CONTROL) & 0xffe0) | 0x100;
+					SerdesDRPWrite(chan, REG_ES_CONTROL, regval);
+
 					//Set prescale and horizontal offset
 					SerdesDRPWrite(chan, REG_ES_VERT_OFFSET, (prescale << 11) | yoffSigned);
 
 					//Set horizontal offset
-					uint16_t regval = (xoff & 0xfff);
-
 					//DEBUG: See if phase unification is wrong, try ultrascale version (always 1)
-					//regval &= ~0x800;
+					//regval |= 0x800;
 					//g_log("regval=%04x for xoff=%d\n", regval, xoff);
+					SerdesDRPWrite(chan, REG_ES_HORZ_OFFSET, (xoff & 0xfff));
 
-					SerdesDRPWrite(chan, REG_ES_HORZ_OFFSET, regval);
-
-					//Need to read-modify-write since ES_CONTROL shares same register as ES_EYE_SCAN_EN and other stuff
-					//Reset eye scan
-					regval = SerdesDRPRead(chan, REG_ES_CONTROL) & 0xffe0;
-
-					//Go to BER measurement path
-					regval |= 0x01;
-					SerdesDRPWrite(chan, REG_ES_CONTROL, regval);
+					//Start the BER measurement
+					SerdesDRPWrite(chan, REG_ES_CONTROL, regval | 0x1);
 
 					//Poll ES_CONTROL_STATUS until the DONE bit goes high
 					while( (SerdesDRPRead(chan, REG_ES_CONTROL_STATUS) & 1) == 0)
@@ -662,7 +671,7 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 				}
 
 				//Pretty-print BER since we don't have this integrated in our printf yet
-				//buf.Printf("%3d,%2d,%5d,%8d,", xoff, prescale, errcount, (int)realSamples);
+				//buf.Printf("%3d,%2d,%9d,%9d,", xoff, prescale, errcount, (int)realSamples);
 				//PrintFloat(buf, ber);
 				//buf.Printf("\n");
 
