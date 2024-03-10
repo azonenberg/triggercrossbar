@@ -67,6 +67,8 @@
 		[chan]:CLKDIV [step]
 
 		[chan]:EYESCAN?
+
+		[chan]:HBATHTUB?
  */
 #include "triggercrossbar.h"
 #include <ctype.h>
@@ -614,8 +616,8 @@ float CrossbarSCPIServer::DoEyeBERMeasurement(uint8_t chan, int prescaleMax, int
 		sampcount = SerdesDRPRead(chan, REG_ES_SAMPLE_COUNT);
 
 		//Correct for prescaler 2^(1+regval)
-		//(but for some reason we have to prescale by another 3 bits to get expected 0.5 BER outside eye)
-		uint64_t sampleScale = (1 << (prescale+4));
+		//(but for some reason we have to prescale by another few bits to get expected 0.5 BER outside eye)
+		uint64_t sampleScale = (1 << (prescale+5));
 		realSamples = sampcount * sampleScale;
 
 		//Calculate error rate
@@ -689,6 +691,45 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 			}
 			buf.Printf("\n");
 		}
+	}
+
+	//Horizontal bathtub curve at the center of the eye
+	else if(!strcmp(command, "HBATHTUB"))
+	{
+		//need valid channel ID (BERT port)
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'R')
+			return;
+
+		SocketReplyBuffer buf(m_tcp, socket);
+
+		PrepareForEyeScan(chan);
+
+		//No qualifier
+		for(int i=0; i<5; i++)
+			SerdesDRPWrite(chan, REG_ES_QUAL_MASK + i, 0xffff);
+
+		//SDATA for 32 bit bus width: 40 1s, 32 0s, 8 1s
+		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 0, 0x00ff);
+		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 1, 0x0000);
+		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 2, 0xff00);
+		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 3, 0xffff);
+		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 4, 0xffff);
+
+		//Keep vertical offset at zero
+		//Sweep horizontal offset
+		for(int16_t xoff = -32; xoff <= 32; xoff ++)
+		{
+			auto ber = DoEyeBERMeasurement(chan, 7, xoff, 0);
+			PrintFloat(buf, ber);
+			buf.Printf(",");
+			buf.Flush();
+		}
+		buf.Printf("\n");
 	}
 
 	//Output amplitude
