@@ -71,6 +71,7 @@
 #include "triggercrossbar.h"
 #include <ctype.h>
 #include <math.h>
+#include "SocketReplyBuffer.h"
 
 ///@brief Transmit pattern IDs
 uint8_t g_bertTxPattern[2] = {0};
@@ -107,6 +108,37 @@ static const char* g_patternNames[8] =
 	"RESERVED",
 	"FASTSQUARE",
 	"SLOWSQUARE"
+};
+
+//Note, there's some duplicates (multiple logical registers are different bitfields in one physical register)
+enum gtxregids
+{
+	REG_ES_QUAL_MASK		= 0x031,
+	REG_ES_SDATA_MASK		= 0x036,
+	REG_ES_VERT_OFFSET		= 0x03b,
+	REG_ES_HORZ_OFFSET		= 0x03c,
+	REG_ES_CONTROL 			= 0x03d,
+	REG_PMA_RSV2			= 0x082,
+	REG_ES_CONTROL_STATUS	= 0x151,
+	REG_ES_ERROR_COUNT		= 0x14f,
+	REG_ES_SAMPLE_COUNT		= 0x150
+
+	/*
+	ES_QUALIFIER		= 02c - 030
+	ES_QUAL_MASK		= 031 - 035
+	ES_SDATA_MASK		= 036 - 03a
+	ES_PRESCALE			= 03b 15:11
+	ES_VERT_OFFSET		= 03b 7:0
+	ES_HORZ_OFFSET		= 03c 11:0
+	ES_EYE_SCAN_EN		= 03d bit 8
+	ES_CONTROL			= 03d bit 5:0
+	PMA_RSV2			= 082
+	ES_ERROR_COUNT		= 14f
+	ES_SAMPLE_COUNT		= 150
+	ES_CONTROL_STATUS	= 151
+	ES_RDATA			= 152 - 156
+	ES_SDATA			= 157 - 15b
+	*/
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -464,7 +496,7 @@ void CrossbarSCPIServer::SerdesDRPWrite(uint8_t lane, uint16_t regid, uint16_t r
 	g_fpga->BlockingWrite16(REG_BERT_LANE0_AD + offset, regid | 0x8000);
 }
 
-void CrossbarSCPIServer::PrintFloat(StringBuffer& buf, float f)
+void CrossbarSCPIServer::PrintFloat(CharacterDevice& buf, float f)
 {
 	if(fabs(f) < 1e-20)
 	{
@@ -503,20 +535,116 @@ void CrossbarSCPIServer::SerdesPMAReset(uint8_t lane)
 	}
 }
 
+/**
+	@brief Make sure the requested SERDES lane is ready for eye scanning
+ */
+void CrossbarSCPIServer::PrepareForEyeScan(uint8_t chan)
+{
+	//TODO: this should happen during init to avoid glitching links?
+	//Set PMA_RSV2 bit 5 to power up the eye scan
+	//If we do this, we also have to reset the PMA
+	auto rsv2 = SerdesDRPRead(chan, REG_PMA_RSV2);
+	if( (rsv2 & 0x20) == 0)
+	{
+		g_log("Powering up eye scan (PMA_RSV2 bit 5)\n");
+		SerdesDRPWrite(chan, REG_PMA_RSV2, rsv2 | 0x20);
+		SerdesPMAReset(chan);
+	}
+	auto ctl = SerdesDRPRead(chan, REG_ES_CONTROL);
+	if((ctl & 0x100) == 0)
+	{
+		g_log("Enabling eye scan\n");
+		SerdesDRPWrite(chan, REG_ES_CONTROL, ctl | 0x100);
+		SerdesPMAReset(chan);
+	}
+}
+
+/**
+	@brief Begin an eye BER measurement (but don't read the results)
+ */
+void CrossbarSCPIServer::StartEyeBERMeasurement(uint8_t chan, int prescale, int xoff, int yoff)
+{
+	int yoffSigned;
+	if(yoff >= 0)
+		yoffSigned = (yoff & 0x7f);
+	else
+		yoffSigned = 0x80 | (-yoff & 0x7f);
+
+	//Need to read-modify-write since ES_CONTROL shares same register as ES_EYE_SCAN_EN and other stuff
+	//Reset eye scan
+	auto regval = (SerdesDRPRead(chan, REG_ES_CONTROL) & 0xffe0) | 0x100;
+	SerdesDRPWrite(chan, REG_ES_CONTROL, regval);
+
+	//Set prescale and horizontal offset
+	SerdesDRPWrite(chan, REG_ES_VERT_OFFSET, (prescale << 11) | yoffSigned);
+
+	//Set horizontal offset
+	//DEBUG: See if phase unification is wrong, try ultrascale version (always 1)
+	//regval |= 0x800;
+	//g_log("regval=%04x for xoff=%d\n", regval, xoff);
+	SerdesDRPWrite(chan, REG_ES_HORZ_OFFSET, (xoff & 0xfff));
+
+	//Start the BER measurement
+	SerdesDRPWrite(chan, REG_ES_CONTROL, regval | 0x1);
+
+	//Poll ES_CONTROL_STATUS until the DONE bit goes high
+	while( (SerdesDRPRead(chan, REG_ES_CONTROL_STATUS) & 1) == 0)
+	{}
+}
+
+/**
+	@brief Measure eye BER at a single x/y point
+ */
+float CrossbarSCPIServer::DoEyeBERMeasurement(uint8_t chan, int prescaleMax, int xoff, int yoff)
+{
+	float ber = 0;
+	int prescale;
+	uint16_t errcount;
+	uint16_t sampcount;
+	uint64_t realSamples;
+
+	//Loop through prescale values and iterate until we stop saturating the sample counter
+	for(prescale=0; prescale<=prescaleMax; prescale++)
+	{
+		//Initiate the measurement and block until it finishes
+		StartEyeBERMeasurement(chan, prescale, xoff, yoff);
+
+		//Read count values
+		errcount = SerdesDRPRead(chan, REG_ES_ERROR_COUNT);
+		sampcount = SerdesDRPRead(chan, REG_ES_SAMPLE_COUNT);
+
+		//Correct for prescaler 2^(1+regval)
+		//(but for some reason we have to prescale by another 3 bits to get expected 0.5 BER outside eye)
+		uint64_t sampleScale = (1 << (prescale+4));
+		realSamples = sampcount * sampleScale;
+
+		//Calculate error rate
+		if(errcount == 0)
+			ber = 0;
+		else
+			ber = errcount * 1.0 / realSamples;
+
+		//If sample counter is not saturated, break out of the loop
+		if(sampcount < 65535)
+			break;
+	}
+
+	//Pretty-print BER since we don't have this integrated in our printf yet
+	//buf.Printf("%3d,%2d,%9d,%9d,", xoff, prescale, errcount, (int)realSamples);
+	//PrintFloat(buf, ber);
+	//buf.Printf("\n");
+
+	return ber;
+}
+
 void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTableEntry* socket)
 {
 	if(!strcmp(command, "*IDN"))
 	{
-		//Build the string into the outbound TCP buffer
-		auto segment = m_tcp.GetTxSegment(socket);
-		auto payload = reinterpret_cast<char*>(segment->Payload());
-		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		SocketReplyBuffer buf(m_tcp, socket);
 		buf.Printf("AntikernelLabs,AKL-TXB1,%02x%02x%02x%02x%02x%02x%02x%02x,0.1\n",
 			g_fpgaSerial[0], g_fpgaSerial[1], g_fpgaSerial[2], g_fpgaSerial[3],
 			g_fpgaSerial[4], g_fpgaSerial[5], g_fpgaSerial[6], g_fpgaSerial[7]);
-
-		//And send the reply
-		m_tcp.SendTxSegment(socket, segment, strlen(payload));
 	}
 
 	//Eye scan
@@ -531,64 +659,9 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		if(subject[0] != 'R')
 			return;
 
-		//Prepare to send a reply
-		auto segment = m_tcp.GetTxSegment(socket);
-		auto payload = reinterpret_cast<char*>(segment->Payload());
-		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		SocketReplyBuffer buf(m_tcp, socket);
 
-		//Use every bit position so don't touch ES_SDATA_MASK for now
-
-		//for now leave Y position and prescale at whatever the default is
-		//ES_VERT_OFFSET + ES_PRESCALE share register 0x03b
-
-		//note, there's some duplicates
-		enum regids
-		{
-			REG_ES_QUAL_MASK		= 0x031,
-			REG_ES_SDATA_MASK		= 0x036,
-			REG_ES_VERT_OFFSET		= 0x03b,
-			REG_ES_HORZ_OFFSET		= 0x03c,
-			REG_ES_CONTROL 			= 0x03d,
-			REG_PMA_RSV2			= 0x082,
-			REG_ES_CONTROL_STATUS	= 0x151,
-			REG_ES_ERROR_COUNT		= 0x14f,
-			REG_ES_SAMPLE_COUNT		= 0x150
-
-			/*
-			ES_QUALIFIER		= 02c - 030
-			ES_QUAL_MASK		= 031 - 035
-			ES_SDATA_MASK		= 036 - 03a
-			ES_PRESCALE			= 03b 15:11
-			ES_VERT_OFFSET		= 03b 7:0
-			ES_HORZ_OFFSET		= 03c 11:0
-			ES_EYE_SCAN_EN		= 03d bit 8
-			ES_CONTROL			= 03d bit 5:0
-			PMA_RSV2			= 082
-			ES_ERROR_COUNT		= 14f
-			ES_SAMPLE_COUNT		= 150
-			ES_CONTROL_STATUS	= 151
-			ES_RDATA			= 152 - 156
-			ES_SDATA			= 157 - 15b
-			*/
-		};
-
-		//TODO: this should happen during init to avoid glitching links?
-		//Set PMA_RSV2 bit 5 to power up the eye scan
-		//If we do this, we also have to reset the PMA
-		auto rsv2 = SerdesDRPRead(chan, REG_PMA_RSV2);
-		if( (rsv2 & 0x20) == 0)
-		{
-			g_log("Powering up eye scan (PMA_RSV2 bit 5)\n");
-			SerdesDRPWrite(chan, REG_PMA_RSV2, rsv2 | 0x20);
-			SerdesPMAReset(chan);
-		}
-		auto ctl = SerdesDRPRead(chan, REG_ES_CONTROL);
-		if((ctl & 0x100) == 0)
-		{
-			g_log("Enabling eye scan\n");
-			SerdesDRPWrite(chan, REG_ES_CONTROL, ctl | 0x100);
-			SerdesPMAReset(chan);
-		}
+		PrepareForEyeScan(chan);
 
 		//No qualifier
 		for(int i=0; i<5; i++)
@@ -609,91 +682,13 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 			//Sweep horizontal offset
 			for(int16_t xoff = -32; xoff <= 32; xoff ++)
 			{
-				float ber = 0;
-				int prescale;
-				uint16_t errcount;
-				uint16_t sampcount;
-				uint64_t realSamples;
-
-				//Loop through prescale values and iterate until we stop saturating the sample counter
-				for(prescale=0; prescale<=5; prescale++)
-				{
-					int yoffSigned;
-					if(yoff >= 0)
-						yoffSigned = (yoff & 0x7f);
-					else
-						yoffSigned = 0x80 | (-yoff & 0x7f);
-
-					//Need to read-modify-write since ES_CONTROL shares same register as ES_EYE_SCAN_EN and other stuff
-					//Reset eye scan
-					auto regval = (SerdesDRPRead(chan, REG_ES_CONTROL) & 0xffe0) | 0x100;
-					SerdesDRPWrite(chan, REG_ES_CONTROL, regval);
-
-					//Set prescale and horizontal offset
-					SerdesDRPWrite(chan, REG_ES_VERT_OFFSET, (prescale << 11) | yoffSigned);
-
-					//Set horizontal offset
-					//DEBUG: See if phase unification is wrong, try ultrascale version (always 1)
-					//regval |= 0x800;
-					//g_log("regval=%04x for xoff=%d\n", regval, xoff);
-					SerdesDRPWrite(chan, REG_ES_HORZ_OFFSET, (xoff & 0xfff));
-
-					//Start the BER measurement
-					SerdesDRPWrite(chan, REG_ES_CONTROL, regval | 0x1);
-
-					//Poll ES_CONTROL_STATUS until the DONE bit goes high
-					while( (SerdesDRPRead(chan, REG_ES_CONTROL_STATUS) & 1) == 0)
-					{}
-
-					//Read count values
-					errcount = SerdesDRPRead(chan, REG_ES_ERROR_COUNT);
-					sampcount = SerdesDRPRead(chan, REG_ES_SAMPLE_COUNT);
-
-					//Correct for prescaler 2^(1+regval)
-					//Also, we count every cycle but have a 32-bit datapath
-					//Does that mean we have to multiply the sample count by 32?
-					uint64_t sampleScale = (1 << (prescale+1)) * 32;
-					realSamples = sampcount * sampleScale;
-
-					//Calculate error rate
-					if(errcount == 0)
-						ber = 0;
-					else
-					{
-						ber = errcount * 1.0 / realSamples;
-
-						//ber = sampcount * 1.0 / errcount;
-					}
-
-					//If sample counter is not saturated, break out of the loop
-					if(sampcount < 65535)
-						break;
-				}
-
-				//Pretty-print BER since we don't have this integrated in our printf yet
-				//buf.Printf("%3d,%2d,%9d,%9d,", xoff, prescale, errcount, (int)realSamples);
-				//PrintFloat(buf, ber);
-				//buf.Printf("\n");
-
+				//auto ber = DoEyeBERMeasurement(chan, 6, xoff, yoff);
+				auto ber = DoEyeBERMeasurement(chan, 5, xoff, yoff);
 				PrintFloat(buf, ber);
 				buf.Printf(",");
-
-				//If we have more than 1 kB of data in the segment, start a new one
-				//TODO: Make wrapper class for reply buffer that will take care of this
-				if(buf.length() > 1024)
-				{
-					m_tcp.SendTxSegment(socket, segment, buf.length());
-
-					segment = m_tcp.GetTxSegment(socket);
-					payload = reinterpret_cast<char*>(segment->Payload());
-					buf = StringBuffer(payload, TCP_IPV4_PAYLOAD_MTU);
-				}
 			}
 			buf.Printf("\n");
 		}
-
-		//And send the reply
-		m_tcp.SendTxSegment(socket, segment, buf.length());
 	}
 
 	//Output amplitude
@@ -708,14 +703,8 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		if(subject[0] != 'T')
 			return;
 
-		//Build the string into the outbound TCP buffer
-		auto segment = m_tcp.GetTxSegment(socket);
-		auto payload = reinterpret_cast<char*>(segment->Payload());
-		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		SocketReplyBuffer buf(m_tcp, socket);
 		buf.Printf("%d\n", g_bertTxSwing[chan]);
-
-		//And send the reply
-		m_tcp.SendTxSegment(socket, segment, strlen(payload));
 	}
 
 	//Output FFE taps
@@ -730,14 +719,8 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		if(subject[0] != 'T')
 			return;
 
-		//Build the string into the outbound TCP buffer
-		auto segment = m_tcp.GetTxSegment(socket);
-		auto payload = reinterpret_cast<char*>(segment->Payload());
-		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		SocketReplyBuffer buf(m_tcp, socket);
 		buf.Printf("%d\n", g_bertTxPreCursor[chan]);
-
-		//And send the reply
-		m_tcp.SendTxSegment(socket, segment, strlen(payload));
 	}
 
 	else if(!strcmp(command, "POSTCURSOR"))
@@ -751,14 +734,8 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		if(subject[0] != 'T')
 			return;
 
-		//Build the string into the outbound TCP buffer
-		auto segment = m_tcp.GetTxSegment(socket);
-		auto payload = reinterpret_cast<char*>(segment->Payload());
-		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		SocketReplyBuffer buf(m_tcp, socket);
 		buf.Printf("%d\n", g_bertTxPostCursor[chan]);
-
-		//And send the reply
-		m_tcp.SendTxSegment(socket, segment, strlen(payload));
 	}
 
 	//Output inversion
@@ -771,17 +748,11 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		if( (chan < 0) || (chan > 1) )
 			return;
 
-		//Build the string into the outbound TCP buffer
-		auto segment = m_tcp.GetTxSegment(socket);
-		auto payload = reinterpret_cast<char*>(segment->Payload());
-		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		SocketReplyBuffer buf(m_tcp, socket);
 		if(subject[0] == 'T')
 			buf.Printf("%d\n", g_bertTxInvert[chan]);
 		//else
 		//	buf.Printf("%d\n", g_bertRxInvert[chan]);
-
-		//And send the reply
-		m_tcp.SendTxSegment(socket, segment, strlen(payload));
 	}
 
 	//Output enable
@@ -794,14 +765,8 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		if( (chan < 0) || (chan > 1) || (subject[0] != 'T') )
 			return;
 
-		//Build the string into the outbound TCP buffer
-		auto segment = m_tcp.GetTxSegment(socket);
-		auto payload = reinterpret_cast<char*>(segment->Payload());
-		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		SocketReplyBuffer buf(m_tcp, socket);
 		buf.Printf("%d\n", g_bertTxEnable[chan]);
-
-		//And send the reply
-		m_tcp.SendTxSegment(socket, segment, strlen(payload));
 	}
 
 	//PRBS pattern
@@ -839,14 +804,8 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		if( (chan < 0) || (chan > 1) || (subject[0] != 'T') )
 			return;
 
-		//Build the string into the outbound TCP buffer
-		auto segment = m_tcp.GetTxSegment(socket);
-		auto payload = reinterpret_cast<char*>(segment->Payload());
-		StringBuffer buf(payload, TCP_IPV4_PAYLOAD_MTU);
+		SocketReplyBuffer buf(m_tcp, socket);
 		buf.Printf("%d\n", g_bertTxClkDiv[chan]);
-
-		//And send the reply
-		m_tcp.SendTxSegment(socket, segment, strlen(payload));
 	}
 }
 

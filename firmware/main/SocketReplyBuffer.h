@@ -27,72 +27,67 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
+#ifndef SocketReplyBuffer_h
+#define SocketReplyBuffer_h
+
 /**
-	@file
-	@brief Declaration of CrossbarSCPIServer
+	@brief Character device for conveniently outputting formatted ASCII text content of arbitrary length to a socket
+
+	New TCP segments are created and sent as needed as data is written.
+
+	The final segment (if any) is flushed when the buffer goes out of scope.
  */
-#ifndef CrossbarSCPIServer_h
-#define CrossbarSCPIServer_h
-
-#include "SCPIServer.h"
-
-class CrossbarSCPIConnectionState
+class SocketReplyBuffer : public CharacterDevice
 {
 public:
-	CrossbarSCPIConnectionState()
-	{ Clear(); }
 
-	///@brief Clears connection state
-	void Clear()
+	//Create the reply buffer
+	SocketReplyBuffer(TCPProtocol& tcp, TCPTableEntry* socket)
+		: m_tcp(tcp)
+		, m_socket(socket)
+		, m_segment(m_tcp.GetTxSegment(socket))
+		, m_buf(reinterpret_cast<char*>(m_segment->Payload()), TCP_IPV4_PAYLOAD_MTU)
 	{
-		m_valid = false;
-		m_socket = nullptr;
-		m_rxBuffer.Reset();
 	}
 
-	///@brief True if the connection is valid
-	bool	m_valid;
+	virtual ~SocketReplyBuffer()
+	{
+		//If we have anything to send, send it
+		if(m_buf.length())
+			m_tcp.SendTxSegment(m_socket, m_segment, m_buf.length());
 
-	///@brief Socket state handle
-	TCPTableEntry* m_socket;
+		//Nope, discard the unsent segment
+		else
+			m_tcp.CancelTxSegment(m_segment);
+	}
 
-	///@brief Packet reassembly buffer (may span multiple TCP segments)
-	CircularFIFO<SCPI_RX_BUFFER_SIZE> m_rxBuffer;
-};
+	virtual void PrintBinary(char ch) override
+	{
+		//Write the byte
+		m_buf.PrintBinary(ch);
 
-/**
-	@brief SCPI server for the crossbar
- */
-class CrossbarSCPIServer : public SCPIServer<MAX_SCPI_CONNS, CrossbarSCPIConnectionState>
-{
-public:
-	CrossbarSCPIServer(TCPProtocol& tcp);
-	virtual ~CrossbarSCPIServer();
-
-	virtual void OnConnectionAccepted(TCPTableEntry* socket);
-	virtual void OnConnectionClosed(TCPTableEntry* socket);
-	virtual void GracefulDisconnect(int id, TCPTableEntry* socket);
+		//See if we have to send and make a new segment
+		if( (m_buf.length() + 1) >= TCP_IPV4_PAYLOAD_MTU)
+		{
+			m_tcp.SendTxSegment(m_socket, m_segment, m_buf.length());
+			m_segment = m_tcp.GetTxSegment(m_socket);
+			m_buf = StringBuffer(reinterpret_cast<char*>(m_segment->Payload()), TCP_IPV4_PAYLOAD_MTU);
+		}
+	}
 
 protected:
-	virtual void OnCommand(char* line, TCPTableEntry* socket) override;
 
-	void DoQuery(const char* subject, const char* command, TCPTableEntry* socket);
-	void DoCommand(const char* subject, const char* command, const char* args);
+	///@brief TCP protocol stack we're using
+	TCPProtocol& m_tcp;
 
-	int GetChannelID(const char* name);
+	///@brief Socket we're replying to
+	TCPTableEntry* m_socket;
 
-	void UpdateTxLane(int lane);
+	///@brief The current (not yet sent) TCP segment
+	TCPSegment* m_segment;
 
-	uint16_t SerdesDRPRead(uint8_t lane, uint16_t regid);
-	void SerdesDRPWrite(uint8_t lane, uint16_t regid, uint16_t regval);
-
-	void PrepareForEyeScan(uint8_t chan);
-	void StartEyeBERMeasurement(uint8_t chan, int prescale, int xoff, int yoff);
-	float DoEyeBERMeasurement(uint8_t chan, int prescaleMax, int xoff, int yoff);
-
-	void SerdesPMAReset(uint8_t lane);
-
-	void PrintFloat(CharacterDevice& buf, float f);
+	///@brief String buffer for our current segment
+	StringBuffer m_buf;
 };
 
 #endif
