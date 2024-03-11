@@ -68,11 +68,17 @@ public:
 
 		//See if we have to send and make a new segment
 		if( (m_buf.length() + 1) >= TCP_IPV4_PAYLOAD_MTU)
-		{
-			m_tcp.SendTxSegment(m_socket, m_segment, m_buf.length());
-			m_segment = m_tcp.GetTxSegment(m_socket);
-			m_buf = StringBuffer(reinterpret_cast<char*>(m_segment->Payload()), TCP_IPV4_PAYLOAD_MTU);
-		}
+			Flush();
+	}
+
+	void Flush()
+	{
+		if(m_buf.length() == 0)
+			return;
+
+		m_tcp.SendTxSegment(m_socket, m_segment, m_buf.length());
+		m_segment = m_tcp.GetTxSegment(m_socket);
+		m_buf = StringBuffer(reinterpret_cast<char*>(m_segment->Payload()), TCP_IPV4_PAYLOAD_MTU);
 	}
 
 protected:

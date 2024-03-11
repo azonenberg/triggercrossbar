@@ -69,6 +69,8 @@
 		[chan]:EYESCAN?
 
 		[chan]:HBATHTUB?
+
+		[chan]:PRESCALE?
  */
 #include "triggercrossbar.h"
 #include <ctype.h>
@@ -98,6 +100,15 @@ bool g_bertTxEnable[2] = {false, false};
 
 ///@brief Transmit sub-rate control
 uint8_t g_bertTxClkDiv[2] = {1, 1};
+
+///@brief Receive eye scan prescaler
+uint8_t g_bertRxPrescale[2] = {5, 5};
+
+///@brief Mux selectors
+uint8_t g_muxsel[12] = {0};
+
+//Bidir port directions
+bool g_bidirOut[4] = {0};
 
 ///Names of PRBS patterns
 static const char* g_patternNames[8] =
@@ -279,6 +290,7 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		int chan = GetChannelID(subject);
 		int muxsel = atoi(args);
 
+		g_muxsel[chan] = muxsel;
 		g_fpga->BlockingWrite8(REG_MUXSEL_BASE + chan, muxsel);
 	}
 
@@ -293,15 +305,40 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		int chan = GetChannelID(subject);
 		if( (chan < 8) || (chan > 11) )
 			return;
+		chan -= 8;
 
 		if(!strcmp(args, "IN"))
-			g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x8000 | (chan - 8));
+		{
+			g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x8000 | chan);
+			g_bidirOut[chan] = false;
+		}
 		else
-			g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x0000 | (chan - 8));
+		{
+			g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x0000 | chan);
+			g_bidirOut[chan] = true;
+		}
 
 		//Poll until not busy
 		while(g_fpga->BlockingRead16(REG_RELAY_STAT) != 0)
 		{}
+	}
+
+	//RX prescaler
+	else if(!strcmp(command, "PRESCALE"))
+	{
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		//need valid channel ID (BERT port)
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'R')
+			return;
+
+		//Set prescaler
+		g_bertRxPrescale[chan] = atoi(args) & 0x1f;
 	}
 
 	//Output amplitude
@@ -684,8 +721,7 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 			//Sweep horizontal offset
 			for(int16_t xoff = -32; xoff <= 32; xoff ++)
 			{
-				//auto ber = DoEyeBERMeasurement(chan, 6, xoff, yoff);
-				auto ber = DoEyeBERMeasurement(chan, 5, xoff, yoff);
+				auto ber = DoEyeBERMeasurement(chan, g_bertRxPrescale[chan], xoff, yoff);
 				PrintFloat(buf, ber);
 				buf.Printf(",");
 			}
@@ -724,12 +760,60 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		//Sweep horizontal offset
 		for(int16_t xoff = -32; xoff <= 32; xoff ++)
 		{
-			auto ber = DoEyeBERMeasurement(chan, 7, xoff, 0);
+			auto ber = DoEyeBERMeasurement(chan, g_bertRxPrescale[chan], xoff, 0);
 			PrintFloat(buf, ber);
 			buf.Printf(",");
 			buf.Flush();
 		}
 		buf.Printf("\n");
+	}
+
+	//Mux selector
+	else if(!strcmp(command, "MUX"))
+	{
+		//need valid channel ID
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan >= 12) )
+			return;
+
+		SocketReplyBuffer buf(m_tcp, socket);
+		buf.Printf("%d\n", g_muxsel[chan]);
+	}
+
+	//Bidir port direction
+	else if(!strcmp(command, "DIR"))
+	{
+		//need valid channel ID
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 8) || (chan >= 12) )
+			return;
+
+		SocketReplyBuffer buf(m_tcp, socket);
+		if(g_bidirOut[chan-8])
+			buf.Printf("OUT\n");
+		else
+			buf.Printf("IN\n");
+	}
+
+
+	//ES_PRESCALE register
+	else if(!strcmp(command, "PRESCALE"))
+	{
+		//need valid channel ID (BERT port)
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'R')
+			return;
+
+		SocketReplyBuffer buf(m_tcp, socket);
+		buf.Printf("%d\n", g_bertRxPrescale[chan]);
 	}
 
 	//Output amplitude

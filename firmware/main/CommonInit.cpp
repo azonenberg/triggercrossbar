@@ -130,6 +130,11 @@ void InitFPGA()
 
 		break;
 	}
+
+	//Set all bidir ports to input so we know what state they're in
+	g_log("Setting all relays to input mode\n");
+	for(int chan=0; chan<4; chan++)
+		g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x8000 | chan);
 }
 
 /**
