@@ -222,7 +222,6 @@ module BERTSubsystem(
 		.gt0_drpwe_in(lane0_drp_we),
 
 		//Tie off unused ports
-		.gt0_dmonitorout_out(),
 		.gt0_eyescanreset_in(1'b0),
 		.gt0_eyescandataerror_out(),
 		.gt0_eyescantrigger_in(1'b0),
@@ -283,12 +282,12 @@ module BERTSubsystem(
 		.gt0_txpostcursor_in(tx0_config_sync.postcursor),
 
 		//Clock to/from CPLL
-		/*.gt0_cpllfbclklost_out(),
-		.gt0_cplllock_out(cpll_lock[0]),
-		.gt0_cplllockdetclk_in(clk_125mhz),
-		.gt0_cpllreset_in(1'b0),
-		.gt0_gtrefclk0_in(serdes_refclk_156m25),
-		.gt0_gtrefclk1_in(serdes_refclk_200m),*/
+		//.gt0_cpllfbclklost_out(),
+		//.gt0_cplllock_out(cpll_lock[0]),
+		//.gt0_cplllockdetclk_in(clk_125mhz),
+		//.gt0_cpllreset_in(1'b0),
+		//.gt0_gtrefclk0_in(serdes_refclk_156m25),
+		//.gt0_gtrefclk1_in(serdes_refclk_200m),
 
 		//Clock from QPLL
 		.gt0_qplllock_in(qpll_lock),
@@ -315,6 +314,7 @@ module BERTSubsystem(
 
 	wire		lane1_ratedone;
 
+	/*
 	gtx_frontlane1 lane1_transceiver(
 		.sysclk_in(clk_125mhz),
 
@@ -396,12 +396,12 @@ module BERTSubsystem(
 		.gt0_txpostcursor_in(tx1_config_sync.postcursor),
 
 		//Clock to/from CPLL
-		/*.gt0_cpllfbclklost_out(),
-		.gt0_cplllock_out(cpll_lock[1]),
-		.gt0_cplllockdetclk_in(clk_125mhz),
-		.gt0_cpllreset_in(1'b0),
-		.gt0_gtrefclk0_in(serdes_refclk_156m25),
-		.gt0_gtrefclk1_in(serdes_refclk_200m),*/
+		//.gt0_cpllfbclklost_out(),
+		//.gt0_cplllock_out(cpll_lock[1]),
+		//.gt0_cplllockdetclk_in(clk_125mhz),
+		//.gt0_cpllreset_in(1'b0),
+		//.gt0_gtrefclk0_in(serdes_refclk_156m25),
+		//.gt0_gtrefclk1_in(serdes_refclk_200m),
 
 		//Clock from QPLL
 		.gt0_qplllock_in(qpll_lock),
@@ -410,8 +410,99 @@ module BERTSubsystem(
 		.gt0_qplloutclk_in(qpll_clkout_10g3125),
 		.gt0_qplloutrefclk_in(qpll_refclk)
 		);
-
+	*/
 	assign cpll_lock[1] = 0;
+
+	GTXWrapper lane1_transceiver(
+		.sysclk_in(clk_125mhz),
+
+		//TODO: do we need any of this
+		.soft_reset_tx_in(1'b0),
+		.soft_reset_rx_in(1'b0),
+		.dont_reset_on_data_error_in(1'b0),
+		.tx_fsm_reset_done_out(),
+		.rx_fsm_reset_done_out(),
+
+		//Register access
+		.drpclk_in(clk_125mhz),
+		.drpaddr_in(lane1_drp_addr),
+		.drpdi_in(lane1_drp_di),
+		.drpdo_out(lane1_drp_do),
+		.drpen_in(lane1_drp_en),
+		.drprdy_out(lane1_drp_rdy),
+		.drpwe_in(lane1_drp_we),
+
+		//Tie off unused ports
+		.eyescanreset_in(1'b0),
+		.eyescandataerror_out(),
+		.eyescantrigger_in(1'b0),
+		//.rxphmonitor_out(),
+		//.rxphslipmonitor_out(),
+		.rxmonitorout_out(),
+		.rxmonitorsel_in(2'b0),
+
+		//Subsystem resets
+		.rxpmareset_in(rx1_config.pmareset),
+		.rxresetdone_out(rx1_rxreset_done),
+
+		//Transmit interface
+		.txusrclk_in(lane1_txclk),
+		.txusrclk2_in(lane1_txclk),
+		.data_valid_in(1'b1),
+		.txdata_in(32'h5555aaaa),
+		.txoutclk_out(lane1_txclk_raw),
+		.txoutclkfabric_out(),
+		.txoutclkpcs_out(),
+		.txresetdone_out(),
+
+		//Fabric RX interface
+		.rxusrclk_in(lane1_rxclk),
+		.rxusrclk2_in(lane1_rxclk),
+		.rxdata_out(lane1_rx_data),
+		.rxoutclk_out(lane1_rxclk_raw),
+		.rxoutclkfabric_out(),
+
+		//Output pattern selection
+		.txprbssel_in(tx1_config_sync.prbsmode),
+
+		//Input PRBS detector
+		.rxprbssel_in(rx1_config_sync.prbsmode),
+		.rxprbserr_out(lane1_prbs_err),
+
+		//Top level diff pairs
+		.gtxtxn_out(tx1_p),
+		.gtxtxp_out(tx1_n),
+		.gtxrxn_in(rx1_p),
+		.gtxrxp_in(rx1_n),
+
+		//Input buffer config
+		.rxpolarity_in(rx1_config_sync.invert),
+
+		//TX clock configuration
+		.txrate_in(tx1_config_sync.clkdiv),
+		.txratedone_out(lane1_ratedone),
+
+		//Output swing control and equalizer taps
+		.txinhibit_in(!tx1_config_sync.enable),
+		.txpolarity_in(tx1_config_sync.invert),
+		.txdiffctrl_in(tx1_config_sync.swing),
+		.txprecursor_in(tx1_config_sync.precursor),
+		.txpostcursor_in(tx1_config_sync.postcursor),
+
+		//Clock to/from CPLL
+		//.cpllfbclklost_out(),
+		//.cplllock_out(cpll_lock[1]),
+		//.cplllockdetclk_in(clk_125mhz),
+		//.cpllreset_in(1'b0),
+		//.gtrefclk0_in(serdes_refclk_156m25),
+		//.gtrefclk1_in(serdes_refclk_200m),
+
+		//Clock from QPLL
+		.qplllock_in(qpll_lock),
+		.qpllrefclklost_in(qpll_refclk_lost),
+		.qplloutclk_in(qpll_clkout_10g3125),
+		.qplloutrefclk_in(qpll_refclk)
+		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// DRP arbitration and clock domain shifting
