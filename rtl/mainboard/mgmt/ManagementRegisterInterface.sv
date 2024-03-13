@@ -284,6 +284,8 @@ module ManagementRegisterInterface(
 		REG_BERT_LANE0_CLK	= 16'h008c,		//2:0 = TX clock divider
 		REG_BERT_LANE0_RST	= 16'h008e,		//0 = RX PMA reset
 
+		REG_BERT_LANE0_RX	= 16'h0090,		//0 = invert
+
 		REG_BERT_LANE1_PRBS = 16'h00a0,		//same as LANE0
 		REG_BERT_LANE1_TX	= 16'h00a2,
 		REG_BERT_LANE1_TX_1 = 16'h00a3,
@@ -295,7 +297,8 @@ module ManagementRegisterInterface(
 		REG_BERT_LANE1_RD_1	= 16'h00a9,
 		REG_BERT_LANE1_STAT	= 16'h00aa,
 		REG_BERT_LANE1_CLK	= 16'h00ac,
-		REG_BERT_LANE1_RST	= 16'h00ae,		//0 = RX PMA reset
+		REG_BERT_LANE1_RST	= 16'h00ae,
+		REG_BERT_LANE1_RX	= 16'h00b0,
 
 		//Mux selectors
 		REG_MUXSEL_BASE		= 16'h00f0,		//3:0 = mux selector
@@ -613,6 +616,10 @@ module ManagementRegisterInterface(
 						rx0_config.pmareset			<= wr_data[0];
 					end
 
+					REG_BERT_LANE0_RX: begin
+						rx0_config.invert			<= wr_data[0];
+					end
+
 					REG_BERT_LANE1_PRBS: begin
 						serdes_config_updated		<= 1;
 						rx1_config.prbsmode			<= wr_data[2:0];
@@ -649,6 +656,10 @@ module ManagementRegisterInterface(
 						rx1_config.pmareset			<= wr_data[0];
 					end
 
+					REG_BERT_LANE1_RX: begin
+						rx1_config.invert			<= wr_data[0];
+					end
+
 					REG_EMAC_COMMIT:	txfifo_wr_commit <= 1;
 
 				endcase
@@ -658,22 +669,5 @@ module ManagementRegisterInterface(
 		end
 
 	end
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Debug ILA
-
-	ila_0 ila(
-		.clk(clk),
-		.probe0(mgmt_we),
-		.probe1(mgmt_lane1_en),
-		.probe2(mgmt_addr),
-		.probe3(mgmt_wdata),
-		.probe4(mgmt_lane1_rdata),
-		.probe5(wr_en),
-		.probe6(rd_en),
-		.probe7(wr_addr),
-		.probe8(wr_data),
-		.probe9(rd_data)
-	);
 
 endmodule

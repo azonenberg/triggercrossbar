@@ -452,19 +452,4 @@ module BERTSubsystem(
 		.drp_rdy(lane1_drp_rdy)
 		);
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Debug ILAs
-
-	ila_1 lane1_ila(
-		.clk(clk_125mhz),
-		.probe0(lane1_drp_en),
-		.probe1(lane1_drp_we),
-		.probe2(lane1_drp_addr),
-		.probe3(lane1_drp_di),
-		.probe4(lane1_drp_do),
-		.probe5(lane1_drp_rdy),
-		.probe6(rx1_config.pmareset),
-		.probe7(rx1_rxreset_done)
-		);
-
 endmodule
