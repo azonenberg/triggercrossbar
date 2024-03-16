@@ -202,99 +202,95 @@ module BERTSubsystem(
 
 	wire		lane0_ratedone;
 
-	gtx_frontlane0 lane0_transceiver(
+	GTXWrapper lane0_transceiver(
 		.sysclk_in(clk_125mhz),
 
 		//TODO: do we need any of this
 		.soft_reset_tx_in(1'b0),
 		.soft_reset_rx_in(1'b0),
 		.dont_reset_on_data_error_in(1'b0),
-		.gt0_tx_fsm_reset_done_out(),
-		.gt0_rx_fsm_reset_done_out(),
+		.tx_fsm_reset_done_out(),
+		.rx_fsm_reset_done_out(),
 
 		//Register access
-		.gt0_drpclk_in(clk_125mhz),
-		.gt0_drpaddr_in(lane0_drp_addr),
-		.gt0_drpdi_in(lane0_drp_di),
-		.gt0_drpdo_out(lane0_drp_do),
-		.gt0_drpen_in(lane0_drp_en),
-		.gt0_drprdy_out(lane0_drp_rdy),
-		.gt0_drpwe_in(lane0_drp_we),
+		.drpclk_in(clk_125mhz),
+		.drpaddr_in(lane0_drp_addr),
+		.drpdi_in(lane0_drp_di),
+		.drpdo_out(lane0_drp_do),
+		.drpen_in(lane0_drp_en),
+		.drprdy_out(lane0_drp_rdy),
+		.drpwe_in(lane0_drp_we),
 
 		//Tie off unused ports
-		.gt0_eyescanreset_in(1'b0),
-		.gt0_eyescandataerror_out(),
-		.gt0_eyescantrigger_in(1'b0),
-		//.gt0_rxphmonitor_out(),
-		//.gt0_rxphslipmonitor_out(),
-		.gt0_rxmonitorout_out(),
-		.gt0_rxmonitorsel_in(2'b0),
-		.gt0_gtrxreset_in(1'b0),
-		.gt0_gttxreset_in(1'b0),
+		.eyescanreset_in(1'b0),
+		.eyescandataerror_out(),
+		.eyescantrigger_in(1'b0),
+		//.rxphmonitor_out(),
+		//.rxphslipmonitor_out(),
+		.rxmonitorout_out(),
+		.rxmonitorsel_in(2'b0),
 
 		//Subsystem resets
-		.gt0_rxpmareset_in(rx0_config.pmareset),
-		.gt0_rxresetdone_out(rx0_rxreset_done),
+		.rxpmareset_in(rx0_config.pmareset),
+		.rxresetdone_out(rx0_rxreset_done),
 
 		//Transmit interface
-		.gt0_txuserrdy_in(pll_rgmii_lock),
-		.gt0_txusrclk_in(lane0_txclk),
-		.gt0_txusrclk2_in(lane0_txclk),
-		.gt0_data_valid_in(1'b1),
-		.gt0_txdata_in(32'h5555aaaa),
-		.gt0_txoutclk_out(lane0_txclk_raw),
-		.gt0_txoutclkfabric_out(),
-		.gt0_txoutclkpcs_out(),
-		.gt0_txresetdone_out(),
+		.txusrclk_in(lane0_txclk),
+		.txusrclk2_in(lane0_txclk),
+		.data_valid_in(1'b1),
+		.txdata_in(32'h5555aaaa),
+		.txoutclk_out(lane0_txclk_raw),
+		.txoutclkfabric_out(),
+		.txoutclkpcs_out(),
+		.txresetdone_out(),
 
 		//Fabric RX interface
-		.gt0_rxusrclk_in(lane0_rxclk),
-		.gt0_rxusrclk2_in(lane0_rxclk),
-		.gt0_rxdata_out(lane0_rx_data),
-		.gt0_rxoutclk_out(lane0_rxclk_raw),
-		.gt0_rxoutclkfabric_out(),
+		.rxusrclk_in(lane0_rxclk),
+		.rxusrclk2_in(lane0_rxclk),
+		.rxdata_out(lane0_rx_data),
+		.rxoutclk_out(lane0_rxclk_raw),
+		.rxoutclkfabric_out(),
 
 		//Output pattern selection
-		.gt0_txprbssel_in(tx0_config_sync.prbsmode),
+		.txprbssel_in(tx0_config_sync.prbsmode),
 
 		//Input PRBS detector
-		.gt0_rxprbssel_in(rx0_config_sync.prbsmode),
-		.gt0_rxprbserr_out(lane0_prbs_err),
+		.rxprbssel_in(rx0_config_sync.prbsmode),
+		.rxprbserr_out(lane0_prbs_err),
 
 		//Top level diff pairs
-		.gt0_gtxtxn_out(tx0_p),
-		.gt0_gtxtxp_out(tx0_n),
-		.gt0_gtxrxn_in(rx0_p),
-		.gt0_gtxrxp_in(rx0_n),
+		.gtxtxn_out(tx0_p),
+		.gtxtxp_out(tx0_n),
+		.gtxrxn_in(rx0_p),
+		.gtxrxp_in(rx0_n),
 
 		//Input buffer config
-		.gt0_rxpolarity_in(rx0_config_sync.invert),
+		.rxpolarity_in(rx0_config_sync.invert),
 
 		//TX clock configuration
-		.gt0_txrate_in(tx0_config_sync.clkdiv),
-		.gt0_txratedone_out(lane0_ratedone),
+		.txrate_in(tx0_config_sync.clkdiv),
+		.txratedone_out(lane0_ratedone),
 
 		//Output swing control and equalizer taps
-		.gt0_txinhibit_in(!tx0_config_sync.enable),
-		.gt0_txpolarity_in(tx0_config_sync.invert),
-		.gt0_txdiffctrl_in(tx0_config_sync.swing),
-		.gt0_txprecursor_in(tx0_config_sync.precursor),
-		.gt0_txpostcursor_in(tx0_config_sync.postcursor),
+		.txinhibit_in(!tx0_config_sync.enable),
+		.txpolarity_in(tx0_config_sync.invert),
+		.txdiffctrl_in(tx0_config_sync.swing),
+		.txprecursor_in(tx0_config_sync.precursor),
+		.txpostcursor_in(tx0_config_sync.postcursor),
 
 		//Clock to/from CPLL
-		//.gt0_cpllfbclklost_out(),
-		//.gt0_cplllock_out(cpll_lock[0]),
-		//.gt0_cplllockdetclk_in(clk_125mhz),
-		//.gt0_cpllreset_in(1'b0),
-		//.gt0_gtrefclk0_in(serdes_refclk_156m25),
-		//.gt0_gtrefclk1_in(serdes_refclk_200m),
+		//.cpllfbclklost_out(),
+		//.cplllock_out(cpll_lock[0]),
+		//.cplllockdetclk_in(clk_125mhz),
+		//.cpllreset_in(1'b0),
+		//.gtrefclk0_in(serdes_refclk_156m25),
+		//.gtrefclk1_in(serdes_refclk_200m),
 
 		//Clock from QPLL
-		.gt0_qplllock_in(qpll_lock),
-		.gt0_qpllrefclklost_in(qpll_refclk_lost),
-		.gt0_qpllreset_out(),
-		.gt0_qplloutclk_in(qpll_clkout_10g3125),
-		.gt0_qplloutrefclk_in(qpll_refclk)
+		.qplllock_in(qpll_lock),
+		.qpllrefclklost_in(qpll_refclk_lost),
+		.qplloutclk_in(qpll_clkout_10g3125),
+		.qplloutrefclk_in(qpll_refclk)
 		);
 
 	assign cpll_lock[0] = 0;
@@ -314,103 +310,6 @@ module BERTSubsystem(
 
 	wire		lane1_ratedone;
 
-	/*
-	gtx_frontlane1 lane1_transceiver(
-		.sysclk_in(clk_125mhz),
-
-		//TODO: do we need any of this
-		.soft_reset_tx_in(1'b0),
-		.soft_reset_rx_in(1'b0),
-		.dont_reset_on_data_error_in(1'b0),
-		.gt0_tx_fsm_reset_done_out(),
-		.gt0_rx_fsm_reset_done_out(),
-
-		//Register access
-		.gt0_drpclk_in(clk_125mhz),
-		.gt0_drpaddr_in(lane1_drp_addr),
-		.gt0_drpdi_in(lane1_drp_di),
-		.gt0_drpdo_out(lane1_drp_do),
-		.gt0_drpen_in(lane1_drp_en),
-		.gt0_drprdy_out(lane1_drp_rdy),
-		.gt0_drpwe_in(lane1_drp_we),
-
-		//Tie off unused ports
-		.gt0_dmonitorout_out(),
-		.gt0_eyescanreset_in(1'b0),
-		.gt0_eyescandataerror_out(),
-		.gt0_eyescantrigger_in(1'b0),
-		//.gt0_rxphmonitor_out(),
-		//.gt0_rxphslipmonitor_out(),
-		.gt0_rxmonitorout_out(),
-		.gt0_rxmonitorsel_in(2'b0),
-		.gt0_gtrxreset_in(1'b0),
-		.gt0_gttxreset_in(1'b0),
-
-		//Subsystem resets
-		.gt0_rxpmareset_in(rx1_config.pmareset),
-		.gt0_rxresetdone_out(rx1_rxreset_done),
-
-		//Transmit interface
-		.gt0_txuserrdy_in(pll_rgmii_lock),
-		.gt0_txusrclk_in(lane1_txclk),
-		.gt0_txusrclk2_in(lane1_txclk),
-		.gt0_data_valid_in(1'b1),
-		.gt0_txdata_in(32'h5555aaaa),
-		.gt0_txoutclk_out(lane1_txclk_raw),
-		.gt0_txoutclkfabric_out(),
-		.gt0_txoutclkpcs_out(),
-		.gt0_txresetdone_out(),
-
-		//Fabric RX interface
-		.gt0_rxusrclk_in(lane1_rxclk),
-		.gt0_rxusrclk2_in(lane1_rxclk),
-		.gt0_rxdata_out(lane1_rx_data),
-		.gt0_rxoutclk_out(lane1_rxclk_raw),
-		.gt0_rxoutclkfabric_out(),
-
-		//Output pattern selection
-		.gt0_txprbssel_in(tx1_config_sync.prbsmode),
-
-		//Input PRBS detector
-		.gt0_rxprbssel_in(rx1_config_sync.prbsmode),
-		.gt0_rxprbserr_out(lane1_prbs_err),
-
-		//Top level diff pairs
-		.gt0_gtxtxn_out(tx1_p),
-		.gt0_gtxtxp_out(tx1_n),
-		.gt0_gtxrxn_in(rx1_p),
-		.gt0_gtxrxp_in(rx1_n),
-
-		//Input buffer config
-		.gt0_rxpolarity_in(rx1_config_sync.invert),
-
-		//TX clock configuration
-		.gt0_txrate_in(tx1_config_sync.clkdiv),
-		.gt0_txratedone_out(lane1_ratedone),
-
-		//Output swing control and equalizer taps
-		.gt0_txinhibit_in(!tx1_config_sync.enable),
-		.gt0_txpolarity_in(tx1_config_sync.invert),
-		.gt0_txdiffctrl_in(tx1_config_sync.swing),
-		.gt0_txprecursor_in(tx1_config_sync.precursor),
-		.gt0_txpostcursor_in(tx1_config_sync.postcursor),
-
-		//Clock to/from CPLL
-		//.gt0_cpllfbclklost_out(),
-		//.gt0_cplllock_out(cpll_lock[1]),
-		//.gt0_cplllockdetclk_in(clk_125mhz),
-		//.gt0_cpllreset_in(1'b0),
-		//.gt0_gtrefclk0_in(serdes_refclk_156m25),
-		//.gt0_gtrefclk1_in(serdes_refclk_200m),
-
-		//Clock from QPLL
-		.gt0_qplllock_in(qpll_lock),
-		.gt0_qpllrefclklost_in(qpll_refclk_lost),
-		.gt0_qpllreset_out(),
-		.gt0_qplloutclk_in(qpll_clkout_10g3125),
-		.gt0_qplloutrefclk_in(qpll_refclk)
-		);
-	*/
 	assign cpll_lock[1] = 0;
 
 	GTXWrapper lane1_transceiver(

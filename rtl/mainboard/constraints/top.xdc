@@ -193,8 +193,7 @@ set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_cl
 
 create_pblock pblock_crypt25519
 add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519]]
-resize_pblock [get_pblocks pblock_crypt25519] -add {SLICE_X24Y0:SLICE_X35Y49}
-resize_pblock [get_pblocks pblock_crypt25519] -add {CLOCKREGION_X1Y0:CLOCKREGION_X1Y1}
+resize_pblock [get_pblocks pblock_crypt25519] -add {CLOCKREGION_X0Y0:CLOCKREGION_X1Y0}
 set_property IS_SOFT FALSE [get_pblocks pblock_crypt25519]
 
 create_pblock pblock_port_xg0
@@ -253,16 +252,27 @@ resize_pblock [get_pblocks pblock_rx_mux] -add {RAMB36_X1Y20:RAMB36_X1Y29}
 set_property IS_SOFT FALSE [get_pblocks pblock_rx_mux]
 
 
-set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane0_transceiver/inst/gtx_frontlane0_i/gt0_gtx_frontlane0_i/gtxe2_i/TXOUTCLK]
-set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane1_transceiver/inst/gtx_frontlane1_i/gt0_gtx_frontlane1_i/gtxe2_i/RXOUTCLK]
-set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane1_transceiver/inst/gtx_frontlane1_i/gt0_gtx_frontlane1_i/gtxe2_i/TXOUTCLK]
-set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/inst/gtx_frontlane0_i/gt0_gtx_frontlane0_i/gtxe2_i/TXOUTCLK] -group [get_clocks clk_250mhz_raw]
-set_clock_groups -asynchronous -group [get_clocks bert/lane1_transceiver/inst/gtx_frontlane1_i/gt0_gtx_frontlane1_i/gtxe2_i/RXOUTCLK] -group [get_clocks clk_250mhz_raw]
-set_clock_groups -asynchronous -group [get_clocks bert/lane1_transceiver/inst/gtx_frontlane1_i/gt0_gtx_frontlane1_i/gtxe2_i/TXOUTCLK] -group [get_clocks clk_250mhz_raw]
 
-set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane0_transceiver/inst/gtx_frontlane0_i/gt0_gtx_frontlane0_i/gtxe2_i/RXOUTCLK]
-set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/inst/gtx_frontlane0_i/gt0_gtx_frontlane0_i/gtxe2_i/RXOUTCLK] -group [get_clocks clk_250mhz_raw]
-set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
-set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
-set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]
-connect_debug_port dbg_hub/clk [get_nets clk_125mhz]
+
+create_clock -period 3.103 -name bert/lane1_transceiver/lane1_rxclk_raw -waveform {0.000 1.552} [get_pins bert/lane1_transceiver/gtxchan/RXOUTCLK]
+create_clock -period 3.103 -name bert/lane1_transceiver/lane1_txclk_raw -waveform {0.000 1.552} [get_pins bert/lane1_transceiver/gtxchan/TXOUTCLK]
+set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks bert/lane1_transceiver/lane1_rxclk_raw]
+set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane1_transceiver/lane1_rxclk_raw]
+set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks bert/lane1_transceiver/lane1_txclk_raw]
+set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane1_transceiver/lane1_txclk_raw]
+set_clock_groups -asynchronous -group [get_clocks bert/lane1_transceiver/lane1_rxclk_raw] -group [get_clocks clk_125mhz_raw]
+set_clock_groups -asynchronous -group [get_clocks bert/lane1_transceiver/lane1_txclk_raw] -group [get_clocks clk_125mhz_raw]
+set_clock_groups -asynchronous -group [get_clocks bert/lane1_transceiver/lane1_rxclk_raw] -group [get_clocks clk_250mhz_raw]
+
+create_clock -period 3.103 -name bert/lane0_transceiver/lane0_rxclk_raw -waveform {0.000 1.552} [get_pins bert/lane0_transceiver/gtxchan/RXOUTCLK]
+create_clock -period 3.103 -name bert/lane0_transceiver/lane0_txclk_raw -waveform {0.000 1.552} [get_pins bert/lane0_transceiver/gtxchan/TXOUTCLK]
+set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks bert/lane0_transceiver/lane0_rxclk_raw]
+set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane0_transceiver/lane0_rxclk_raw]
+set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks bert/lane0_transceiver/lane0_txclk_raw]
+set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane0_transceiver/lane0_txclk_raw]
+set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/lane0_rxclk_raw] -group [get_clocks clk_125mhz_raw]
+set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/lane0_txclk_raw] -group [get_clocks clk_125mhz_raw]
+set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/lane0_rxclk_raw] -group [get_clocks clk_250mhz_raw]
+set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/lane0_txclk_raw] -group [get_clocks clk_250mhz_raw]
+
+

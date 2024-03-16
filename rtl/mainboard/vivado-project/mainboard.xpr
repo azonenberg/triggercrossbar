@@ -496,13 +496,6 @@
           <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
-      <File Path="$PGENDIR/sources_1/ip/gtx_frontlane1/gtx_frontlane1_gt.v">
-        <FileInfo>
-          <Attr Name="UsedIn" Val="synthesis"/>
-          <Attr Name="UsedIn" Val="implementation"/>
-          <Attr Name="UsedIn" Val="simulation"/>
-        </FileInfo>
-      </File>
       <Config>
         <Option Name="DesignMode" Val="RTL"/>
         <Option Name="TopModule" Val="top"/>
@@ -555,19 +548,6 @@
         <Option Name="TopAutoSet" Val="TRUE"/>
       </Config>
     </FileSet>
-    <FileSet Name="gtx_syncout_cdrtrig" Type="BlockSrcs" RelSrcDir="$PSRCDIR/gtx_syncout_cdrtrig" RelGenDir="$PGENDIR/gtx_syncout_cdrtrig">
-      <File Path="$PSRCDIR/sources_1/ip/gtx_syncout_cdrtrig/gtx_syncout_cdrtrig.xci">
-        <FileInfo>
-          <Attr Name="UsedIn" Val="synthesis"/>
-          <Attr Name="UsedIn" Val="implementation"/>
-          <Attr Name="UsedIn" Val="simulation"/>
-        </FileInfo>
-      </File>
-      <Config>
-        <Option Name="TopModule" Val="gtx_syncout_cdrtrig"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-      </Config>
-    </FileSet>
     <FileSet Name="vio_0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/vio_0" RelGenDir="$PGENDIR/vio_0">
       <File Path="$PSRCDIR/sources_1/ip/vio_0/vio_0.xci">
         <FileInfo>
@@ -617,22 +597,6 @@
       </File>
       <Config>
         <Option Name="TopModule" Val="gtx_frontlane1"/>
-        <Option Name="UseBlackboxStub" Val="1"/>
-        <Define Name="XILINX_7SERIES" Val="1"/>
-        <Define Name="XILINX_KINTEX7" Val="1"/>
-        <Define Name="XILINX_SPEEDGRADE" Val="2"/>
-      </Config>
-    </FileSet>
-    <FileSet Name="gtx_frontlane0" Type="BlockSrcs" RelSrcDir="$PSRCDIR/gtx_frontlane0" RelGenDir="$PGENDIR/gtx_frontlane0">
-      <File Path="$PSRCDIR/sources_1/ip/gtx_frontlane0/gtx_frontlane0.xci">
-        <FileInfo>
-          <Attr Name="UsedIn" Val="synthesis"/>
-          <Attr Name="UsedIn" Val="implementation"/>
-          <Attr Name="UsedIn" Val="simulation"/>
-        </FileInfo>
-      </File>
-      <Config>
-        <Option Name="TopModule" Val="gtx_frontlane0"/>
         <Option Name="UseBlackboxStub" Val="1"/>
         <Define Name="XILINX_7SERIES" Val="1"/>
         <Define Name="XILINX_KINTEX7" Val="1"/>
@@ -738,16 +702,6 @@
       <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
       <RQSFiles/>
     </Run>
-    <Run Id="gtx_syncout_cdrtrig_synth_1" Type="Ft3:Synth" SrcSet="gtx_syncout_cdrtrig" Part="xc7k70tfbg484-2" ConstrsSet="gtx_syncout_cdrtrig" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/gtx_syncout_cdrtrig_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/gtx_syncout_cdrtrig_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/gtx_syncout_cdrtrig_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2023"/>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2023"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
     <Run Id="vio_0_synth_1" Type="Ft3:Synth" SrcSet="vio_0" Part="xc7k70tfbg484-2" ConstrsSet="vio_0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/vio_0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/vio_0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/vio_0_synth_1">
       <Strategy Version="1" Minor="2">
         <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2023"/>
@@ -779,16 +733,6 @@
       <RQSFiles/>
     </Run>
     <Run Id="gtx_frontlane1_synth_1" Type="Ft3:Synth" SrcSet="gtx_frontlane1" Part="xc7k70tfbg484-2" ConstrsSet="gtx_frontlane1" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/gtx_frontlane1_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/gtx_frontlane1_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/gtx_frontlane1_synth_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2023"/>
-        <Step Id="synth_design"/>
-      </Strategy>
-      <GeneratedRun Dir="$PRUNDIR" File="gen_run.xml"/>
-      <ReportStrategy Name="Vivado Synthesis Default Reports" Flow="Vivado Synthesis 2023"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="gtx_frontlane0_synth_1" Type="Ft3:Synth" SrcSet="gtx_frontlane0" Part="xc7k70tfbg484-2" ConstrsSet="gtx_frontlane0" Description="Vivado Synthesis Defaults" AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" Dir="$PRUNDIR/gtx_frontlane0_synth_1" IncludeInArchive="true" IsChild="false" AutoIncrementalDir="$PSRCDIR/utils_1/imports/gtx_frontlane0_synth_1" AutoRQSDir="$PSRCDIR/utils_1/imports/gtx_frontlane0_synth_1">
       <Strategy Version="1" Minor="2">
         <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2023"/>
         <Step Id="synth_design"/>
@@ -862,23 +806,6 @@
       <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
       <RQSFiles/>
     </Run>
-    <Run Id="gtx_syncout_cdrtrig_impl_1" Type="Ft2:EntireDesign" Part="xc7k70tfbg484-2" ConstrsSet="gtx_syncout_cdrtrig" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="gtx_syncout_cdrtrig_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/gtx_syncout_cdrtrig_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/gtx_syncout_cdrtrig_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2023"/>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2023"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
     <Run Id="vio_0_impl_1" Type="Ft2:EntireDesign" Part="xc7k70tfbg484-2" ConstrsSet="vio_0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="vio_0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/vio_0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/vio_0_impl_1">
       <Strategy Version="1" Minor="2">
         <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2023"/>
@@ -931,23 +858,6 @@
       <RQSFiles/>
     </Run>
     <Run Id="gtx_frontlane1_impl_1" Type="Ft2:EntireDesign" Part="xc7k70tfbg484-2" ConstrsSet="gtx_frontlane1" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="gtx_frontlane1_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/gtx_frontlane1_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/gtx_frontlane1_impl_1">
-      <Strategy Version="1" Minor="2">
-        <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2023"/>
-        <Step Id="init_design"/>
-        <Step Id="opt_design"/>
-        <Step Id="power_opt_design"/>
-        <Step Id="place_design"/>
-        <Step Id="post_place_power_opt_design"/>
-        <Step Id="phys_opt_design"/>
-        <Step Id="route_design"/>
-        <Step Id="post_route_phys_opt_design"/>
-        <Step Id="write_bitstream"/>
-      </Strategy>
-      <ReportStrategy Name="Vivado Implementation Default Reports" Flow="Vivado Implementation 2023"/>
-      <Report Name="ROUTE_DESIGN.REPORT_METHODOLOGY" Enabled="1"/>
-      <RQSFiles/>
-    </Run>
-    <Run Id="gtx_frontlane0_impl_1" Type="Ft2:EntireDesign" Part="xc7k70tfbg484-2" ConstrsSet="gtx_frontlane0" Description="Default settings for Implementation." AutoIncrementalCheckpoint="false" WriteIncrSynthDcp="false" SynthRun="gtx_frontlane0_synth_1" IncludeInArchive="false" IsChild="false" GenFullBitstream="true" AutoIncrementalDir="$PSRCDIR/utils_1/imports/gtx_frontlane0_impl_1" AutoRQSDir="$PSRCDIR/utils_1/imports/gtx_frontlane0_impl_1">
       <Strategy Version="1" Minor="2">
         <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2023"/>
         <Step Id="init_design"/>

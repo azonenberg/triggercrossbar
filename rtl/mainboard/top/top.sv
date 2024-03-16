@@ -174,101 +174,108 @@ module top(
 	// TODO: Figure out what to do with this
 
 	//Dummy GTX clocking
-	wire	cdrtrig_rxclk;
-	wire	cdrtrig_rxclk_raw;
+	wire	cdrtrig_rx_clk;
+	wire	cdrtrig_rx_clk_raw;
 	wire	prbs_tx_clk;
 	wire	prbs_tx_clk_raw;
 
-	BUFG buf_cdrtrig_rxclk(
-		.I(cdrtrig_rxclk_raw),
-		.O(cdrtrig_rxclk));
+	BUFG buf_cdrtrig_rx_clk(
+		.I(cdrtrig_rx_clk_raw),
+		.O(cdrtrig_rx_clk));
 
 	BUFG buf_prbs_tx_clk(
 		.I(prbs_tx_clk_raw),
 		.O(prbs_tx_clk));
 
-	wire[3:0]	tx_swing;			//best results for 10gbase-R 'h05
-	wire[4:0]	tx_precursor;		//best results for 10gbase-R 'h07
-	wire[4:0]	tx_postcursor;		//best results for 10Gbase-R 'h08
-	wire[6:0]	tx_maincursor;		//best results for 10Gbase-R 'h00
-
-	assign tx_swing = 4'h05;
-	assign tx_precursor = 5'h07;
-	assign tx_postcursor = 5'h08;
-	assign tx_maincursor = 7'h0;
-
-	gtx_syncout_cdrtrig prbs_transceiver(
+	GTXWrapper prbs_transceiver(
 		.sysclk_in(clk_125mhz),
 
 		//TODO: do we need any of this
 		.soft_reset_tx_in(1'b0),
 		.soft_reset_rx_in(1'b0),
 		.dont_reset_on_data_error_in(1'b0),
-		.gt0_tx_fsm_reset_done_out(),
-		.gt0_rx_fsm_reset_done_out(),
+		.tx_fsm_reset_done_out(),
+		.rx_fsm_reset_done_out(),
+
+		//Register access
+		.drpclk_in(clk_125mhz),
+		.drpaddr_in(9'h0),
+		.drpdi_in(16'h0),
+		.drpdo_out(),
+		.drpen_in(1'b0),
+		.drprdy_out(),
+		.drpwe_in(1'b0),
 
 		//Tie off unused ports
-		.gt0_drpaddr_in(9'b0),
-		.gt0_drpclk_in(clk_125mhz),
-		.gt0_drpdi_in(16'b0),
-		.gt0_drpdo_out(),
-		.gt0_drpen_in(1'b0),
-		.gt0_drprdy_out(),
-		.gt0_drpwe_in(1'b0),
-		.gt0_dmonitorout_out(),
-		.gt0_eyescanreset_in(1'b0),
-		.gt0_eyescandataerror_out(),
-		.gt0_eyescantrigger_in(1'b0),
-		//.gt0_rxphmonitor_out(),
-		//.gt0_rxphslipmonitor_out(),
-		.gt0_rxmonitorout_out(),
-		.gt0_rxmonitorsel_in(2'b0),
-		.gt0_gtrxreset_in(1'b0),
-		.gt0_gttxreset_in(1'b0),
+		.eyescanreset_in(1'b0),
+		.eyescandataerror_out(),
+		.eyescantrigger_in(1'b0),
+		//.rxphmonitor_out(),
+		//.rxphslipmonitor_out(),
+		.rxmonitorout_out(),
+		.rxmonitorsel_in(2'b0),
+
+		//Subsystem resets
+		.rxpmareset_in(1'b0),
+		.rxresetdone_out(),
 
 		//Transmit interface
-		.gt0_txuserrdy_in(pll_rgmii_lock),
-		.gt0_txusrclk_in(prbs_tx_clk),
-		.gt0_txusrclk2_in(prbs_tx_clk),
-		.gt0_data_valid_in(1'b1),
-		.gt0_txdata_in(32'h00000000),
-		.gt0_txoutclk_out(prbs_tx_clk_raw),
-		.gt0_txoutclkfabric_out(),
-		.gt0_txoutclkpcs_out(),
-		.gt0_txresetdone_out(),
+		.txusrclk_in(prbs_tx_clk),
+		.txusrclk2_in(prbs_tx_clk),
+		.data_valid_in(1'b1),
+		.txdata_in(32'h5555aaaa),
+		.txoutclk_out(prbs_tx_clk_raw),
+		.txoutclkfabric_out(),
+		.txoutclkpcs_out(),
+		.txresetdone_out(),
 
 		//Fabric RX interface
-		.gt0_rxusrclk_in(cdrtrig_rxclk),
-		.gt0_rxusrclk2_in(cdrtrig_rxclk),
-		.gt0_rxdata_out(),
-		.gt0_rxoutclk_out(cdrtrig_rxclk_raw),
-		.gt0_rxoutclkfabric_out(),
-		.gt0_rxdatavalid_out(),
-		.gt0_rxheader_out(),
-		.gt0_rxheadervalid_out(),
-		.gt0_rxgearboxslip_in(1'b0),
+		.rxusrclk_in(cdrtrig_rx_clk),
+		.rxusrclk2_in(cdrtrig_rx_clk),
+		.rxdata_out(),
+		.rxoutclk_out(cdrtrig_rx_clk_raw),
+		.rxoutclkfabric_out(),
 
 		//Output pattern selection
-		.gt0_txprbssel_in(3'b010),	//PRBS-15
+		.txprbssel_in(3'b010),	//PRBS15
+
+		//Input PRBS detector
+		.rxprbssel_in(3'b010),
+		.rxprbserr_out(),
 
 		//Top level diff pairs
-		.gt0_gtxtxn_out(sync_p),
-		.gt0_gtxtxp_out(sync_n),
-		.gt0_gtxrxn_in(cdrtrig_p),
-		.gt0_gtxrxp_in(cdrtrig_n),
+		.gtxtxn_out(sync_p),
+		.gtxtxp_out(sync_n),
+		.gtxrxn_in(cdrtrig_p),
+		.gtxrxp_in(cdrtrig_n),
+
+		//Input buffer config
+		.rxpolarity_in(1'b0),
+
+		//TX clock configuration
+		.txrate_in(0),
+		.txratedone_out(),
 
 		//Output swing control and equalizer taps
-		.gt0_txdiffctrl_in(/*4'b0100*/tx_swing),	//543 mV p-p differential
-		.gt0_txprecursor_in(tx_precursor),
-		.gt0_txpostcursor_in(tx_postcursor),
-		.gt0_txmaincursor_in(tx_maincursor),
+		.txinhibit_in(1'b0),
+		.txpolarity_in(1'b0),
+		.txdiffctrl_in(4'h5),
+		.txprecursor_in(5'h7),
+		.txpostcursor_in(5'h8),
+
+		//Clock to/from CPLL
+		//.cpllfbclklost_out(),
+		//.cplllock_out(cpll_lock[0]),
+		//.cplllockdetclk_in(clk_125mhz),
+		//.cpllreset_in(1'b0),
+		//.gtrefclk0_in(serdes_refclk_156m25),
+		//.gtrefclk1_in(serdes_refclk_200m),
 
 		//Clock from QPLL
-		.gt0_qplllock_in(qpll_lock),
-		.gt0_qpllrefclklost_in(qpll_refclk_lost),
-		.gt0_qpllreset_out(),
-		.gt0_qplloutclk_in(qpll_clkout_10g3125),
-		.gt0_qplloutrefclk_in(qpll_refclk)
+		.qplllock_in(qpll_lock),
+		.qpllrefclklost_in(qpll_refclk_lost),
+		.qplloutclk_in(qpll_clkout_10g3125),
+		.qplloutrefclk_in(qpll_refclk)
 		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
