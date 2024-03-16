@@ -1,10 +1,37 @@
-`timescale 1ns / 1ps
+`timescale 1ns/1ps
 `default_nettype none
-module GTXWrapper #
-(
+/***********************************************************************************************************************
+*                                                                                                                      *
+* trigger-crossbar                                                                                                     *
+*                                                                                                                      *
+* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* All rights reserved.                                                                                                 *
+*                                                                                                                      *
+* Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
+* following conditions are met:                                                                                        *
+*                                                                                                                      *
+*    * Redistributions of source code must retain the above copyright notice, this list of conditions, and the         *
+*      following disclaimer.                                                                                           *
+*                                                                                                                      *
+*    * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the       *
+*      following disclaimer in the documentation and/or other materials provided with the distribution.                *
+*                                                                                                                      *
+*    * Neither the name of the author nor the names of any contributors may be used to endorse or promote products     *
+*      derived from this software without specific prior written permission.                                           *
+*                                                                                                                      *
+* THIS SOFTWARE IS PROVIDED BY THE AUTHORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED   *
+* TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL *
+* THE AUTHORS BE HELD LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES        *
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR       *
+* BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT *
+* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE       *
+* POSSIBILITY OF SUCH DAMAGE.                                                                                          *
+*                                                                                                                      *
+***********************************************************************************************************************/
+
+module GTXWrapper #(
 	parameter SYSCLK_PERIOD                    = 8	//sysclk_in period, in ns
-)
-(
+)(
 	input wire			sysclk_in,
 	input wire			soft_reset_tx_in,
 	input wire			soft_reset_rx_in,
@@ -70,30 +97,33 @@ module GTXWrapper #
 
 	output wire			cplllock_out,
 	input wire			cplllockdetclk_in,
-	input wire			cpllreset_in,
 	input wire			gtrefclk0_in,
-	input wire			gtrefclk1_in
+	input wire			gtrefclk1_in,
+
+	//Runtime clock source switching
+	input wire			rx_clk_from_qpll,
+	input wire			tx_clk_from_qpll
 );
 
-	//Typical CDRLOCK Time is 50,000UI, as per DS183
-	localparam RX_CDRLOCK_TIME      = 100000/10.3125;
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Internal resets etc
 
-	localparam integer   WAIT_TIME_CDRLOCK    = RX_CDRLOCK_TIME / SYSCLK_PERIOD;
+	wire				gtx_tx_reset;
+	wire				gtrxreset_t;
+	wire				gtx_tx_clk_ready;
+	wire				rxuserrdy_t;
 
-	wire           gttxreset_t;
-	wire           gtrxreset_t;
-	wire           txuserrdy_t;
-	wire           rxuserrdy_t;
+	wire				rxlpmlfhold_i;
+	wire				rxlpmhfhold_i;
 
-	wire           rxlpmlfhold_i;
-	wire           rxlpmhfhold_i;
+	wire				cpll_reset;
 
-	reg            rx_cdrlocked;
-	integer  rx_cdrlock_counter= 0;
-
-	//RX Datapath signals
-	wire    [63:0]  rxdata_raw;
+	//GTX has 64-bit bus, so we need to strip off the interesting stuff
+	wire[63:0] 			rxdata_raw;
 	assign rxdata_out = rxdata_raw[31:0];
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// The transceiver
 
 	GTXE2_CHANNEL #
 	(
@@ -446,7 +476,7 @@ module GTXWrapper #
 		.CPLLPD                         (1'b0),			//TODO bring up to top level
 		.CPLLREFCLKLOST                 (),
 		.CPLLREFCLKSEL                  (3'b001),
-		.CPLLRESET                      (cpllreset_in),
+		.CPLLRESET                      (cpll_reset),
 		.GTRSVD                         (16'b0000000000000000),
 		.PCSRSVDIN                      (16'b0000000000000000),
 		.PCSRSVDIN2                     (5'b00000),
@@ -459,8 +489,10 @@ module GTXWrapper #
 		.GTREFCLKMONITOR                (),
 		.QPLLCLK                        (qplloutclk_in),
 		.QPLLREFCLK                     (qplloutrefclk_in),
-		.RXSYSCLKSEL                    (2'b11),
-		.TXSYSCLKSEL                    (2'b11),
+
+		//PLL selection
+		.RXSYSCLKSEL                    ( {rx_clk_from_qpll, rx_clk_from_qpll} ),
+		.TXSYSCLKSEL                    ( {tx_clk_from_qpll, tx_clk_from_qpll} ),
 
 		//Magic reserved port
 		.CLKRSVD                        (4'h0),
@@ -481,10 +513,10 @@ module GTXWrapper #
 		.RXPMARESET                     (rxpmareset_in),
 		.RXRESETDONE                    (rxresetdone_out),
 		.CFGRESET                       (1'b0),
-		.GTTXRESET                      (gttxreset_t),
+		.GTTXRESET                      (gtx_tx_reset),
 		.PCSRSVDOUT                     (),
-		.TXUSERRDY                      (txuserrdy_t),
-		.GTRESETSEL                     (1'b0),
+		.TXUSERRDY                      (gtx_tx_clk_ready),
+		.GTRESETSEL                     (1'b0),			//sequential mode
 		.RESETOVRD                      (1'b0),
 		.TXPCSRESET                     (1'b0),
 		.TXPMARESET                     (1'b0),
@@ -690,39 +722,33 @@ module GTXWrapper #
 		.TXDETECTRX                     (1'b0)
 	);
 
-	gtx_frontlane1_TX_STARTUP_FSM #
-	(
-		.EXAMPLE_SIMULATION       (0),
-		.STABLE_CLOCK_PERIOD      (SYSCLK_PERIOD),         // Period of the stable clock driving this state-machine, unit is [ns]
-		.RETRY_COUNTER_BITWIDTH   (8),
-		.TX_QPLL_USED             ("TRUE"),                      // the TX and RX Reset FSMs must
-		.RX_QPLL_USED             ("TRUE"),                      // share these two generic values
-		.PHASE_ALIGNMENT_MANUAL   ("FALSE")              		 // Decision if a manual phase-alignment is necessary or the automatic
-																 // is enough. For single-lane applications the automatic alignment is
-																 // sufficient
-	)
-	txresetfsm_i
-	(
-		.STABLE_CLOCK                   (sysclk_in),
-		.TXUSERCLK                      (txusrclk_in),
-		.SOFT_RESET                     (soft_reset_tx_in),
-		.QPLLREFCLKLOST                 (qpllrefclklost_in),
-		.CPLLREFCLKLOST                 (1'b0),
-		.QPLLLOCK                       (qplllock_in),
-		.CPLLLOCK                       (1'b1),
-		.TXRESETDONE                    (txresetdone_out),
-		.MMCM_LOCK                      (1'b1),
-		.GTTXRESET                      (gttxreset_t),
-		.MMCM_RESET                     (),
-		.QPLL_RESET                     (),
-		.CPLL_RESET                     (),
-		.TX_FSM_RESET_DONE              (tx_fsm_reset_done_out),
-		.TXUSERRDY                      (txuserrdy_t),
-		.RUN_PHALIGNMENT                (),
-		.RESET_PHALIGNMENT              (),
-		.PHALIGNMENT_DONE               (1'b1),
-		.RETRY_COUNTER                  ()
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Reset controller
+
+	//TODO: consider the possibility of QPLL/CPLL losing reference
+	//For now, ignore that since we're not using external inputs for any of the clocks
+	GTXResetController #(
+		.SYSCLK_PERIOD(SYSCLK_PERIOD)
+	) reset_ctrl (
+		.sysclk(sysclk_in),
+
+		.tx_reset(soft_reset_tx_in),
+		.tx_clk_from_qpll(tx_clk_from_qpll),
+		.tx_reset_done(tx_fsm_reset_done_out),
+
+		.GTTXRESET(gtx_tx_reset),
+		.TXRESETDONE(txresetdone_out),
+		.CPLLLOCK(cplllock_out),
+		.CPLLRESET(cpll_reset),
+		.QPLLLOCK(qplllock_in),
+		.TXUSERRDY(gtx_tx_clk_ready)
 	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//Legacy state machine from IP wizard for the RX side
+
+	reg            rx_cdrlocked;
+	integer  rx_cdrlock_counter= 0;
 
 	gtx_frontlane1_RX_STARTUP_FSM  #
 	(
@@ -767,6 +793,10 @@ module GTXWrapper #
 		.RXLPMHFHOLD                    (rxlpmhfhold_i),
 		.RETRY_COUNTER                  ()
 	);
+
+	//Typical CDRLOCK Time is 50,000UI, as per DS183
+	localparam RX_CDRLOCK_TIME      = 100000/10.3125;
+	localparam integer   WAIT_TIME_CDRLOCK    = RX_CDRLOCK_TIME / SYSCLK_PERIOD;
 
 	always @(posedge sysclk_in) begin
 		if(gtrxreset_t) begin

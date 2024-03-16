@@ -53,6 +53,9 @@ typedef struct packed
 							//4 = div 8
 							//5 = div 16
 
+	logic		clk_from_qpll;
+	logic		tx_reset;
+
 	logic[3:0]	swing;		//GTX TXDIFFCTRL
 							//See table 3-30 of UG476, all values assume FFE taps at zero
 							//0 =  269 mV

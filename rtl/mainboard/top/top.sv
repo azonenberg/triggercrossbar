@@ -267,7 +267,6 @@ module top(
 		//.cpllfbclklost_out(),
 		//.cplllock_out(cpll_lock[0]),
 		//.cplllockdetclk_in(clk_125mhz),
-		//.cpllreset_in(1'b0),
 		//.gtrefclk0_in(serdes_refclk_156m25),
 		//.gtrefclk1_in(serdes_refclk_200m),
 
@@ -275,7 +274,10 @@ module top(
 		.qplllock_in(qpll_lock),
 		.qpllrefclklost_in(qpll_refclk_lost),
 		.qplloutclk_in(qpll_clkout_10g3125),
-		.qplloutrefclk_in(qpll_refclk)
+		.qplloutrefclk_in(qpll_refclk),
+
+		.rx_clk_from_qpll(1),
+		.tx_clk_from_qpll(1)
 		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -556,8 +558,10 @@ module top(
 	// Debug LEDs etc
 
 	always_comb begin
-		led[0]		= xg0_link_up;
-		led[1]		= mgmt0_link_up;
+		//led[0]		= xg0_link_up;
+		//led[1]		= mgmt0_link_up;
+		led[0]		= 0;
+		led[1]		= qpll_lock;
 		led[3:2]	= cpll_lock;
 	end
 

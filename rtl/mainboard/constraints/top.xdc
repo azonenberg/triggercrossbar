@@ -276,3 +276,10 @@ set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/lane0_r
 set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/lane0_txclk_raw] -group [get_clocks clk_250mhz_raw]
 
 
+
+create_clock -period 3.103 -name prbs_transceiver/cdrtrig_rx_clk_raw -waveform {0.000 1.552} [get_pins prbs_transceiver/gtxchan/RXOUTCLK]
+create_clock -period 3.103 -name prbs_transceiver/prbs_tx_clk_raw -waveform {0.000 1.552} [get_pins prbs_transceiver/gtxchan/TXOUTCLK]
+set_clock_groups -asynchronous -group [get_clocks prbs_transceiver/cdrtrig_rx_clk_raw] -group [get_clocks clk_125mhz_raw]
+set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks prbs_transceiver/cdrtrig_rx_clk_raw]
+
+set_clock_groups -asynchronous -group [get_clocks prbs_transceiver/prbs_tx_clk_raw] -group [get_clocks clk_125mhz_raw]

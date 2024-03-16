@@ -186,6 +186,20 @@ module BERTSubsystem(
 		.reset_b(1'b0),
 		.reg_b(tx1_config_sync));
 
+	wire	tx0_rst_sync;
+	wire	tx1_rst_sync;
+
+	ThreeStageSynchronizer sync_lane0_tx_reset(
+		.clk_in(clk_250mhz),
+		.din(tx0_config.tx_reset),
+		.clk_out(clk_125mhz),
+		.dout(tx0_rst_sync));
+
+	ThreeStageSynchronizer sync_lane1_tx_reset(
+		.clk_in(clk_250mhz),
+		.din(tx1_config.tx_reset),
+		.clk_out(clk_125mhz),
+		.dout(tx1_rst_sync));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Output PRBS generation on TX0 port
@@ -203,8 +217,8 @@ module BERTSubsystem(
 	GTXWrapper lane0_transceiver(
 		.sysclk_in(clk_125mhz),
 
-		//TODO: do we need any of this
-		.soft_reset_tx_in(1'b0),
+		//Resets
+		.soft_reset_tx_in(tx0_rst_sync),
 		.soft_reset_rx_in(1'b0),
 		.dont_reset_on_data_error_in(1'b0),
 		.tx_fsm_reset_done_out(),
@@ -281,7 +295,6 @@ module BERTSubsystem(
 		//Clock to/from CPLL
 		.cplllock_out(cpll_lock[0]),
 		.cplllockdetclk_in(clk_125mhz),
-		.cpllreset_in(1'b0),
 		.gtrefclk0_in(serdes_refclk_156m25),
 		.gtrefclk1_in(serdes_refclk_200m),
 
@@ -289,7 +302,10 @@ module BERTSubsystem(
 		.qplllock_in(qpll_lock),
 		.qpllrefclklost_in(qpll_refclk_lost),
 		.qplloutclk_in(qpll_clkout_10g3125),
-		.qplloutrefclk_in(qpll_refclk)
+		.qplloutrefclk_in(qpll_refclk),
+
+		.rx_clk_from_qpll(1),
+		.tx_clk_from_qpll(tx0_config_sync.clk_from_qpll)
 		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -308,8 +324,8 @@ module BERTSubsystem(
 	GTXWrapper lane1_transceiver(
 		.sysclk_in(clk_125mhz),
 
-		//TODO: do we need any of this
-		.soft_reset_tx_in(1'b0),
+		//Resets
+		.soft_reset_tx_in(tx1_rst_sync),
 		.soft_reset_rx_in(1'b0),
 		.dont_reset_on_data_error_in(1'b0),
 		.tx_fsm_reset_done_out(),
@@ -386,7 +402,6 @@ module BERTSubsystem(
 		//Clock to/from CPLL
 		.cplllock_out(cpll_lock[1]),
 		.cplllockdetclk_in(clk_125mhz),
-		.cpllreset_in(1'b0),
 		.gtrefclk0_in(serdes_refclk_156m25),
 		.gtrefclk1_in(serdes_refclk_200m),
 
@@ -394,7 +409,10 @@ module BERTSubsystem(
 		.qplllock_in(qpll_lock),
 		.qpllrefclklost_in(qpll_refclk_lost),
 		.qplloutclk_in(qpll_clkout_10g3125),
-		.qplloutrefclk_in(qpll_refclk)
+		.qplloutrefclk_in(qpll_refclk),
+
+		.rx_clk_from_qpll(1),
+		.tx_clk_from_qpll(tx1_config_sync.clk_from_qpll)
 		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

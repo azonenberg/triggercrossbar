@@ -66,6 +66,8 @@
 
 		[chan]:CLKDIV [step]
 
+		[chan]:CLKSEL [QPLL | CPLL]
+
 		[chan]:EYESCAN?
 
 		[chan]:HBATHTUB?
@@ -107,8 +109,11 @@ uint8_t g_bertRxPrescale[2] = {5, 5};
 ///@brief Mux selectors
 uint8_t g_muxsel[12] = {0};
 
-//Bidir port directions
+///@brief Bidir port directions
 bool g_bidirOut[4] = {0};
+
+///@brief Clock selectors for BERT channels
+bool g_bertTxClkSelIsQpll[2] = {false, false};
 
 ///Names of PRBS patterns
 static const char* g_patternNames[8] =
@@ -492,10 +497,12 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		int chan = GetChannelID(subject);
 		if( (chan < 0) || (chan > 1) )
 			return;
+
+		//for now only TX supported
 		if(subject[0] != 'T')
 			return;
 
-		//TX amplitude
+		//TX clock divider
 		int step = atoi(args);
 		if(step < 1)
 			step = 1;
@@ -503,11 +510,55 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 			step = 5;
 		g_bertTxClkDiv[chan] = step;
 
+		uint8_t regval = step;
+		if(g_bertTxClkSelIsQpll[chan])
+			regval |= 0x8;
+
 		//Push to FPGA
 		if(chan == 0)
-			g_fpga->BlockingWrite8(REG_BERT_LANE0_CLK, step);
+			g_fpga->BlockingWrite8(REG_BERT_LANE0_CLK, regval);
 		else
-			g_fpga->BlockingWrite8(REG_BERT_LANE1_CLK, step);
+			g_fpga->BlockingWrite8(REG_BERT_LANE1_CLK, regval);
+	}
+
+	else if(!strcmp(command, "CLKSEL"))
+	{
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		//need valid channel ID (BERT port)
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+
+		//for now only TX supported
+		if(subject[0] != 'T')
+			return;
+
+		//Set source
+		if(!strcmp(args, "QPLL"))
+			g_bertTxClkSelIsQpll[chan] = true;
+		else
+			g_bertTxClkSelIsQpll[chan] = false;
+
+		uint8_t regval = g_bertTxClkDiv[chan];
+		if(g_bertTxClkSelIsQpll[chan])
+			regval |= 0x8;
+
+		//Push to FPGA (need to set/release resets as we do this)
+		if(chan == 0)
+		{
+			g_fpga->BlockingWrite8(REG_BERT_LANE0_RST, 0x02);
+			g_fpga->BlockingWrite8(REG_BERT_LANE0_CLK, regval);
+			g_fpga->BlockingWrite8(REG_BERT_LANE0_RST, 0x00);
+		}
+		else
+		{
+			g_fpga->BlockingWrite8(REG_BERT_LANE1_RST, 0x02);
+			g_fpga->BlockingWrite8(REG_BERT_LANE1_CLK, regval);
+			g_fpga->BlockingWrite8(REG_BERT_LANE1_RST, 0x00);
+		}
 	}
 }
 
@@ -799,6 +850,24 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 			buf.Printf("IN\n");
 	}
 
+	//Clock sources
+	else if(!strcmp(command, "CLKSEL"))
+	{
+		//need valid channel ID (BERT port)
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'T')
+			return;
+
+		SocketReplyBuffer buf(m_tcp, socket);
+		if(g_bertTxClkSelIsQpll[chan])
+			buf.Printf("QPLL\n");
+		else
+			buf.Printf("CPLL\n");
+	}
 
 	//ES_PRESCALE register
 	else if(!strcmp(command, "PRESCALE"))
