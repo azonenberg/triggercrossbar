@@ -200,8 +200,6 @@ module BERTSubsystem(
 	wire[15:0]	lane0_drp_do;
 	wire		lane0_drp_rdy;
 
-	wire		lane0_ratedone;
-
 	GTXWrapper lane0_transceiver(
 		.sysclk_in(clk_125mhz),
 
@@ -267,9 +265,11 @@ module BERTSubsystem(
 		//Input buffer config
 		.rxpolarity_in(rx0_config_sync.invert),
 
-		//TX clock configuration
+		//Clock configuration
 		.txrate_in(tx0_config_sync.clkdiv),
-		.txratedone_out(lane0_ratedone),
+		.txratedone_out(),
+		.rxrate_in(rx0_config_sync.clkdiv),
+		.rxratedone_out(),
 
 		//Output swing control and equalizer taps
 		.txinhibit_in(!tx0_config_sync.enable),
@@ -279,12 +279,11 @@ module BERTSubsystem(
 		.txpostcursor_in(tx0_config_sync.postcursor),
 
 		//Clock to/from CPLL
-		//.cpllfbclklost_out(),
-		//.cplllock_out(cpll_lock[0]),
-		//.cplllockdetclk_in(clk_125mhz),
-		//.cpllreset_in(1'b0),
-		//.gtrefclk0_in(serdes_refclk_156m25),
-		//.gtrefclk1_in(serdes_refclk_200m),
+		.cplllock_out(cpll_lock[0]),
+		.cplllockdetclk_in(clk_125mhz),
+		.cpllreset_in(1'b0),
+		.gtrefclk0_in(serdes_refclk_156m25),
+		.gtrefclk1_in(serdes_refclk_200m),
 
 		//Clock from QPLL
 		.qplllock_in(qpll_lock),
@@ -292,8 +291,6 @@ module BERTSubsystem(
 		.qplloutclk_in(qpll_clkout_10g3125),
 		.qplloutrefclk_in(qpll_refclk)
 		);
-
-	assign cpll_lock[0] = 0;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Output PRBS generation on TX1 port
@@ -307,10 +304,6 @@ module BERTSubsystem(
 	wire[15:0]	lane1_drp_di;
 	wire[15:0]	lane1_drp_do;
 	wire		lane1_drp_rdy;
-
-	wire		lane1_ratedone;
-
-	assign cpll_lock[1] = 0;
 
 	GTXWrapper lane1_transceiver(
 		.sysclk_in(clk_125mhz),
@@ -377,9 +370,11 @@ module BERTSubsystem(
 		//Input buffer config
 		.rxpolarity_in(rx1_config_sync.invert),
 
-		//TX clock configuration
+		//Clock configuration
 		.txrate_in(tx1_config_sync.clkdiv),
-		.txratedone_out(lane1_ratedone),
+		.txratedone_out(),
+		.rxrate_in(rx1_config_sync.clkdiv),
+		.rxratedone_out(),
 
 		//Output swing control and equalizer taps
 		.txinhibit_in(!tx1_config_sync.enable),
@@ -389,12 +384,11 @@ module BERTSubsystem(
 		.txpostcursor_in(tx1_config_sync.postcursor),
 
 		//Clock to/from CPLL
-		//.cpllfbclklost_out(),
-		//.cplllock_out(cpll_lock[1]),
-		//.cplllockdetclk_in(clk_125mhz),
-		//.cpllreset_in(1'b0),
-		//.gtrefclk0_in(serdes_refclk_156m25),
-		//.gtrefclk1_in(serdes_refclk_200m),
+		.cplllock_out(cpll_lock[1]),
+		.cplllockdetclk_in(clk_125mhz),
+		.cpllreset_in(1'b0),
+		.gtrefclk0_in(serdes_refclk_156m25),
+		.gtrefclk1_in(serdes_refclk_200m),
 
 		//Clock from QPLL
 		.qplllock_in(qpll_lock),

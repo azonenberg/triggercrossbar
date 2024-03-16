@@ -5,68 +5,74 @@ module GTXWrapper #
 	parameter SYSCLK_PERIOD                    = 8	//sysclk_in period, in ns
 )
 (
-	input wire           sysclk_in,
-	input wire           soft_reset_tx_in,
-	input wire           soft_reset_rx_in,
-	input wire           dont_reset_on_data_error_in,
+	input wire			sysclk_in,
+	input wire			soft_reset_tx_in,
+	input wire			soft_reset_rx_in,
+	input wire			dont_reset_on_data_error_in,
 
-	output wire          tx_fsm_reset_done_out,
-	output wire          rx_fsm_reset_done_out,
-	input wire           data_valid_in,
+	output wire			tx_fsm_reset_done_out,
+	output wire			rx_fsm_reset_done_out,
+	input wire			data_valid_in,
 
-	input wire   [8:0]   drpaddr_in,
-	input wire           drpclk_in,
-	input wire   [15:0]  drpdi_in,
-	output wire  [15:0]  drpdo_out,
-	input wire           drpen_in,
-	output wire          drprdy_out,
-	input wire           drpwe_in,
+	input wire[8:0]	 	drpaddr_in,
+	input wire			drpclk_in,
+	input wire[15:0]	drpdi_in,
+	output wire[15:0]	drpdo_out,
+	input wire			drpen_in,
+	output wire			drprdy_out,
+	input wire			drpwe_in,
 
-	input wire   [2:0]   loopback_in,
-	input wire           eyescanreset_in,
-	output wire          eyescandataerror_out,
-	input wire           eyescantrigger_in,
-	input wire           rxcdrhold_in,
-	input wire           rxusrclk_in,
-	input wire           rxusrclk2_in,
-	output wire  [31:0]  rxdata_out,
-	output wire          rxprbserr_out,
-	input wire   [2:0]   rxprbssel_in,
-	input wire           rxprbscntreset_in,
-	input wire           gtxrxp_in,
-	input wire           gtxrxn_in,
-	input wire           rxbufreset_in,
-	output wire  [6:0]   rxmonitorout_out,
-	input wire   [1:0]   rxmonitorsel_in,
-	output wire          rxoutclk_out,
-	output wire          rxoutclkfabric_out,
-	input wire           rxpmareset_in,
-	input wire           rxpolarity_in,
-	output wire          rxresetdone_out,
-	input wire   [4:0]   txpostcursor_in,
-	input wire   [4:0]   txprecursor_in,
-	input wire           txusrclk_in,
-	input wire           txusrclk2_in,
-	input wire   [2:0]   txrate_in,
-	output wire  [1:0]   txbufstatus_out,
-	input wire   [3:0]   txdiffctrl_in,
-	input wire           txinhibit_in,
-	input wire   [31:0]  txdata_in,
-	output wire          gtxtxn_out,
-	output wire          gtxtxp_out,
-	output wire          txoutclk_out,
-	output wire          txoutclkfabric_out,
-	output wire          txoutclkpcs_out,
-	output wire          txratedone_out,
-	output wire          txresetdone_out,
-	input wire           txpolarity_in,
-	input wire   [2:0]   txprbssel_in,
+	input wire			eyescanreset_in,
+	output wire			eyescandataerror_out,
+	input wire			eyescantrigger_in,
+	input wire			rxcdrhold_in,
+	input wire			rxusrclk_in,
+	input wire			rxusrclk2_in,
+	output wire[31:0]	rxdata_out,
+	output wire			rxprbserr_out,
+	input wire[2:0]		rxprbssel_in,
+	input wire			rxprbscntreset_in,
+	input wire			gtxrxp_in,
+	input wire			gtxrxn_in,
+	input wire			rxbufreset_in,
+	output wire[6:0]	rxmonitorout_out,
+	input wire[1:0]	 	rxmonitorsel_in,
+	output wire			rxoutclk_out,
+	output wire			rxoutclkfabric_out,
+	input wire			rxpmareset_in,
+	input wire			rxpolarity_in,
+	output wire			rxresetdone_out,
+	input wire[4:0]	 	txpostcursor_in,
+	input wire[4:0]		txprecursor_in,
+	input wire			txusrclk_in,
+	input wire			txusrclk2_in,
+	input wire[2:0]	 	txrate_in,
+	output wire[1:0]	txbufstatus_out,
+	input wire[3:0]	 	txdiffctrl_in,
+	input wire			txinhibit_in,
+	input wire[31:0]	txdata_in,
+	output wire			gtxtxn_out,
+	output wire			gtxtxp_out,
+	output wire			txoutclk_out,
+	output wire			txoutclkfabric_out,
+	output wire			txoutclkpcs_out,
+	output wire			txratedone_out,
+	output wire			txresetdone_out,
+	input wire			txpolarity_in,
+	input wire[2:0]	 	txprbssel_in,
+	input wire[2:0]	 	rxrate_in,
+	output wire			rxratedone_out,
 
-	input wire      qplllock_in,
-	input wire      qpllrefclklost_in,
-	input wire      qplloutclk_in,
-	input wire      qplloutrefclk_in
+	input wire			qplllock_in,
+	input wire			qpllrefclklost_in,
+	input wire			qplloutclk_in,
+	input wire			qplloutrefclk_in,
 
+	output wire			cplllock_out,
+	input wire			cplllockdetclk_in,
+	input wire			cpllreset_in,
+	input wire			gtrefclk0_in,
+	input wire			gtrefclk1_in
 );
 
 	//Typical CDRLOCK Time is 50,000UI, as per DS183
@@ -323,16 +329,16 @@ module GTXWrapper #
 		.TX_RXDETECT_CFG(14'h1832),
 		.TX_RXDETECT_REF(3'b100),
 
-		//CPLL (not yet used, but probably will soon)
-		.CPLL_CFG(24'hBC07DC),
-		.CPLL_FBDIV(4),
-		.CPLL_FBDIV_45(4),
-		.CPLL_INIT_CFG(24'h00001E),
-		.CPLL_LOCK_CFG(16'h01E8),
-		.CPLL_REFCLK_DIV(1),
-		.RXOUT_DIV(1),
-		.TXOUT_DIV(1),
-		.SATA_CPLL_CFG("VCO_3000MHZ"),
+		//CPLL (run at 2.5 GHz for 5 Gbps)
+		.CPLL_CFG(24'hBC07DC),				//magic value from gtx wizard
+		.CPLL_FBDIV(4),						//first divider = 4
+		.CPLL_FBDIV_45(4),					//second divider = 4, total *16 = 2500 MHz
+		.CPLL_INIT_CFG(24'h00001E),			//magic value from gtx wizard
+		.CPLL_LOCK_CFG(16'h01E8),			//magic value from gtx wizard
+		.CPLL_REFCLK_DIV(1),				//don't pre-divide refclk
+		.RXOUT_DIV(1),						//no output divide
+		.TXOUT_DIV(1),						//no output divide
+		.SATA_CPLL_CFG("VCO_3000MHZ"),		//magic value from gtx wizard, probably not used since we're not doing SATA?
 
 		//RX equalizer stuff
 		.RXLPM_HF_CFG(14'b00000011110000),
@@ -355,24 +361,92 @@ module GTXWrapper #
 	)
 	gtxchan
 	(
-		//Top level transceiver pins
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Top level transceiver pins
+
 		.GTXRXP                         (gtxrxp_in),
 		.GTXRXN                         (gtxrxn_in),
 		.GTXTXN                         (gtxtxn_out),
 		.GTXTXP                         (gtxtxp_out),
 
-		.RXPOLARITY                     (rxpolarity_in),
-		.TXPOLARITY                     (txpolarity_in),
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Data buses
 
-		//CPLL (not yet used, but will be)
+		//RX data bus
+		.RXDATA                         (rxdata_raw),
+
+		//TX fabric data
+		.TXDATA                         ({32'h0, txdata_in}),
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// I/O settings
+
+		//TX driver and FFE
+		.TXPOLARITY                     (txpolarity_in),
+		.TXPOSTCURSOR                   (txpostcursor_in),
+		.TXPOSTCURSORINV                (1'b0),
+		.TXPRECURSOR                    (txprecursor_in),
+		.TXPRECURSORINV                 (1'b0),
+		.TXBUFDIFFCTRL                  (3'b100),
+		.TXDEEMPH                       (1'b0),
+		.TXDIFFCTRL                     (txdiffctrl_in),
+		.TXDIFFPD                       (1'b0),
+		.TXINHIBIT                      (txinhibit_in),
+		.TXMAINCURSOR                   (7'b0000000),
+		.TXPISOPD                       (1'b0),
+
+		//RX receiver
+		.RXPOLARITY                     (rxpolarity_in),
+
+		//RX CTLE
+		.RXLPMEN                        (1'b1),
+		.RXLPMHFHOLD                    (rxlpmhfhold_i),
+		.RXLPMHFOVRDEN                  (1'b0),
+		.RXLPMLFHOLD                    (rxlpmlfhold_i),
+		.RXLPMLFKLOVRDEN                (1'b0),
+
+		//RX DFE
+		.RXDFEAGCHOLD                   (1'b0),
+		.RXDFEAGCOVRDEN                 (1'b0),
+		.RXDFECM1EN                     (1'b0),
+		.RXDFELFHOLD                    (1'b0),
+		.RXDFELFOVRDEN                  (1'b0),
+		.RXDFELPMRESET                  (1'b0),
+		.RXDFETAP2HOLD                  (1'b0),
+		.RXDFETAP2OVRDEN                (1'b0),
+		.RXDFETAP3HOLD                  (1'b0),
+		.RXDFETAP3OVRDEN                (1'b0),
+		.RXDFETAP4HOLD                  (1'b0),
+		.RXDFETAP4OVRDEN                (1'b0),
+		.RXDFETAP5HOLD                  (1'b0),
+		.RXDFETAP5OVRDEN                (1'b0),
+		.RXDFEUTHOLD                    (1'b0),
+		.RXDFEUTOVRDEN                  (1'b0),
+		.RXDFEVPHOLD                    (1'b0),
+		.RXDFEVPOVRDEN                  (1'b0),
+		.RXDFEVSEN                      (1'b0),
+		.RXDFEXYDEN                     (1'b1),
+		.RXDFEXYDHOLD                   (1'b0),
+		.RXDFEXYDOVRDEN                 (1'b0),
+
+		//RX offset cancellation
+		.RXOSHOLD                       (1'b0),
+		.RXOSOVRDEN                     (1'b0),
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Clocking and resets
+
+		//CPLL
+		.GTREFCLK0                      (gtrefclk0_in),
+		.GTREFCLK1                      (gtrefclk1_in),
 		.CPLLFBCLKLOST                  (),
-		.CPLLLOCK                       (),
-		.CPLLLOCKDETCLK                 (1'b0),
+		.CPLLLOCK                       (cplllock_out),
+		.CPLLLOCKDETCLK                 (cplllockdetclk_in),
 		.CPLLLOCKEN                     (1'b1),
-		.CPLLPD                         (1'b1),
+		.CPLLPD                         (1'b0),			//TODO bring up to top level
 		.CPLLREFCLKLOST                 (),
 		.CPLLREFCLKSEL                  (3'b001),
-		.CPLLRESET                      (1'b0),
+		.CPLLRESET                      (cpllreset_in),
 		.GTRSVD                         (16'b0000000000000000),
 		.PCSRSVDIN                      (16'b0000000000000000),
 		.PCSRSVDIN2                     (5'b00000),
@@ -381,6 +455,13 @@ module GTXWrapper #
 		.TSTIN                          (20'b11111111111111111111),
 		.TSTOUT                         (),
 
+		//Clocks from QPLL
+		.GTREFCLKMONITOR                (),
+		.QPLLCLK                        (qplloutclk_in),
+		.QPLLREFCLK                     (qplloutrefclk_in),
+		.RXSYSCLKSEL                    (2'b11),
+		.TXSYSCLKSEL                    (2'b11),
+
 		//Magic reserved port
 		.CLKRSVD                        (4'h0),
 
@@ -388,10 +469,61 @@ module GTXWrapper #
 		.GTGREFCLK                      (1'b0),
 		.GTNORTHREFCLK0                 (1'b0),
 		.GTNORTHREFCLK1                 (1'b0),
-		.GTREFCLK0                      (1'b0),
-		.GTREFCLK1                      (1'b0),
 		.GTSOUTHREFCLK0                 (1'b0),
 		.GTSOUTHREFCLK1                 (1'b0),
+
+		//Resets
+		.EYESCANRESET                   (eyescanreset_in),
+		.RXUSERRDY                      (rxuserrdy_t),
+		.GTRXRESET                      (gtrxreset_t),
+		.RXOOBRESET                     (1'b0),
+		.RXPCSRESET                     (1'b0),
+		.RXPMARESET                     (rxpmareset_in),
+		.RXRESETDONE                    (rxresetdone_out),
+		.CFGRESET                       (1'b0),
+		.GTTXRESET                      (gttxreset_t),
+		.PCSRSVDOUT                     (),
+		.TXUSERRDY                      (txuserrdy_t),
+		.GTRESETSEL                     (1'b0),
+		.RESETOVRD                      (1'b0),
+		.TXPCSRESET                     (1'b0),
+		.TXPMARESET                     (1'b0),
+		.TXRESETDONE                    (txresetdone_out),
+
+		//Power-down (not used)
+		.RXPD                           (2'b00),
+		.TXPD                           (2'b00),
+
+		//RX CDR
+		.RXCDRFREQRESET                 (1'b0),
+		.RXCDRHOLD                      (1'b0),
+		.RXCDRLOCK                      (),
+		.RXCDROVRDEN                    (1'b0),
+		.RXCDRRESET                     (1'b0),
+		.RXCDRRESETRSV                  (1'b0),
+
+		//RX clocking
+		.RXUSRCLK                       (rxusrclk_in),
+		.RXUSRCLK2                      (rxusrclk2_in),
+		.RXRATE                         (rxrate_in),
+		.RXRATEDONE                     (rxratedone_out),
+		.RXOUTCLK                       (rxoutclk_out),
+		.RXOUTCLKFABRIC                 (rxoutclkfabric_out),
+		.RXOUTCLKPCS                    (),
+		.RXOUTCLKSEL                    (3'b010),
+
+		//TX clocking
+		.TXUSRCLK                       (txusrclk_in),
+		.TXUSRCLK2                      (txusrclk2_in),
+		.TXRATE                         (txrate_in),
+		.TXOUTCLK                       (txoutclk_out),
+		.TXOUTCLKFABRIC                 (txoutclkfabric_out),
+		.TXOUTCLKPCS                    (txoutclkpcs_out),
+		.TXOUTCLKSEL                    (3'b010),
+		.TXRATEDONE                     (txratedone_out),
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Reconfiguration
 
 		//DRP
 		.DRPADDR                        (drpaddr_in),
@@ -402,15 +534,33 @@ module GTXWrapper #
 		.DRPRDY                         (drprdy_out),
 		.DRPWE                          (drpwe_in),
 
-		//Clocks from QPLL
-		.GTREFCLKMONITOR                (),
-		.QPLLCLK                        (qplloutclk_in),
-		.QPLLREFCLK                     (qplloutrefclk_in),
-		.RXSYSCLKSEL                    (2'b11),
-		.TXSYSCLKSEL                    (2'b11),
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Eye scan, PRBS, loopback, etc
+
+		//Loopback configuration (not used)
+		.LOOPBACK                       (3'b0),
+
+		//Eye scan ports (not used, we just use the DRP)
+		.EYESCANDATAERROR               (),
+		.EYESCANMODE                    (1'b0),
+		.EYESCANTRIGGER                 (1'b0),
+
+		//PRBS checker
+		.RXPRBSERR                      (rxprbserr_out),
+		.RXPRBSSEL                      (rxprbssel_in),
+		.RXPRBSCNTRESET                 (1'b0),
+
+		//TX PRBS generator
+		.TXPRBSFORCEERR                 (1'b0),
+		.TXPRBSSEL                      (txprbssel_in),
 
 		//Digital monitor (not used)
+		.RXMONITOROUT                   (rxmonitorout_out),
+		.RXMONITORSEL                   (rxmonitorsel_in),
 		.DMONITOROUT                    (),
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Line coding and gearboxing
 
 		//TX 8B/10B coder (not used)
 		.TX8B10BEN                      (1'b0),
@@ -441,73 +591,17 @@ module GTXWrapper #
 		.RXGEARBOXSLIP                  (1'b0),
 		.RXSLIDE                        (1'b0),
 
-		//Loopback configuration (not used)
-		.LOOPBACK                       (3'b0),
+		//TX gearbox (not used)
+		.TXGEARBOXREADY                 (),
+		.TXHEADER                       (3'b0),
+		.TXSEQUENCE                     (7'b0),
+		.TXSTARTSEQ                     (1'b0),
 
-		//PCIe stuff (not used)
-		.PHYSTATUS                      (),
-		.RXRATE                         (3'b0),
-		.RXVALID                        (),
-
-		//Power-down (not used)
-		.RXPD                           (2'b00),
-		.TXPD                           (2'b00),
-
-		//Resets
-		.EYESCANRESET                   (eyescanreset_in),
-		.RXUSERRDY                      (rxuserrdy_t),
-		.GTRXRESET                      (gtrxreset_t),
-		.RXOOBRESET                     (1'b0),
-		.RXPCSRESET                     (1'b0),
-		.RXPMARESET                     (rxpmareset_in),
-		.RXRESETDONE                    (rxresetdone_out),
-		.CFGRESET                       (1'b0),
-		.GTTXRESET                      (gttxreset_t),
-		.PCSRSVDOUT                     (),
-		.TXUSERRDY                      (txuserrdy_t),
-		.GTRESETSEL                     (1'b0),
-		.RESETOVRD                      (1'b0),
-		.TXPCSRESET                     (1'b0),
-		.TXPMARESET                     (1'b0),
-		.TXRESETDONE                    (txresetdone_out),
-
-		//Eye scan ports (not used, we just use the DRP)
-		.EYESCANDATAERROR               (),
-		.EYESCANMODE                    (1'b0),
-		.EYESCANTRIGGER                 (1'b0),
-
-		//RX CDR
-		.RXCDRFREQRESET                 (1'b0),
-		.RXCDRHOLD                      (1'b0),
-		.RXCDRLOCK                      (),
-		.RXCDROVRDEN                    (1'b0),
-		.RXCDRRESET                     (1'b0),
-		.RXCDRRESETRSV                  (1'b0),
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Buffers and clock correction
 
 		//RX clock correction
 		.RXCLKCORCNT                    (),
-		.RXRATEDONE                     (),
-		.RXOUTCLK                       (rxoutclk_out),
-		.RXOUTCLKFABRIC                 (rxoutclkfabric_out),
-		.RXOUTCLKPCS                    (),
-		.RXOUTCLKSEL                    (3'b010),
-
-		//RX fabric clocks
-		.RXUSRCLK                       (rxusrclk_in),
-		.RXUSRCLK2                      (rxusrclk2_in),
-
-		//RX data bus
-		.RXDATA                         (rxdata_raw),
-
-		//PRBS checker
-		.RXPRBSERR                      (rxprbserr_out),
-		.RXPRBSSEL                      (rxprbssel_in),
-		.RXPRBSCNTRESET                 (1'b0),
-
-		//RX equalizer configuration
-		.RXDFEXYDEN                     (1'b1),
-		.RXDFEXYDHOLD                   (1'b0),
-		.RXDFEXYDOVRDEN                 (1'b0),
 
 		//RX buffer
 		.RXBUFRESET                     (rxbufreset_in),
@@ -528,6 +622,34 @@ module GTXWrapper #
 		.RXPHSLIPMONITOR                (),
 		.RXSTATUS                       (),
 
+		//TX phase aligner
+		.TXPHDLYTSTCLK                  (1'b0),
+
+		//TX buffer
+		.TXDLYBYPASS                    (1'b1),
+		.TXDLYEN                        (1'b0),
+		.TXDLYHOLD                      (1'b0),
+		.TXDLYOVRDEN                    (1'b0),
+		.TXDLYSRESET                    (1'b0),
+		.TXDLYSRESETDONE                (),
+		.TXDLYUPDOWN                    (1'b0),
+		.TXPHALIGN                      (1'b0),
+		.TXPHALIGNDONE                  (),
+		.TXPHALIGNEN                    (1'b0),
+		.TXPHDLYPD                      (1'b0),
+		.TXPHDLYRESET                   (1'b0),
+		.TXPHINIT                       (1'b0),
+		.TXPHINITDONE                   (),
+		.TXPHOVRDEN                     (1'b0),
+		.TXBUFSTATUS                    (txbufstatus_out),
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Protocol-specific stuff we don't use
+
+		//PCIe stuff (not used)
+		.PHYSTATUS                      (),
+		.RXVALID                        (),
+
 		//RX channel bonding (not used)
 		.RXCHANBONDSEQ                  (),
 		.RXCHBONDEN                     (1'b0),
@@ -538,36 +660,6 @@ module GTXWrapper #
 		.RXCHANISALIGNED                (),
 		.RXCHANREALIGN                  (),
 		.RXCHBONDI                      (5'b00000),
-
-		//RX equalizer
-		.RXLPMEN                        (1'b1),
-		.RXLPMHFHOLD                    (rxlpmhfhold_i),
-		.RXLPMHFOVRDEN                  (1'b0),
-		.RXLPMLFHOLD                    (rxlpmlfhold_i),
-		.RXDFEAGCHOLD                   (1'b0),
-		.RXDFEAGCOVRDEN                 (1'b0),
-		.RXDFECM1EN                     (1'b0),
-		.RXDFELFHOLD                    (1'b0),
-		.RXDFELFOVRDEN                  (1'b0),
-		.RXDFELPMRESET                  (1'b0),
-		.RXDFETAP2HOLD                  (1'b0),
-		.RXDFETAP2OVRDEN                (1'b0),
-		.RXDFETAP3HOLD                  (1'b0),
-		.RXDFETAP3OVRDEN                (1'b0),
-		.RXDFETAP4HOLD                  (1'b0),
-		.RXDFETAP4OVRDEN                (1'b0),
-		.RXDFETAP5HOLD                  (1'b0),
-		.RXDFETAP5OVRDEN                (1'b0),
-		.RXDFEUTHOLD                    (1'b0),
-		.RXDFEUTOVRDEN                  (1'b0),
-		.RXDFEVPHOLD                    (1'b0),
-		.RXDFEVPOVRDEN                  (1'b0),
-		.RXDFEVSEN                      (1'b0),
-		.RXLPMLFKLOVRDEN                (1'b0),
-		.RXMONITOROUT                   (rxmonitorout_out),
-		.RXMONITORSEL                   (rxmonitorsel_in),
-		.RXOSHOLD                       (1'b0),
-		.RXOSOVRDEN                     (1'b0),
 
 		//SATA/SAS OOB signaling (not used)
 		.RXCOMSASDET                    (),
@@ -591,68 +683,11 @@ module GTXWrapper #
 		.TXQPISENN                      (),
 		.TXQPISENP                      (),
 
-		//TX phase aligner
-		.TXPHDLYTSTCLK                  (1'b0),
-
-		//TX driver configuration
-		.TXPOSTCURSOR                   (txpostcursor_in),
-		.TXPOSTCURSORINV                (1'b0),
-		.TXPRECURSOR                    (txprecursor_in),
-		.TXPRECURSORINV                 (1'b0),
-		.TXBUFDIFFCTRL                  (3'b100),
-		.TXDEEMPH                       (1'b0),
-		.TXDIFFCTRL                     (txdiffctrl_in),
-		.TXDIFFPD                       (1'b0),
-		.TXINHIBIT                      (txinhibit_in),
-		.TXMAINCURSOR                   (7'b0000000),
-		.TXPISOPD                       (1'b0),
-
-		//TX clocking
-		.TXUSRCLK                       (txusrclk_in),
-		.TXUSRCLK2                      (txusrclk2_in),
-		.TXRATE                         (txrate_in),
-		.TXOUTCLK                       (txoutclk_out),
-		.TXOUTCLKFABRIC                 (txoutclkfabric_out),
-		.TXOUTCLKPCS                    (txoutclkpcs_out),
-		.TXOUTCLKSEL                    (3'b010),
-		.TXRATEDONE                     (txratedone_out),
-
 		//PCIe driver config
 		.TXELECIDLE                     (1'b0),
 		.TXMARGIN                       (3'b0),
 		.TXSWING                        (1'b0),
-		.TXDETECTRX                     (1'b0),
-
-		//TX PRBS generator
-		.TXPRBSFORCEERR                 (1'b0),
-		.TXPRBSSEL                      (txprbssel_in),
-
-		//TX buffer
-		.TXDLYBYPASS                    (1'b1),
-		.TXDLYEN                        (1'b0),
-		.TXDLYHOLD                      (1'b0),
-		.TXDLYOVRDEN                    (1'b0),
-		.TXDLYSRESET                    (1'b0),
-		.TXDLYSRESETDONE                (),
-		.TXDLYUPDOWN                    (1'b0),
-		.TXPHALIGN                      (1'b0),
-		.TXPHALIGNDONE                  (),
-		.TXPHALIGNEN                    (1'b0),
-		.TXPHDLYPD                      (1'b0),
-		.TXPHDLYRESET                   (1'b0),
-		.TXPHINIT                       (1'b0),
-		.TXPHINITDONE                   (),
-		.TXPHOVRDEN                     (1'b0),
-		.TXBUFSTATUS                    (txbufstatus_out),
-
-		//TX fabric data
-		.TXDATA                         ({32'h0, txdata_in}),
-
-		//TX gearbox (not used)
-		.TXGEARBOXREADY                 (),
-		.TXHEADER                       (3'b0),
-		.TXSEQUENCE                     (7'b0),
-		.TXSTARTSEQ                     (1'b0)
+		.TXDETECTRX                     (1'b0)
 	);
 
 	gtx_frontlane1_TX_STARTUP_FSM #

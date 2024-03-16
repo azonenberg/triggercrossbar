@@ -140,6 +140,7 @@ typedef struct packed
 	logic[2:0]	prbsmode;	//GTX RXPRBSSEL
 	logic		invert;
 	logic		pmareset;
+	logic[2:0]	clkdiv;
 } bert_rxconfig_t;
 
 `endif
