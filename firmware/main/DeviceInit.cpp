@@ -585,20 +585,20 @@ void PollSFP()
 	{
 		g_log("Digital diagnostic monitoring available\n");
 
-		bool internalCal = false;
-		bool externalCal = false;
+		//bool internalCal = false;
+		//bool externalCal = false;
 
 		if(basePage[92] & 0x4)
 			g_log("Address change sequence required\n");
 
 		if(basePage[92] & 0x20)
 		{
-			internalCal = true;
+			//internalCal = true;
 			g_log("Internally calibrated\n");
 		}
 		if(basePage[92] & 0x10)
 		{
-			externalCal = true;
+			//externalCal = true;
 			g_log("Externally calibrated (not supported)\n");
 		}
 

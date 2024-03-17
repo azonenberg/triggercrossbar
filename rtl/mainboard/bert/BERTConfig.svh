@@ -144,6 +144,8 @@ typedef struct packed
 	logic		invert;
 	logic		pmareset;
 	logic[2:0]	clkdiv;
+	logic		clk_from_qpll;
+	logic		rx_reset;
 } bert_rxconfig_t;
 
 `endif

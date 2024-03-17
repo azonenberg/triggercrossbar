@@ -283,8 +283,11 @@ module ManagementRegisterInterface(
 											//1 = rx reset done
 		REG_BERT_LANE0_CLK	= 16'h008c,		//2:0 = TX clock divider
 											//3 = TX clock from QPLL (0 = CPLL)
+											//6:4 = RX clock divider
+											//7 = RX clock from QPLL (0 = CPLL)
 		REG_BERT_LANE0_RST	= 16'h008e,		//0 = RX PMA reset
 											//1 = TX soft reset
+											//2 = RX soft reset
 
 		REG_BERT_LANE0_RX	= 16'h0090,		//0 = invert
 
@@ -612,12 +615,15 @@ module ManagementRegisterInterface(
 					REG_BERT_LANE0_CLK: begin
 						tx0_config.clkdiv			<= wr_data[2:0];
 						tx0_config.clk_from_qpll	<= wr_data[3];
+						rx0_config.clkdiv			<= wr_data[6:4];
+						rx0_config.clk_from_qpll	<= wr_data[7];
 						serdes_config_updated		<= 1;
 					end
 
 					REG_BERT_LANE0_RST: begin
 						rx0_config.pmareset			<= wr_data[0];
 						tx0_config.tx_reset			<= wr_data[1];
+						rx0_config.rx_reset			<= wr_data[2];
 						serdes_config_updated		<= 1;
 					end
 
@@ -656,12 +662,15 @@ module ManagementRegisterInterface(
 					REG_BERT_LANE1_CLK: begin
 						tx1_config.clkdiv			<= wr_data[2:0];
 						tx1_config.clk_from_qpll	<= wr_data[3];
+						rx1_config.clkdiv			<= wr_data[6:4];
+						rx1_config.clk_from_qpll	<= wr_data[7];
 						serdes_config_updated		<= 1;
 					end
 
 					REG_BERT_LANE1_RST: begin
 						rx1_config.pmareset			<= wr_data[0];
 						tx1_config.tx_reset			<= wr_data[1];
+						rx1_config.rx_reset			<= wr_data[2];
 						serdes_config_updated		<= 1;
 					end
 

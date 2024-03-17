@@ -97,11 +97,11 @@ uint8_t g_bertTxPostCursor[2] = {0};
 ///@brief Transmit invert flag
 bool g_bertTxInvert[2] = {0};
 
+///@brief Receive invert flag
+bool g_bertRxInvert[2] = {0};
+
 ///@brief Transmit enable flag
 bool g_bertTxEnable[2] = {false, false};
-
-///@brief Transmit sub-rate control
-uint8_t g_bertTxClkDiv[2] = {1, 1};
 
 ///@brief Receive eye scan prescaler
 uint8_t g_bertRxPrescale[2] = {5, 5};
@@ -112,8 +112,17 @@ uint8_t g_muxsel[12] = {0};
 ///@brief Bidir port directions
 bool g_bidirOut[4] = {0};
 
-///@brief Clock selectors for BERT channels
+///@brief Transmit sub-rate control
+uint8_t g_bertTxClkDiv[2] = {1, 1};
+
+///@brief Receive sub-rate control
+uint8_t g_bertRxClkDiv[2] = {1, 1};
+
+///@brief Clock selectors for BERT TX channels
 bool g_bertTxClkSelIsQpll[2] = {false, false};
+
+///@brief Clock selectors for BERT RX channels
+bool g_bertRxClkSelIsQpll[2] = {false, false};
 
 ///Names of PRBS patterns
 static const char* g_patternNames[8] =
@@ -248,6 +257,30 @@ void CrossbarSCPIServer::OnCommand(char* line, TCPTableEntry* socket)
 	//Not a query, just a regular command
 	else
 		DoCommand(subject, command, args);
+}
+
+void CrossbarSCPIServer::UpdateClocks(int lane)
+{
+	uint8_t regval = g_bertTxClkDiv[lane] | (g_bertRxClkDiv[lane] << 4);
+	if(g_bertTxClkSelIsQpll[lane])
+		regval |= 0x8;
+	if(g_bertRxClkSelIsQpll[lane])
+		regval |= 0x80;
+
+	//Push to FPGA (need to set/release resets as we do this)
+	//TODO: only reset if we changed clock source
+	if(lane == 0)
+	{
+		g_fpga->BlockingWrite8(REG_BERT_LANE0_RST, 0x06);
+		g_fpga->BlockingWrite8(REG_BERT_LANE0_CLK, regval);
+		g_fpga->BlockingWrite8(REG_BERT_LANE0_RST, 0x00);
+	}
+	else
+	{
+		g_fpga->BlockingWrite8(REG_BERT_LANE1_RST, 0x06);
+		g_fpga->BlockingWrite8(REG_BERT_LANE1_CLK, regval);
+		g_fpga->BlockingWrite8(REG_BERT_LANE1_RST, 0x00);
+	}
 }
 
 void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, const char* args)
@@ -415,16 +448,25 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		int chan = GetChannelID(subject);
 		if( (chan < 0) || (chan > 1) )
 			return;
-		if(subject[0] != 'T')
-			return;
 
-		//TX amplitude
-		if(!strcmp(args, "1"))
-			g_bertTxInvert[chan] = true;
+		if(subject[0] == 'T')
+		{
+			if(!strcmp(args, "1"))
+				g_bertTxInvert[chan] = true;
+			else
+				g_bertTxInvert[chan] = false;
+
+			UpdateTxLane(chan);
+		}
 		else
-			g_bertTxInvert[chan] = false;
+		{
+			if(!strcmp(args, "1"))
+				g_bertRxInvert[chan] = true;
+			else
+				g_bertRxInvert[chan] = false;
 
-		UpdateTxLane(chan);
+			UpdateRxLane(chan);
+		}
 	}
 
 	//Output inversion
@@ -498,27 +540,20 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		if( (chan < 0) || (chan > 1) )
 			return;
 
-		//for now only TX supported
-		if(subject[0] != 'T')
-			return;
-
-		//TX clock divider
 		int step = atoi(args);
 		if(step < 1)
 			step = 1;
 		if(step > 5)
 			step = 5;
-		g_bertTxClkDiv[chan] = step;
 
-		uint8_t regval = step;
-		if(g_bertTxClkSelIsQpll[chan])
-			regval |= 0x8;
-
-		//Push to FPGA
-		if(chan == 0)
-			g_fpga->BlockingWrite8(REG_BERT_LANE0_CLK, regval);
+		//Update the divider
+		if(subject[0] == 'T')
+			g_bertTxClkDiv[chan] = step;
 		else
-			g_fpga->BlockingWrite8(REG_BERT_LANE1_CLK, regval);
+			g_bertRxClkDiv[chan] = step;
+
+		//Push updates to hardware
+		UpdateClocks(chan);
 	}
 
 	else if(!strcmp(command, "CLKSEL"))
@@ -532,33 +567,16 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		if( (chan < 0) || (chan > 1) )
 			return;
 
-		//for now only TX supported
-		if(subject[0] != 'T')
-			return;
+		bool value = !strcmp(args, "QPLL");
 
-		//Set source
-		if(!strcmp(args, "QPLL"))
-			g_bertTxClkSelIsQpll[chan] = true;
+		if(subject[0] == 'T')
+			g_bertTxClkSelIsQpll[chan] = value;
 		else
-			g_bertTxClkSelIsQpll[chan] = false;
+			g_bertRxClkSelIsQpll[chan] = value;
 
-		uint8_t regval = g_bertTxClkDiv[chan];
-		if(g_bertTxClkSelIsQpll[chan])
-			regval |= 0x8;
+		UpdateClocks(chan);
 
-		//Push to FPGA (need to set/release resets as we do this)
-		if(chan == 0)
-		{
-			g_fpga->BlockingWrite8(REG_BERT_LANE0_RST, 0x02);
-			g_fpga->BlockingWrite8(REG_BERT_LANE0_CLK, regval);
-			g_fpga->BlockingWrite8(REG_BERT_LANE0_RST, 0x00);
-		}
-		else
-		{
-			g_fpga->BlockingWrite8(REG_BERT_LANE1_RST, 0x02);
-			g_fpga->BlockingWrite8(REG_BERT_LANE1_CLK, regval);
-			g_fpga->BlockingWrite8(REG_BERT_LANE1_RST, 0x00);
-		}
+
 	}
 }
 
@@ -764,13 +782,16 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 3, 0xffff);
 		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 4, 0xffff);
 
+		//Larger sweep range for sub-rate modes
+		int16_t xrange = 16 << g_bertRxClkDiv[chan];
+
 		//Sweep vertical offset
 		//GTX step size is 1.89 mV/code
 		//https://support.xilinx.com/s/question/0D52E00006hphfdSAA/gtx-transceiver-margin-analysis-verctical-voltage-range?language=en_US
 		for(int yoff=-127; yoff <= 127; yoff += 4)
 		{
 			//Sweep horizontal offset
-			for(int16_t xoff = -32; xoff <= 32; xoff ++)
+			for(int16_t xoff = -xrange; xoff <= xrange; xoff ++)
 			{
 				auto ber = DoEyeBERMeasurement(chan, g_bertRxPrescale[chan], xoff, yoff);
 				PrintFloat(buf, ber);
@@ -807,9 +828,12 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 3, 0xffff);
 		SerdesDRPWrite(chan, REG_ES_SDATA_MASK + 4, 0xffff);
 
+		//Larger sweep range for sub-rate modes
+		int16_t xrange = 16 << g_bertRxClkDiv[chan];
+
 		//Keep vertical offset at zero
 		//Sweep horizontal offset
-		for(int16_t xoff = -32; xoff <= 32; xoff ++)
+		for(int16_t xoff = -xrange; xoff <= xrange; xoff ++)
 		{
 			auto ber = DoEyeBERMeasurement(chan, g_bertRxPrescale[chan], xoff, 0);
 			PrintFloat(buf, ber);
@@ -859,14 +883,12 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		int chan = GetChannelID(subject);
 		if( (chan < 0) || (chan > 1) )
 			return;
-		if(subject[0] != 'T')
-			return;
 
 		SocketReplyBuffer buf(m_tcp, socket);
-		if(g_bertTxClkSelIsQpll[chan])
-			buf.Printf("QPLL\n");
+		if(subject[0] == 'T')
+			buf.Printf("%cPLL\n", g_bertTxClkSelIsQpll[chan] ? 'Q' : 'C');
 		else
-			buf.Printf("CPLL\n");
+			buf.Printf("%cPLL\n", g_bertRxClkSelIsQpll[chan] ? 'Q' : 'C');
 	}
 
 	//ES_PRESCALE register
@@ -945,8 +967,8 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		SocketReplyBuffer buf(m_tcp, socket);
 		if(subject[0] == 'T')
 			buf.Printf("%d\n", g_bertTxInvert[chan]);
-		//else
-		//	buf.Printf("%d\n", g_bertRxInvert[chan]);
+		else
+			buf.Printf("%d\n", g_bertRxInvert[chan]);
 	}
 
 	//Output enable
@@ -995,11 +1017,14 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		if(!subject)
 			return;
 		int chan = GetChannelID(subject);
-		if( (chan < 0) || (chan > 1) || (subject[0] != 'T') )
+		if( (chan < 0) || (chan > 1) )
 			return;
 
 		SocketReplyBuffer buf(m_tcp, socket);
-		buf.Printf("%d\n", g_bertTxClkDiv[chan]);
+		if(subject[0] == 'T')
+			buf.Printf("%d\n", g_bertTxClkDiv[chan]);
+		else
+			buf.Printf("%d\n", g_bertRxClkDiv[chan]);
 	}
 }
 
@@ -1017,6 +1042,18 @@ void CrossbarSCPIServer::UpdateTxLane(int lane)
 		g_fpga->BlockingWrite16(REG_BERT_LANE0_TX, regval);
 	else
 		g_fpga->BlockingWrite16(REG_BERT_LANE1_TX, regval);
+}
+
+void CrossbarSCPIServer::UpdateRxLane(int lane)
+{
+	uint8_t regval = 0;
+	if(g_bertRxInvert[lane])
+		regval |= 1;
+
+	if(lane == 0)
+		g_fpga->BlockingWrite16(REG_BERT_LANE0_RX, regval);
+	else
+		g_fpga->BlockingWrite16(REG_BERT_LANE1_RX, regval);
 }
 
 /**

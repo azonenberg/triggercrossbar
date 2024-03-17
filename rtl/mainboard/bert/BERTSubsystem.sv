@@ -188,6 +188,8 @@ module BERTSubsystem(
 
 	wire	tx0_rst_sync;
 	wire	tx1_rst_sync;
+	wire	rx0_rst_sync;
+	wire	rx1_rst_sync;
 
 	ThreeStageSynchronizer sync_lane0_tx_reset(
 		.clk_in(clk_250mhz),
@@ -200,6 +202,19 @@ module BERTSubsystem(
 		.din(tx1_config.tx_reset),
 		.clk_out(clk_125mhz),
 		.dout(tx1_rst_sync));
+
+	ThreeStageSynchronizer sync_lane0_rx_reset(
+		.clk_in(clk_250mhz),
+		.din(rx0_config.rx_reset),
+		.clk_out(clk_125mhz),
+		.dout(rx0_rst_sync));
+
+	ThreeStageSynchronizer sync_lane1_rx_reset(
+		.clk_in(clk_250mhz),
+		.din(rx1_config.rx_reset),
+		.clk_out(clk_125mhz),
+		.dout(rx1_rst_sync));
+
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Output PRBS generation on TX0 port
@@ -219,7 +234,7 @@ module BERTSubsystem(
 
 		//Resets
 		.soft_reset_tx_in(tx0_rst_sync),
-		.soft_reset_rx_in(1'b0),
+		.soft_reset_rx_in(rx0_rst_sync),
 		.dont_reset_on_data_error_in(1'b0),
 		.tx_fsm_reset_done_out(),
 		.rx_fsm_reset_done_out(),
@@ -304,7 +319,7 @@ module BERTSubsystem(
 		.qplloutclk_in(qpll_clkout_10g3125),
 		.qplloutrefclk_in(qpll_refclk),
 
-		.rx_clk_from_qpll(1),
+		.rx_clk_from_qpll(rx0_config_sync.clk_from_qpll),
 		.tx_clk_from_qpll(tx0_config_sync.clk_from_qpll)
 		);
 
@@ -326,7 +341,7 @@ module BERTSubsystem(
 
 		//Resets
 		.soft_reset_tx_in(tx1_rst_sync),
-		.soft_reset_rx_in(1'b0),
+		.soft_reset_rx_in(rx1_rst_sync),
 		.dont_reset_on_data_error_in(1'b0),
 		.tx_fsm_reset_done_out(),
 		.rx_fsm_reset_done_out(),
@@ -411,7 +426,7 @@ module BERTSubsystem(
 		.qplloutclk_in(qpll_clkout_10g3125),
 		.qplloutrefclk_in(qpll_refclk),
 
-		.rx_clk_from_qpll(1),
+		.rx_clk_from_qpll(rx1_config_sync.clk_from_qpll),
 		.tx_clk_from_qpll(tx1_config_sync.clk_from_qpll)
 		);
 

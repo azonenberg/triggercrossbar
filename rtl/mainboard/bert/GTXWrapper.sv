@@ -61,7 +61,6 @@ module GTXWrapper #(
 	input wire			rxprbscntreset_in,
 	input wire			gtxrxp_in,
 	input wire			gtxrxn_in,
-	input wire			rxbufreset_in,
 	output wire[6:0]	rxmonitorout_out,
 	input wire[1:0]	 	rxmonitorsel_in,
 	output wire			rxoutclk_out,
@@ -74,7 +73,6 @@ module GTXWrapper #(
 	input wire			txusrclk_in,
 	input wire			txusrclk2_in,
 	input wire[2:0]	 	txrate_in,
-	output wire[1:0]	txbufstatus_out,
 	input wire[3:0]	 	txdiffctrl_in,
 	input wire			txinhibit_in,
 	input wire[31:0]	txdata_in,
@@ -109,12 +107,9 @@ module GTXWrapper #(
 	// Internal resets etc
 
 	wire				gtx_tx_reset;
-	wire				gtrxreset_t;
+	wire				gtx_rx_reset;
 	wire				gtx_tx_clk_ready;
-	wire				rxuserrdy_t;
-
-	wire				rxlpmlfhold_i;
-	wire				rxlpmhfhold_i;
+	wire				gtx_rx_clk_ready;
 
 	wire				cpll_reset;
 
@@ -430,9 +425,9 @@ module GTXWrapper #(
 
 		//RX CTLE
 		.RXLPMEN                        (1'b1),
-		.RXLPMHFHOLD                    (rxlpmhfhold_i),
+		.RXLPMHFHOLD                    (1'b0),
 		.RXLPMHFOVRDEN                  (1'b0),
-		.RXLPMLFHOLD                    (rxlpmlfhold_i),
+		.RXLPMLFHOLD                    (1'b0),
 		.RXLPMLFKLOVRDEN                (1'b0),
 
 		//RX DFE
@@ -506,8 +501,8 @@ module GTXWrapper #(
 
 		//Resets
 		.EYESCANRESET                   (eyescanreset_in),
-		.RXUSERRDY                      (rxuserrdy_t),
-		.GTRXRESET                      (gtrxreset_t),
+		.RXUSERRDY                      (gtx_rx_clk_ready),
+		.GTRXRESET                      (gtx_rx_reset),
 		.RXOOBRESET                     (1'b0),
 		.RXPCSRESET                     (1'b0),
 		.RXPMARESET                     (rxpmareset_in),
@@ -636,7 +631,7 @@ module GTXWrapper #(
 		.RXCLKCORCNT                    (),
 
 		//RX buffer
-		.RXBUFRESET                     (rxbufreset_in),
+		.RXBUFRESET                     (1'b0),
 		.RXBUFSTATUS                    (),
 		.RXDDIEN                        (1'b0),
 		.RXDLYBYPASS                    (1'b1),
@@ -673,7 +668,7 @@ module GTXWrapper #(
 		.TXPHINIT                       (1'b0),
 		.TXPHINITDONE                   (),
 		.TXPHOVRDEN                     (1'b0),
-		.TXBUFSTATUS                    (txbufstatus_out),
+		.TXBUFSTATUS                    (),
 
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// Protocol-specific stuff we don't use
@@ -736,79 +731,21 @@ module GTXWrapper #(
 		.tx_clk_from_qpll(tx_clk_from_qpll),
 		.tx_reset_done(tx_fsm_reset_done_out),
 
+		.rx_reset(soft_reset_rx_in),
+		.rx_clk_from_qpll(rx_clk_from_qpll),
+		.rx_reset_done(rx_fsm_reset_done_out),
+
 		.GTTXRESET(gtx_tx_reset),
 		.TXRESETDONE(txresetdone_out),
+		.TXUSERRDY(gtx_tx_clk_ready),
+
+		.GTRXRESET(gtx_rx_reset),
+		.RXRESETDONE(txresetdone_out),
+		.RXUSERRDY(gtx_rx_clk_ready),
+
 		.CPLLLOCK(cplllock_out),
 		.CPLLRESET(cpll_reset),
-		.QPLLLOCK(qplllock_in),
-		.TXUSERRDY(gtx_tx_clk_ready)
+		.QPLLLOCK(qplllock_in)
 	);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	//Legacy state machine from IP wizard for the RX side
-
-	reg            rx_cdrlocked;
-	integer  rx_cdrlock_counter= 0;
-
-	gtx_frontlane1_RX_STARTUP_FSM  #
-	(
-		.EXAMPLE_SIMULATION       (0),
-		.EQ_MODE                  ("LPM"),                  		//Rx Equalization Mode - Set to DFE or LPM
-		.STABLE_CLOCK_PERIOD      (SYSCLK_PERIOD),         		  	//Period of the stable clock driving this state-machine, unit is [ns]
-		.RETRY_COUNTER_BITWIDTH   (8),
-		.TX_QPLL_USED             ("TRUE"),                         // the TX and RX Reset FSMs must
-		.RX_QPLL_USED             ("TRUE"),                         // share these two generic values
-		.PHASE_ALIGNMENT_MANUAL   ("FALSE")              			// Decision if a manual phase-alignment is necessary or the automatic
-																	// is enough. For single-lane applications the automatic alignment is
-																	// sufficient
-	)
-	rxresetfsm_i
-	(
-		.STABLE_CLOCK                   (sysclk_in),
-		.RXUSERCLK                      (rxusrclk_in),
-		.SOFT_RESET                     (soft_reset_rx_in),
-		.DONT_RESET_ON_DATA_ERROR       (dont_reset_on_data_error_in),
-		.QPLLREFCLKLOST                 (qpllrefclklost_in),
-		.CPLLREFCLKLOST                 (1'b0),
-		.QPLLLOCK                       (qplllock_in),
-		.CPLLLOCK                       (1'b1),
-		.RXRESETDONE                    (rxresetdone_out),
-		.MMCM_LOCK                      (1'b1),
-		.RECCLK_STABLE                  (rx_cdrlocked),
-		.RECCLK_MONITOR_RESTART         (1'b0),
-		.DATA_VALID                     (data_valid_in),
-		.TXUSERRDY                      (1'b1),
-		.GTRXRESET                      (gtrxreset_t),
-		.MMCM_RESET                     (),
-		.QPLL_RESET                     (),
-		.CPLL_RESET                     (),
-		.RX_FSM_RESET_DONE              (rx_fsm_reset_done_out),
-		.RXUSERRDY                      (rxuserrdy_t),
-		.RUN_PHALIGNMENT                (),
-		.RESET_PHALIGNMENT              (),
-		.PHALIGNMENT_DONE               (1'b1),
-		.RXDFEAGCHOLD                   (),
-		.RXDFELFHOLD                    (),
-		.RXLPMLFHOLD                    (rxlpmlfhold_i),
-		.RXLPMHFHOLD                    (rxlpmhfhold_i),
-		.RETRY_COUNTER                  ()
-	);
-
-	//Typical CDRLOCK Time is 50,000UI, as per DS183
-	localparam RX_CDRLOCK_TIME      = 100000/10.3125;
-	localparam integer   WAIT_TIME_CDRLOCK    = RX_CDRLOCK_TIME / SYSCLK_PERIOD;
-
-	always @(posedge sysclk_in) begin
-		if(gtrxreset_t) begin
-			rx_cdrlocked       <= 1'b0;
-			rx_cdrlock_counter <= 0;
-		end
-		else if (rx_cdrlock_counter == WAIT_TIME_CDRLOCK) begin
-			rx_cdrlocked       <= 1'b1;
-			rx_cdrlock_counter <= rx_cdrlock_counter;
-		end
-		else
-			rx_cdrlock_counter <= rx_cdrlock_counter + 1;
-	end
 
 endmodule

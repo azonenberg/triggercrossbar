@@ -48,13 +48,22 @@ module GTXResetController #(
 	input wire			tx_clk_from_qpll,
 	output logic		tx_reset_done = 0,
 
+	input wire			rx_reset,
+	input wire			rx_clk_from_qpll,
+	output logic		rx_reset_done = 0,
+
 	//Ports to the GTX
 	output logic		GTTXRESET = 0,
 	input wire			TXRESETDONE,
+	output logic		TXUSERRDY = 0,
+
+	output logic		GTRXRESET = 0,
+	input wire			RXRESETDONE,
+	output logic		RXUSERRDY = 0,
+
 	output logic		CPLLRESET = 0,
 	input wire			CPLLLOCK,
-	input wire			QPLLLOCK,
-	output logic		TXUSERRDY = 0
+	input wire			QPLLLOCK
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,6 +72,7 @@ module GTXResetController #(
 	wire	cpll_lock;
 	wire	qpll_lock;
 	wire	tx_reset_done_int;
+	wire	rx_reset_done_int;
 
 	ThreeStageSynchronizer #(
 		.IN_REG(0)
@@ -82,11 +92,20 @@ module GTXResetController #(
 
 	ThreeStageSynchronizer #(
 		.IN_REG(0)
-	) sync_rst_done (
+	) sync_tx_rst_done (
 		.clk_in(sysclk),
 		.din(TXRESETDONE),
 		.clk_out(sysclk),
 		.dout(tx_reset_done_int));
+
+
+	ThreeStageSynchronizer #(
+		.IN_REG(0)
+	) sync_rx_rst_done (
+		.clk_in(sysclk),
+		.din(RXRESETDONE),
+		.clk_out(sysclk),
+		.dout(rx_reset_done_int));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Main transceiver reset
@@ -111,6 +130,23 @@ module GTXResetController #(
 
 	logic[15:0] count = 0;
 
+	//Mux lock state for both PLLs
+	logic	tx_pll_lock;
+	logic	rx_pll_lock;
+	always_comb begin
+
+		if(tx_clk_from_qpll)
+			tx_pll_lock = qpll_lock;
+		else
+			tx_pll_lock = cpll_lock;
+
+		if(rx_clk_from_qpll)
+			rx_pll_lock = qpll_lock;
+		else
+			rx_pll_lock = cpll_lock;
+
+	end
+
 	always_ff @(posedge sysclk) begin
 
 		case(rst_state)
@@ -133,8 +169,12 @@ module GTXResetController #(
 				count <= count + 1;
 				if(count > CYCLES_FOR_500NS) begin
 					GTTXRESET	<= 1;
-					if(!tx_clk_from_qpll)
+					GTRXRESET	<= 1;
+
+					//reset CPLL if either side is using it
+					if(!tx_clk_from_qpll || !rx_clk_from_qpll)
 						CPLLRESET	<= 1;
+
 					rst_state	<= RST_STATE_PLL_RESET;
 				end
 
@@ -143,24 +183,28 @@ module GTXResetController #(
 			//Wait for PLL to lose lock before deasserting reset
 			RST_STATE_PLL_RESET: begin
 
-				//We don't manage QPLL reset, that's done separately
-				if(tx_clk_from_qpll)
-					rst_state	<= RST_STATE_PLL_LOCK;
-
 				//If using CPLL, wait for it to unlock first
-				else if(!cpll_lock) begin
-					CPLLRESET	<= 0;
-					rst_state	<= RST_STATE_PLL_LOCK;
+				if( (!tx_clk_from_qpll || !rx_clk_from_qpll) ) begin
+					if(!cpll_lock) begin
+						CPLLRESET	<= 0;
+						rst_state	<= RST_STATE_PLL_LOCK;
+					end
 				end
+
+				//We don't manage QPLL reset, that's done separately
+				else
+					rst_state	<= RST_STATE_PLL_LOCK;
 
 			end	//RST_STATE_PLL_RESET
 
 			//Wait for PLL to regain lock
 			RST_STATE_PLL_LOCK: begin
-				if( (tx_clk_from_qpll && qpll_lock) ||
-					(!tx_clk_from_qpll && cpll_lock) ) begin
+
+				//Wait for both TX and RX PLLs to lock
+				if(tx_pll_lock && rx_pll_lock) begin
 
 					GTTXRESET	<= 0;
+					GTRXRESET	<= 0;
 					rst_state	<= RST_STATE_USERCLK_WAIT;
 					count		<= 0;
 
@@ -173,6 +217,7 @@ module GTXResetController #(
 
 				if(count > CYCLES_FOR_CDRLOCK) begin
 					TXUSERRDY	<= 1;
+					RXUSERRDY	<= 1;
 					rst_state	<= RST_STATE_RESET_WAIT;
 				end
 
@@ -183,23 +228,31 @@ module GTXResetController #(
 				if(tx_reset_done_int) begin
 					rst_state		<= RST_STATE_IDLE;
 					tx_reset_done	<= 1;
+					rx_reset_done	<= 1;
 				end
 			end	//RST_STATE_RESET_WAIT
 
 			//Wait for soft reset request
+			//NOTE: concurrent soft resets allowed, but can't reset TX if RX is in the middle of a reset
+			//or vice versa
 			RST_STATE_IDLE: begin
+
 				if(tx_reset) begin
 					GTTXRESET		<= 1;
 					tx_reset_done	<= 0;
 					rst_state		<= RST_STATE_PLL_LOCK;
 				end
+
+				if(rx_reset) begin
+					GTRXRESET		<= 1;
+					rx_reset_done	<= 0;
+					rst_state		<= RST_STATE_PLL_LOCK;
+				end
+
 			end	//RST_STATE_IDLE
 
 		endcase
 
 	end
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// TODO: RX path reset too
 
 endmodule
