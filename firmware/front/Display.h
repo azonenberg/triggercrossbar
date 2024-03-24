@@ -38,6 +38,14 @@ public:
 	void Refresh();
 	void SetPixel(uint8_t x, uint8_t y, bool red, bool black);
 
+	void Text8x16(int16_t x, int16_t y, const char* str, bool red, bool black);
+	void Text6x8(int16_t x, int16_t y, const char* str, bool red, bool black);
+	void Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool red, bool black);
+
+protected:
+	void LineLow(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool red, bool black);
+	void LineHigh(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool red, bool black);
+
 protected:
 	SPI* m_spi;
 	GPIOPin* m_busy_n;
