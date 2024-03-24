@@ -42,6 +42,12 @@ module top(
 	inout wire[3:0]		qspi_dq,
 	output wire			irq,
 
+	//SPI interface to front panel
+	output wire			frontpanel_sck,
+	input wire			frontpanel_miso,
+	output wire			frontpanel_mosi,
+	output wire			frontpanel_cs_n,
+
 	//RGMII interface
 	output wire			rgmii_rst_n,
 
@@ -553,6 +559,16 @@ module top(
 		.crypt_e(crypt_e),
 		.crypt_out_valid(crypt_out_valid)
 	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// VIO to temporarily terminate front panel SPI bus
+
+	vio_0 vio(
+		.clk(clk_125mhz),
+		.probe_in0(frontpanel_miso),
+		.probe_out0(frontpanel_sck),
+		.probe_out1(frontpanel_cs_n),
+		.probe_out2(frontpanel_mosi));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Debug LEDs etc

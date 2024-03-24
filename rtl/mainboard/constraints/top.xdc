@@ -283,3 +283,17 @@ set_clock_groups -asynchronous -group [get_clocks prbs_transceiver/cdrtrig_rx_cl
 set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks prbs_transceiver/cdrtrig_rx_clk_raw]
 
 set_clock_groups -asynchronous -group [get_clocks prbs_transceiver/prbs_tx_clk_raw] -group [get_clocks clk_125mhz_raw]
+
+set_property IOSTANDARD LVCMOS33 [get_ports frontpanel_cs_n]
+set_property IOSTANDARD LVCMOS33 [get_ports frontpanel_miso]
+set_property IOSTANDARD LVCMOS33 [get_ports frontpanel_mosi]
+set_property IOSTANDARD LVCMOS33 [get_ports frontpanel_sck]
+set_property PULLUP true [get_ports frontpanel_miso]
+set_property PACKAGE_PIN N22 [get_ports frontpanel_cs_n]
+set_property PACKAGE_PIN K21 [get_ports frontpanel_miso]
+set_property PACKAGE_PIN L21 [get_ports frontpanel_mosi]
+set_property PACKAGE_PIN K22 [get_ports frontpanel_sck]
+set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
+set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
+set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]
+connect_debug_port dbg_hub/clk [get_nets clk_125mhz]
