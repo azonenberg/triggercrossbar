@@ -27,31 +27,35 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef frontpanel_h
-#define frontpanel_h
+#ifndef Display_h
+#define Display_h
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
+class Display
+{
+public:
+	Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin* rst);
 
-#include <peripheral/ADC.h>
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
-#include <peripheral/Power.h>
-#include <peripheral/RCC.h>
-#include <peripheral/SPI.h>
-#include <peripheral/Timer.h>
-#include <peripheral/UART.h>
-#include <util/Logger.h>
-#include <util/FIFO.h>
+	void Refresh();
+	void SetPixel(uint8_t x, uint8_t y, bool red, bool black);
 
-extern UART* g_uart;
-extern Logger g_log;
-extern Timer* g_logTimer;
+protected:
+	SPI* m_spi;
+	GPIOPin* m_busy_n;
+	GPIOPin* m_cs_n;
+	GPIOPin* m_dc;
+	GPIOPin* m_rst_n;
 
-uint16_t ReadThermalSensor(uint8_t addr);
-extern const uint8_t g_tempI2cAddress;
+	void SendCommand(uint8_t cmd);
+	void SendData(uint8_t data);
+
+	//Framebuffer black bitplane
+	uint8_t m_blackFramebuffer[2756];
+
+	//Framebuffer red bitplane
+	uint8_t m_redFramebuffer[2756];
+
+	const uint16_t m_width;
+	const uint16_t m_height;
+};
 
 #endif

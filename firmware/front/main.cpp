@@ -29,6 +29,7 @@
 
 #include "frontpanel.h"
 #include "TCA6424A.h"
+#include "Display.h"
 
 //UART console
 UART* g_uart = nullptr;
@@ -45,12 +46,15 @@ void InitGPIOs();
 void InitI2C();
 void InitSensors();
 void InitExpander();
+void InitSPI();
+void InitDisplay();
 
-uint16_t ReadThermalSensor(uint8_t addr);
 const uint8_t g_tempI2cAddress = 0x90;
 
 I2C* g_i2c = nullptr;
 TCA6424A* g_expander = nullptr;
+
+SPI* g_displaySPI = nullptr;
 
 int main()
 {
@@ -67,6 +71,8 @@ int main()
 	InitI2C();
 	InitSensors();
 	InitExpander();
+	InitSPI();
+	InitDisplay();
 
 	g_log("Ready\n");
 
@@ -319,6 +325,41 @@ void InitExpander()
 		//DEBUG: also turn all the LEDs on
 		expander.SetOutputValue(i, true);
 	}
+}
+
+void InitSPI()
+{
+	g_log("Initializing SPI\n");
+
+	//Set up GPIOs for display bus
+	static GPIOPin display_sck(&GPIOD, 1, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+	//PD0 used as route through, leave tristated
+	static GPIOPin display_mosi(&GPIOD, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+	//MISO not used, bus is bidirectional
+
+	//Divide by 20 to get 2 MHz SPI
+	//We can run up to 10 MHz for writes but readback Fmax is much slower
+	static SPI displaySPI(&SPI2, true, 20);
+	g_displaySPI = &displaySPI;
+}
+
+void InitDisplay()
+{
+	g_log("Initializing display\n");
+	LogIndenter li(g_log);
+
+	//Set up GPIOs
+	static GPIOPin display_busy_n(&GPIOA, 4, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin display_bs(&GPIOA, 7, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	static GPIOPin display_cs_n(&GPIOC, 14, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_FAST);
+	static GPIOPin display_dc(&GPIOH, 0, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_FAST);
+	static GPIOPin display_rst_n(&GPIOH, 1, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_FAST);
+
+	//BS pin seems to be a strap that just needs to be held low
+	display_bs = 0;
+
+	//Set up the display itself
+	static Display display(g_displaySPI, &display_busy_n, &display_cs_n, &display_dc, &display_rst_n);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
