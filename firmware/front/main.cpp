@@ -28,6 +28,7 @@
 ***********************************************************************************************************************/
 
 #include "frontpanel.h"
+#include "TCA6424A.h"
 
 //UART console
 UART* g_uart = nullptr;
@@ -43,11 +44,13 @@ void DetectHardware();
 void InitGPIOs();
 void InitI2C();
 void InitSensors();
+void InitExpander();
 
 uint16_t ReadThermalSensor(uint8_t addr);
 const uint8_t g_tempI2cAddress = 0x90;
 
 I2C* g_i2c = nullptr;
+TCA6424A* g_expander = nullptr;
 
 int main()
 {
@@ -63,6 +66,7 @@ int main()
 	InitGPIOs();
 	InitI2C();
 	InitSensors();
+	InitExpander();
 
 	g_log("Ready\n");
 
@@ -292,6 +296,29 @@ void InitI2C()
 	//Divide by 100 after that to get 100 kHz
 	static I2C i2c(&I2C2, 4, 100);
 	g_i2c = &i2c;
+}
+
+void InitExpander()
+{
+	g_log("Initializing IO expander\n");
+
+	//Clear reset
+	static GPIOPin tca_rst(&GPIOB, 1, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	tca_rst = 1;
+	g_logTimer->Sleep(20);
+
+	//Initialize the expander
+	static TCA6424A expander(g_i2c, 0x44);
+	g_expander = &expander;
+
+	//Set all the IOs as output
+	for(int i=0; i<24; i++)
+	{
+		expander.SetDirection(i, false);
+
+		//DEBUG: also turn all the LEDs on
+		expander.SetOutputValue(i, true);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
