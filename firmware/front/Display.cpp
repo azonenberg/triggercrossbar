@@ -421,6 +421,7 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 	, m_rst_n(rst)
 	, m_width(212)
 	, m_height(104)
+	, m_refreshInProgress(false)
 {
 	//Deassert SPI CS#
 	*m_cs_n = 1;
@@ -441,27 +442,20 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 	g_logTimer->Sleep(500);
 
 	//Clear both bitplanes to blank
-	memset(m_blackFramebuffer, 0, sizeof(m_blackFramebuffer));
-	memset(m_redFramebuffer, 0, sizeof(m_redFramebuffer));
-
-	//Steep diagonal red line from bottom left up and right
-	Line(0, 0, 32, 64, true, false);
-
-	//Shallow diagonal black line to the right of it
-	Line(32, 16, 64, 0, false, true);
-
-	//Line of red text
-	Text8x16(0, 64, "hai world", true, false);
-
-	//Line of black text
-	Text6x8(0, 80, "foobar", false, true);
-
-	//Refresh the image
-	Refresh();
+	Clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // High level interface
+
+/**
+	@brief Reset the framebuffer to blank
+ */
+void Display::Clear()
+{
+	memset(m_blackFramebuffer, 0, sizeof(m_blackFramebuffer));
+	memset(m_redFramebuffer, 0, sizeof(m_redFramebuffer));
+}
 
 /**
 	@brief Draw an ASCII string
@@ -697,15 +691,14 @@ void Display::SetPixel(uint8_t x, uint8_t y, bool red, bool black)
 
 /**
 	@brief Push the framebuffer to the display
-
-	TODO: make this nonblocking
  */
-void Display::Refresh()
+void Display::StartRefresh()
 {
+	m_refreshInProgress = true;
+
 	//Send temperature
 	auto temp = ReadThermalSensor(g_tempI2cAddress);
 	SendCommand(0xe5);
-	g_log("Updating temperature (display is %d C)\n", (temp >> 8));
 	SendData(temp >> 8);
 
 	//Activate temperature
@@ -717,11 +710,8 @@ void Display::Refresh()
 	SendData(0xcf);
 	SendData(0x89);
 
-	g_log("Sending image data\n");
-
-	//TEST: Fill the entire image with red
-	//Resolution is 212 x 104 pixels (22048 total pixels, 2756 bytes)
 	//First bitplane is 1=black, second is 1=red. 0 for both means white.
+	//TODO: can we DMA/interrupt this?
 	SendCommand(0x10);
 	for(int32_t i=0; i<2756; i++)
 		SendData(m_blackFramebuffer[i]);
@@ -731,26 +721,42 @@ void Display::Refresh()
 	while(*m_busy_n == 0)
 	{}
 
-	g_log("Sending power on\n");
-
 	//Send power-on command
 	SendCommand(0x04);
 	while(*m_busy_n == 0)
 	{}
 
-	g_log("Sending display refresh\n");
-
 	//Send display refresh command
 	SendCommand(0x12);
-	while(*m_busy_n == 0)
-	{}
+}
 
-	g_log("Shutting down\n");
+/**
+	@brief Check if the refresh cycle is done
+ */
+bool Display::PollRefreshComplete()
+{
+	if(!m_refreshInProgress)
+		return true;
+
+	if(*m_busy_n != 0)
+		return true;
+	return false;
+}
+
+/**
+	@brief Completes the refresh cycle
+ */
+void Display::FinishRefresh()
+{
+	while(!PollRefreshComplete())
+	{}
 
 	//Turn off DC-DC (TODO is this required?)
 	SendCommand(0x02);
 	while(*m_busy_n == 0)
 	{}
+
+	m_refreshInProgress = false;
 
 	//TODO: we need to refresh every 24 hours to avoid ghosting
 }

@@ -35,7 +35,15 @@ class Display
 public:
 	Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin* rst);
 
-	void Refresh();
+	void StartRefresh();
+	bool PollRefreshComplete();
+	void FinishRefresh();
+
+	bool IsRefreshInProgress()
+	{ return m_refreshInProgress; }
+
+	void Clear();
+
 	void SetPixel(uint8_t x, uint8_t y, bool red, bool black);
 
 	void Text8x16(int16_t x, int16_t y, const char* str, bool red, bool black);
@@ -64,6 +72,8 @@ protected:
 
 	const uint16_t m_width;
 	const uint16_t m_height;
+
+	bool m_refreshInProgress;
 };
 
 #endif

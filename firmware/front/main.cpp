@@ -48,6 +48,7 @@ void InitSensors();
 void InitExpander();
 void InitSPI();
 void InitDisplay();
+void RefreshDisplay();
 
 const uint8_t g_tempI2cAddress = 0x90;
 
@@ -55,6 +56,16 @@ I2C* g_i2c = nullptr;
 TCA6424A* g_expander = nullptr;
 
 SPI* g_displaySPI = nullptr;
+Display* g_display = nullptr;
+
+GPIOPin* g_inmodeLED[4] = {nullptr};
+GPIOPin* g_outmodeLED[4] = {nullptr};
+
+uint16_t g_nextBlink = 0;
+const uint16_t g_blinkDelay = 2500;
+
+SPI* g_fpgaSPI = nullptr;
+GPIOPin* g_fpgaSPICS = nullptr;
 
 int main()
 {
@@ -77,59 +88,41 @@ int main()
 	g_log("Ready\n");
 
 	//Main event loop
+	const int logTimerMax = 60000;
 	while(1)
 	{
-		/*
+		//See if the display is refreshing still
+		if(g_display->IsRefreshInProgress())
+		{
+			if(g_display->PollRefreshComplete())
+			{
+				g_display->FinishRefresh();
+				g_log("display refresh complete\n");
+			}
+		}
+
+		//Heartbeat blinky
+		if(g_logTimer->GetCount() >= g_nextBlink)
+		{
+			*g_inmodeLED[0] = !*g_inmodeLED[0];
+			g_nextBlink = g_logTimer->GetCount() + g_blinkDelay;
+
+			//Handle wraps
+			if(g_nextBlink >= logTimerMax)
+				g_nextBlink = 0;
+		}
+
 		//Check for overflows on our log message timer
-		g_log.UpdateOffset(60000);
+		g_log.UpdateOffset(logTimerMax);
 
-		//Check for power button activity
-		PollPowerButtons();
+		//Log if we got a SPI event
+		*g_inmodeLED[1] = *g_fpgaSPICS;
 
-		//Blink power LED if rails are up but FPGA isn't
-		if( ( (g_powerState == STATE_ON) || (g_powerState == STATE_STARTING) ) && !g_fpgaUp)
+		if(g_fpgaSPI->PollReadDataReady())
 		{
-			if(g_logTimer->GetCount() >= g_nextBlink)
-			{
-				*g_ok_led = !*g_ok_led;
-				g_nextBlink = g_logTimer->GetCount() + g_blinkDelay;
-			}
+			uint8_t data = g_fpgaSPI->BlockingRead();
+			g_log("Got SPI data: %02x\n", data);
 		}
-
-		//Normal operation
-		if(g_powerState == STATE_ON)
-		{
-			//Check if 12V input power is lost
-			if(PollPowerFailure())
-			{
-				//Continue to log 12V and 3.3V at 10ms intervals until we lose power,
-				//so we can track how long the decay took
-				g_log("Logging voltages until we lose power completely...\n");
-				LogIndenter li(g_log);
-				while(true)
-				{
-					auto vin = Get12VRailVoltage();
-					auto v48 = ReadIBCRegister(IBC_REG_VIN);
-					g_log("48V0:    %d.%03d V\n", v48/1000, v48 % 1000);
-					g_log("12V0:    %d.%03d V\n", vin/1000, vin % 1000);
-					g_log("3V3_SB:  %d mV\n", g_adc->GetSupplyVoltage());
-					g_logTimer->Sleep(100);
-				}
-			}
-
-			//Check all rails (other than 1v8 which still has a solder defect on PGOOD that I don't feel like bodging)
-			//to see if any of them went out of tolerance (indicating a short)
-			MonitorRail(*g_pgood_3v3, "3V3");
-			//MonitorRail(pgood_1v8, "1V8");
-			MonitorRail(*g_pgood_gtx_1v8, "GTX_1V8");
-			MonitorRail(*g_pgood_1v2, "1V2");
-			MonitorRail(*g_pgood_1v0, "1V0");
-			MonitorRail(*g_pgood_gtx_1v0, "GTX_1V0");
-
-			//See if the FPGA went up or down
-			PollFPGA();
-		}
-		*/
 	}
 
 	return 0;
@@ -181,7 +174,7 @@ void InitLog()
 {
 	//APB1 is 40 MHz
 	//Divide down to get 10 kHz ticks
-	static Timer logtim(&TIM2, Timer::FEATURE_GENERAL_PURPOSE_16BIT, 4000);
+	static Timer logtim(&TIM15, Timer::FEATURE_GENERAL_PURPOSE_16BIT, 4000);
 	g_logTimer = &logtim;
 
 	//Wait 10ms to avoid resets during shutdown from destroying diagnostic output
@@ -268,7 +261,6 @@ void InitGPIOs()
 {
 	g_log("Initializing GPIOs\n");
 
-	//DEBUG: turn on all port direction LEDs
 	static GPIOPin dirin_led0(&GPIOD, 10, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	static GPIOPin dirin_led1(&GPIOC, 9, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	static GPIOPin dirin_led2(&GPIOA, 11, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
@@ -279,14 +271,22 @@ void InitGPIOs()
 	static GPIOPin dirout_led2(&GPIOE, 11, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	static GPIOPin dirout_led3(&GPIOE, 14, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 
-	dirin_led0 = 1;
-	dirin_led1 = 1;
-	dirin_led2 = 1;
-	dirin_led3 = 1;
-	dirout_led0 = 1;
-	dirout_led1 = 1;
-	dirout_led2 = 1;
-	dirout_led3 = 1;
+	g_inmodeLED[0] = &dirin_led0;
+	g_inmodeLED[1] = &dirin_led1;
+	g_inmodeLED[2] = &dirin_led2;
+	g_inmodeLED[3] = &dirin_led3;
+
+	g_outmodeLED[0] = &dirout_led0;
+	g_outmodeLED[1] = &dirout_led1;
+	g_outmodeLED[2] = &dirout_led2;
+	g_outmodeLED[3] = &dirout_led3;
+
+	//DEBUG: turn on all port direction LEDs
+	for(int i=0; i<4; i++)
+	{
+		*g_inmodeLED[i] = 1;
+		*g_outmodeLED[i] = 1;
+	}
 }
 
 void InitI2C()
@@ -337,10 +337,25 @@ void InitSPI()
 	static GPIOPin display_mosi(&GPIOD, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
 	//MISO not used, bus is bidirectional
 
-	//Divide by 20 to get 2 MHz SPI
-	//We can run up to 10 MHz for writes but readback Fmax is much slower
-	static SPI displaySPI(&SPI2, true, 20);
+	//Divide by 5 to get 8 MHz SPI
+	//We can run up to 10 MHz for writes but readback Fmax is ~2 MHz
+	static SPI displaySPI(&SPI2, true, 5);
 	g_displaySPI = &displaySPI;
+
+	//Set up GPIOs for FPGA bus
+	static GPIOPin fpga_sck(&GPIOE, 13, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+	static GPIOPin fpga_mosi(&GPIOE, 15, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+	//static GPIOPin fpga_miso(&GPIOB, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+	//DO NOT configure MISO since this pin doubles as JTRST
+	//If we enable it, JTAG will stop working!
+	static GPIOPin fpga_cs_n(&GPIOB, 0, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+
+	//Set up the SPI bus
+	static SPI fpgaSPI(&SPI1, true, 2, false);
+	g_fpgaSPI = &fpgaSPI;
+
+	//Save the CS# pin
+	g_fpgaSPICS = &fpga_cs_n;
 }
 
 void InitDisplay()
@@ -360,6 +375,58 @@ void InitDisplay()
 
 	//Set up the display itself
 	static Display display(g_displaySPI, &display_busy_n, &display_cs_n, &display_dc, &display_rst_n);
+	g_display = &display;
+
+	//Refresh the display
+	RefreshDisplay();
+}
+
+/**
+	@brief Draw stuff on the screen
+ */
+void RefreshDisplay()
+{
+	g_display->Clear();
+
+	//Vertical line at left of text
+	g_display->Line(0, 103, 0, 28, false, true);
+
+	//Line at top of text
+	g_display->Line(0, 103, 158, 103, false, true);
+
+	//Top row: IPv4 address
+	g_display->Text6x8(2, 93, "IPv4  169.254.123.123", false, true);
+
+	//Next row: IPv6 address
+	g_display->Text6x8(2, 85, "IPv6  2603:3023:cafe:f00d:", false, true);
+	g_display->Text6x8(2, 77, "      dead:beef:baad:c0de", false, true);
+
+	//Top right corner: SFP+ or baseT indicator
+	g_display->Text6x8(180, 93, "1000M", false, true);
+
+	//Line between IP info and serial
+	g_display->Line(0, 75, 158, 75, false, true);
+
+	//Serial number
+	g_display->Text6x8(2, 64, "S/N   0078b4222799685c", false, true);
+
+	//Line between serial and version
+	g_display->Line(0, 63, 158, 63, false, true);
+
+	//Version info
+	g_display->Text6x8(2, 53, "Panel v0.1.0 2024-03-24", false, true);
+	g_display->Text6x8(2, 45, "MCU   v0.1.0 2024-03-24", false, true);
+	g_display->Text6x8(2, 37, "FPGA  v0.1.0 2024-03-24", false, true);
+	g_display->Text6x8(2, 29, "IBC   v0.1.0 2024-03-24", false, true);
+
+	//Line below version info
+	g_display->Line(0, 28, 158, 28, false, true);
+
+	//Vertical line at right of address/version info
+	g_display->Line(158, 103, 158, 28, false, true);
+
+	//Done, push the update to the display
+	g_display->StartRefresh();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
