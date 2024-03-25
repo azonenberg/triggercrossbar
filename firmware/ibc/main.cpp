@@ -57,6 +57,9 @@ GPIOPin* g_ok_led = nullptr;
 I2C* g_i2c = nullptr;
 ADC* g_adc = nullptr;
 
+//Firmware version string
+char g_version[20] = "0.1.0 " __DATE__;
+
 int main()
 {
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
@@ -74,6 +77,8 @@ int main()
 	InitADC();
 	InitSensors();
 
+	g_log("Firmware version %s\n", g_version);
+
 	//Initalize our GPIOs and make sure all rails are off
 	GPIOPin ok_led(&GPIOA, 11, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	GPIOPin fault_led(&GPIOA, 12, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
@@ -89,7 +94,7 @@ int main()
 	g_fault_led = &fault_led;
 
  	//Poll for problems
- 	g_log("Output disabled\n");
+ 	g_log("Init complete, output turned off until start requested by host board\n");
  	bool out_was_en = false;
  	uint8_t i2c_regid = 0;
 	while(1)
@@ -141,6 +146,12 @@ int main()
 					//Read output current
 					case IBC_REG_IOUT:
 						g_i2c->BlockingDeviceWrite16(GetOutputCurrent());
+						break;
+
+					//Read version string
+					case IBC_REG_VERSION:
+						for(size_t i=0; i<sizeof(g_version); i++)
+							g_i2c->BlockingDeviceWrite8(g_version[i]);
 						break;
 
 					default:

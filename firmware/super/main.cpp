@@ -83,6 +83,7 @@ uint16_t Get12VRailVoltage();
 uint16_t ReadThermalSensor(uint8_t addr);
 uint16_t ReadIBCRegister(uint8_t addr);
 const uint8_t g_tempI2cAddress = 0x90;
+const uint8_t g_ibcI2cAddress = 0x42;
 
 void PollFPGA();
 
@@ -105,6 +106,12 @@ uint16_t g_nextBlink = 0;
 
 void PowerOn();
 void PowerOff();
+
+//IBC version string
+char g_ibcVersion[20] = {0};
+
+//Our version string
+char g_version[20] = "0.1.0 " __DATE__;
 
 int main()
 {
@@ -213,8 +220,8 @@ uint16_t ReadThermalSensor(uint8_t addr)
 uint16_t ReadIBCRegister(uint8_t addr)
 {
 	uint16_t ret = 0;
-	g_i2c->BlockingWrite8(0x42, addr);
-	g_i2c->BlockingRead16(0x42, ret);
+	g_i2c->BlockingWrite8(g_ibcI2cAddress, addr);
+	g_i2c->BlockingRead16(g_ibcI2cAddress, ret);
 	return ret;
 }
 
@@ -578,6 +585,7 @@ void InitLog()
 	//Start the logger
 	g_log.Initialize(g_uart, &logtim);
 	g_log("UART logging ready\n");
+	g_log("Firmware version %s\n", g_version);
 }
 
 void DetectHardware()
@@ -663,6 +671,11 @@ void InitSensors()
 
 	//Print initial values from every sensor
 	PrintIBCSensors();
+
+	//Read IBC firmware version
+	g_i2c->BlockingWrite8(g_ibcI2cAddress, IBC_REG_VERSION);
+	g_i2c->BlockingRead(g_ibcI2cAddress, (uint8_t*)g_ibcVersion, sizeof(g_ibcVersion));
+	g_log("IBC firmware version %s\n", g_ibcVersion);
 }
 
 void InitADC()

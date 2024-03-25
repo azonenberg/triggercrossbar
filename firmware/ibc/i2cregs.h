@@ -42,7 +42,9 @@ enum ibc_i2cregs_t
 	IBC_REG_VSENSE	= 0x02,		//Sense voltage (uint16_t mV)
 
 	IBC_REG_IIN		= 0x10,		//Input current (uint16_t mA)
-	IBC_REG_IOUT	= 0x11		//Output current (uint16_t mA)
+	IBC_REG_IOUT	= 0x11,		//Output current (uint16_t mA)
+
+	IBC_REG_VERSION	= 0x20		//Version string (20 bytes ASCII)
 };
 
 #endif
