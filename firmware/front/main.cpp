@@ -74,6 +74,11 @@ uint8_t g_ipv4Addr[4] = {0};
 uint16_t g_ipv6Addr[8] = {0};
 uint8_t g_serial[8] = {0};
 char g_mcuFirmware[20] = {0};
+char g_ibcFirmware[20] = {0};
+char g_superFirmware[20] = {0};
+char g_fpgaFirmware[20] = {0};
+uint16_t g_fpgaTemp = 0;
+uint16_t g_mcuTemp = 0;
 
 int main()
 {
@@ -187,6 +192,40 @@ int main()
 					case FRONT_MCU_FW:
 						if(nbyte < sizeof(g_mcuFirmware))
 							g_mcuFirmware[nbyte-1] = data;
+						break;
+
+					//IBC MCU firmware
+					case FRONT_IBC_FW:
+						if(nbyte < sizeof(g_ibcFirmware))
+							g_ibcFirmware[nbyte-1] = data;
+						break;
+
+					//Supervisor MCU firmware
+					case FRONT_SUPER_FW:
+						if(nbyte < sizeof(g_superFirmware))
+							g_superFirmware[nbyte-1] = data;
+						break;
+
+					//FPGA firmware
+					case FRONT_FPGA_FW:
+						if(nbyte < sizeof(g_fpgaFirmware))
+							g_fpgaFirmware[nbyte-1] = data;
+						break;
+
+					//FPGA die temperature
+					case FRONT_FPGA_TEMP:
+						if(nbyte == 1)
+							g_fpgaTemp = data;
+						else if(nbyte == 2)
+							g_fpgaTemp |= data << 8;
+						break;
+
+					//MCU die temperature
+					case FRONT_MCU_TEMP:
+						if(nbyte == 1)
+							g_mcuTemp = data;
+						else if(nbyte == 2)
+							g_mcuTemp |= data << 8;
 						break;
 
 				}
@@ -461,24 +500,94 @@ void RefreshDisplay()
 
 	g_display->Clear();
 
-	//Vertical line at left of text
-	g_display->Line(0, 103, 0, 20, false, true);
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Main text block
+
+	//Initial constants
+	uint8_t xleft = 0;
+	uint8_t ytop = 103;
+	uint8_t textheight = 8;
+	uint8_t textwidth = 6;
+
+	//Text box extents
+	uint8_t textleft = xleft + 2;
+	uint8_t textright = textleft + 24*textwidth;
+	uint8_t lineright = textright + 2;
 
 	//Line at top of text
-	g_display->Line(0, 103, 158, 103, false, true);
+	uint8_t texty = ytop;
+	g_display->Line(xleft, ytop, lineright, ytop, false, true);
+	texty -= 2;
 
 	//Top row: IPv4 address
+	texty -= textheight;
 	buf.Clear();
 	buf.Printf("IPv4  %d.%d.%d.%d", g_ipv4Addr[0], g_ipv4Addr[1], g_ipv4Addr[2], g_ipv4Addr[3]);
-	g_display->Text6x8(2, 93, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
 
-	//Next row: IPv6 address
+	//Next rows: IPv6 address
+	texty -= textheight;
 	buf.Clear();
 	buf.Printf("IPv6  %x:%x:%x:%x:", g_ipv6Addr[0], g_ipv6Addr[1], g_ipv6Addr[2], g_ipv6Addr[3]);
-	g_display->Text6x8(2, 85, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
+
+	texty -= textheight;
 	buf.Clear();
 	buf.Printf("      %x:%x:%x:%x", g_ipv6Addr[4], g_ipv6Addr[5], g_ipv6Addr[6], g_ipv6Addr[7]);
-	g_display->Text6x8(2, 77, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
+
+	//Line between IP info and serial
+	texty --;
+	g_display->Line(xleft, texty, lineright, texty, false, true);
+	texty -= 2;
+
+	//Serial number
+	texty -= textheight;
+	buf.Clear();
+	buf.Printf("S/N   %02x%02x%02x%02x%02x%02x%02x%02x",
+		g_serial[0], g_serial[1], g_serial[2], g_serial[3],
+		g_serial[4], g_serial[5], g_serial[6], g_serial[7]);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
+
+	//Line between serial and version
+	texty --;
+	g_display->Line(xleft, texty, lineright, texty, false, true);
+	texty -= 2;
+
+	//Version info
+	texty -= textheight;
+	buf.Clear();
+	buf.Printf("IBC   v%s", g_ibcFirmware);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
+
+	texty -= textheight;
+	buf.Clear();
+	buf.Printf("Super v%s", g_superFirmware);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
+
+	texty -= textheight;
+	g_display->Text6x8(textleft, texty, "Panel v0.1.0 " __DATE__, false, true);
+
+	texty -= textheight;
+	buf.Clear();
+	buf.Printf("MCU   v%s", g_mcuFirmware);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
+
+	texty -= textheight;
+	buf.Clear();
+	buf.Printf("FPGA  v%s", g_fpgaFirmware);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
+
+	//Line below version info
+	texty --;
+	g_display->Line(xleft, texty, lineright, texty, false, true);
+
+	//Vertical line at left and right of text
+	g_display->Line(xleft, ytop, xleft, texty, false, true);
+	g_display->Line(lineright, ytop, lineright, texty, false, true);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Right area
 
 	//Top right corner: SFP+ or baseT indicator
 	const char* linkSpeed = "";
@@ -501,38 +610,51 @@ void RefreshDisplay()
 			break;
 
 		default:
-			linkSpeed = "DOWN";
+			linkSpeed = " DOWN";
 			break;
 	}
-	g_display->Text6x8(180, 93, linkSpeed, false, true);
+	if(g_linkSpeed > 3)
+		g_display->Text6x8(181, 93, linkSpeed, true, false);
+	else
+		g_display->Text6x8(181, 93, linkSpeed, false, true);
 
-	//Line between IP info and serial
-	g_display->Line(0, 75, 158, 75, false, true);
+	//TODO
+	textleft = 151;
+	texty = 77;
+	g_display->Text6x8(textleft, texty, "IN 48.xxxV", false, true);
 
-	//Serial number
+	texty -= textheight;
+	g_display->Text6x8(textleft, texty, "    0.xxxA", false, true);
+
+	texty -= textheight;
+	g_display->Text6x8(textleft, texty, "   10.xxxW", false, true);
+
+	texty -= textheight;
+
+	texty -= textheight;
+	g_display->Text6x8(textleft, texty, "IBC  50.xC", false, true);
+
+	texty -= textheight;
+	int degreal = g_mcuTemp >> 8;
+	int degfrac = (g_mcuTemp & 0xff) * 10;
 	buf.Clear();
-	buf.Printf("S/N   %02x%02x%02x%02x%02x%02x%02x%02x",
-		g_serial[0], g_serial[1], g_serial[2], g_serial[3],
-		g_serial[4], g_serial[5], g_serial[6], g_serial[7]);
-	g_display->Text6x8(2, 64, tmp, false, true);
+	buf.Printf("MCU  %2d.%dC", degreal, degfrac >> 8);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
 
-	//Line between serial and version
-	g_display->Line(0, 63, 158, 63, false, true);
-
-	//Version info
-	g_display->Text6x8(2, 53, "IBC   vFIXME", false, true);
-	g_display->Text6x8(2, 45, "Super vFIXME", false, true);
-	g_display->Text6x8(2, 37, "Panel v0.1.0 " __DATE__, false, true);
+	texty -= textheight;
+	degreal = g_fpgaTemp >> 8;
+	degfrac = (g_fpgaTemp & 0xff) * 10;
 	buf.Clear();
-	buf.Printf("MCU   v%s", g_mcuFirmware);
-	g_display->Text6x8(2, 29, tmp, false, true);
-	g_display->Text6x8(2, 21, "FPGA  vFIXME", false, true);
+	buf.Printf("FPGA %2d.%dC", degreal, degfrac >> 8);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
 
-	//Line below version info
-	g_display->Line(0, 20, 158, 20, false, true);
-
-	//Vertical line at right of address/version info
-	g_display->Line(158, 103, 158, 20, false, true);
+	texty -= textheight;
+	auto fronttemp = ReadThermalSensor(g_tempI2cAddress);
+	degreal = fronttemp >> 8;
+	degfrac = (fronttemp & 0xff) * 10;
+	buf.Clear();
+	buf.Printf("PANL %2d.%dC", degreal, degfrac >> 8);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
 
 	//Done, push the update to the display
 	g_display->StartRefresh();

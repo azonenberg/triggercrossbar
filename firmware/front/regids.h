@@ -41,6 +41,12 @@ enum front_regid_t
 	FRONT_IP6_ADDR		= 0x02,	//IPv6 address
 	FRONT_SERIAL		= 0x03,	//FPGA serial number (used as system s/n for now... but not 100% reliable as DNA values can have duplicates)
 	FRONT_MCU_FW		= 0x04,	//MCU firmware revision
+	FRONT_IBC_FW		= 0x05,	//IBC firmware revision
+	FRONT_SUPER_FW		= 0x06,	//Supervisor firmware revision
+	FRONT_FPGA_FW		= 0x07,	//FPGA firmware revision
+
+	FRONT_FPGA_TEMP		= 0x10,	//FPGA die temperature
+	FRONT_MCU_TEMP		= 0x11,	//MCU die temperature
 
 	FRONT_REFRESH		= 0xff
 };

@@ -223,9 +223,49 @@ void UpdateFrontPanelDisplay()
 	SetFrontPanelCS(1);
 	g_logTimer->Sleep(1);
 
-	//TODO: FPGA firmware version
+	//TODO: query supervisor and IBC firmware
+	const char superFirmware[20] = "SUPER_FW_TODO";
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_SUPER_FW);
+	for(size_t i=0; i<sizeof(superFirmware); i++)
+		SendFrontPanelByte(superFirmware[i]);
+	SetFrontPanelCS(1);
+	g_logTimer->Sleep(1);
 
-	//TODO: query supervisor firmware
+	const char ibcFirmware[20] = "IBC_FW_TODO";
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_IBC_FW);
+	for(size_t i=0; i<sizeof(ibcFirmware); i++)
+		SendFrontPanelByte(ibcFirmware[i]);
+	SetFrontPanelCS(1);
+	g_logTimer->Sleep(1);
+
+	//TODO: FPGA firmware version
+	const char fpgaFirmware[20] = "FPGA_FW_TODO";
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_FPGA_FW);
+	for(size_t i=0; i<sizeof(fpgaFirmware); i++)
+		SendFrontPanelByte(fpgaFirmware[i]);
+	SetFrontPanelCS(1);
+	g_logTimer->Sleep(1);
+
+	//FPGA temperature
+	auto temp = GetFPGATemperature();
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_FPGA_TEMP);
+	SendFrontPanelByte(temp & 0xff);
+	SendFrontPanelByte(temp >> 8);
+	SetFrontPanelCS(1);
+	g_logTimer->Sleep(1);
+
+	//MCU temperature
+	temp = g_dts->GetTemperature();
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_MCU_TEMP);
+	SendFrontPanelByte(temp & 0xff);
+	SendFrontPanelByte(temp >> 8);
+	SetFrontPanelCS(1);
+	g_logTimer->Sleep(1);
 
 	//Refresh the display
 	SetFrontPanelCS(0);
