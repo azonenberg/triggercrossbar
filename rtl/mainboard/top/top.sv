@@ -44,7 +44,7 @@ module top(
 
 	//SPI interface to front panel
 	output wire			frontpanel_sck,
-	input wire			frontpanel_miso,
+	output wire			frontpanel_miso,
 	output wire			frontpanel_mosi,
 	output wire			frontpanel_cs_n,
 
@@ -114,6 +114,11 @@ module top(
 	input wire			rx1_p,
 	input wire			rx1_n
 );
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// tie off because silicon errata in front panel STM32, this has to be used as TRST#
+
+	assign frontpanel_miso = 1;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Clock synthesis
@@ -533,6 +538,10 @@ module top(
 		.relay_channel(toggle_channel),
 		.relay_done(toggle_done),
 
+		.frontpanel_sck(frontpanel_sck),
+		.frontpanel_mosi(frontpanel_mosi),
+		.frontpanel_cs_n(frontpanel_cs_n),
+
 		.muxsel(muxsel),
 
 		.serdes_config_updated(serdes_config_updated),
@@ -559,16 +568,6 @@ module top(
 		.crypt_e(crypt_e),
 		.crypt_out_valid(crypt_out_valid)
 	);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// VIO to temporarily terminate front panel SPI bus
-
-	vio_0 vio(
-		.clk(clk_125mhz),
-		.probe_in0(frontpanel_miso),
-		.probe_out0(frontpanel_sck),
-		.probe_out1(frontpanel_cs_n),
-		.probe_out2(frontpanel_mosi));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Debug LEDs etc

@@ -26,33 +26,23 @@
 * POSSIBILITY OF SUCH DAMAGE.                                                                                          *
 *                                                                                                                      *
 ***********************************************************************************************************************/
+#ifndef front_regids_h
+#define front_regids_h
 
-#ifndef frontpanel_h
-#define frontpanel_h
+enum front_regid_t
+{
+	FRONT_ETH_LINK		= 0x00,	//0 = 10M
+								//1 = 100M
+								//2 = 1G
+								//3 = 10G
+								//ff = down
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
+	FRONT_IP4_ADDR		= 0x01,	//IPv4 address
+	FRONT_IP6_ADDR		= 0x02,	//IPv6 address
+	FRONT_SERIAL		= 0x03,	//FPGA serial number (used as system s/n for now... but not 100% reliable as DNA values can have duplicates)
+	FRONT_MCU_FW		= 0x04,	//MCU firmware revision
 
-#include <peripheral/ADC.h>
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
-#include <peripheral/Power.h>
-#include <peripheral/RCC.h>
-#include <peripheral/SPI.h>
-#include <peripheral/Timer.h>
-#include <peripheral/UART.h>
-#include <util/Logger.h>
-#include <util/FIFO.h>
-#include <util/StringBuffer.h>
-
-extern UART* g_uart;
-extern Logger g_log;
-extern Timer* g_logTimer;
-
-uint16_t ReadThermalSensor(uint8_t addr);
-extern const uint8_t g_tempI2cAddress;
+	FRONT_REFRESH		= 0xff
+};
 
 #endif

@@ -30,6 +30,7 @@
 #include "frontpanel.h"
 #include "TCA6424A.h"
 #include "Display.h"
+#include "regids.h"
 
 //UART console
 UART* g_uart = nullptr;
@@ -67,6 +68,13 @@ const uint16_t g_blinkDelay = 2500;
 SPI* g_fpgaSPI = nullptr;
 GPIOPin* g_fpgaSPICS = nullptr;
 
+//Display state
+int g_linkSpeed = 0;
+uint8_t g_ipv4Addr[4] = {0};
+uint16_t g_ipv6Addr[8] = {0};
+uint8_t g_serial[8] = {0};
+char g_mcuFirmware[20] = {0};
+
 int main()
 {
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
@@ -89,6 +97,9 @@ int main()
 
 	//Main event loop
 	const int logTimerMax = 60000;
+	bool lastCS = true;
+	uint8_t nbyte = 0;
+	uint8_t cmd = 0;
 	while(1)
 	{
 		//See if the display is refreshing still
@@ -115,13 +126,73 @@ int main()
 		//Check for overflows on our log message timer
 		g_log.UpdateOffset(logTimerMax);
 
-		//Log if we got a SPI event
-		*g_inmodeLED[1] = *g_fpgaSPICS;
+		//Find CS# falling edges
+		auto cs = *g_fpgaSPICS;
+		if(lastCS && !cs)
+			nbyte = 0;
+		lastCS = cs;
 
+		//Process SPI data bytes
 		if(g_fpgaSPI->PollReadDataReady())
 		{
-			uint8_t data = g_fpgaSPI->BlockingRead();
-			g_log("Got SPI data: %02x\n", data);
+			uint8_t data = g_fpgaSPI->BlockingReadDevice();
+
+			//First byte is command
+			if(nbyte == 0)
+			{
+				cmd = data;
+
+				//Refresh the display immediately
+				if(cmd == FRONT_REFRESH)
+					RefreshDisplay();
+			}
+
+			//Then comes data bytes
+			else
+			{
+				switch(cmd)
+				{
+					//Link speed
+					case FRONT_ETH_LINK:
+						g_linkSpeed = data;
+						break;
+
+					//IPv4 address
+					case FRONT_IP4_ADDR:
+						if(nbyte <= 4)
+							g_ipv4Addr[nbyte-1] = data;
+						break;
+
+					//IPv6 address
+					case FRONT_IP6_ADDR:
+						if(nbyte <= 16)
+						{
+							int nword = (nbyte-1)/2;
+							int half = (nbyte-1) % 2;
+
+							if(half)
+								g_ipv6Addr[nword] |= data;
+							else
+								g_ipv6Addr[nword] = data << 8;
+						}
+						break;
+
+					//Serial number
+					case FRONT_SERIAL:
+						if(nbyte <= 8)
+							g_serial[nbyte-1] = data;
+						break;
+
+					//Main MCU firmware
+					case FRONT_MCU_FW:
+						if(nbyte < sizeof(g_mcuFirmware))
+							g_mcuFirmware[nbyte-1] = data;
+						break;
+
+				}
+			}
+
+			nbyte ++;
 		}
 	}
 
@@ -377,8 +448,7 @@ void InitDisplay()
 	static Display display(g_displaySPI, &display_busy_n, &display_cs_n, &display_dc, &display_rst_n);
 	g_display = &display;
 
-	//Refresh the display
-	RefreshDisplay();
+	//Do not do an initial display refresh, the main MCU will do that when it's ready
 }
 
 /**
@@ -386,44 +456,83 @@ void InitDisplay()
  */
 void RefreshDisplay()
 {
+	char tmp[128];
+	StringBuffer buf(tmp, sizeof(buf));
+
 	g_display->Clear();
 
 	//Vertical line at left of text
-	g_display->Line(0, 103, 0, 28, false, true);
+	g_display->Line(0, 103, 0, 20, false, true);
 
 	//Line at top of text
 	g_display->Line(0, 103, 158, 103, false, true);
 
 	//Top row: IPv4 address
-	g_display->Text6x8(2, 93, "IPv4  169.254.123.123", false, true);
+	buf.Clear();
+	buf.Printf("IPv4  %d.%d.%d.%d", g_ipv4Addr[0], g_ipv4Addr[1], g_ipv4Addr[2], g_ipv4Addr[3]);
+	g_display->Text6x8(2, 93, tmp, false, true);
 
 	//Next row: IPv6 address
-	g_display->Text6x8(2, 85, "IPv6  2603:3023:cafe:f00d:", false, true);
-	g_display->Text6x8(2, 77, "      dead:beef:baad:c0de", false, true);
+	buf.Clear();
+	buf.Printf("IPv6  %x:%x:%x:%x:", g_ipv6Addr[0], g_ipv6Addr[1], g_ipv6Addr[2], g_ipv6Addr[3]);
+	g_display->Text6x8(2, 85, tmp, false, true);
+	buf.Clear();
+	buf.Printf("      %x:%x:%x:%x", g_ipv6Addr[4], g_ipv6Addr[5], g_ipv6Addr[6], g_ipv6Addr[7]);
+	g_display->Text6x8(2, 77, tmp, false, true);
 
 	//Top right corner: SFP+ or baseT indicator
-	g_display->Text6x8(180, 93, "1000M", false, true);
+	const char* linkSpeed = "";
+	switch(g_linkSpeed)
+	{
+		case 0:
+			linkSpeed = "  10M";
+			break;
+
+		case 1:
+			linkSpeed = " 100M";
+			break;
+
+		case 2:
+			linkSpeed = "1000M";
+			break;
+
+		case 3:
+			linkSpeed = "  10G";
+			break;
+
+		default:
+			linkSpeed = "DOWN";
+			break;
+	}
+	g_display->Text6x8(180, 93, linkSpeed, false, true);
 
 	//Line between IP info and serial
 	g_display->Line(0, 75, 158, 75, false, true);
 
 	//Serial number
-	g_display->Text6x8(2, 64, "S/N   0078b4222799685c", false, true);
+	buf.Clear();
+	buf.Printf("S/N   %02x%02x%02x%02x%02x%02x%02x%02x",
+		g_serial[0], g_serial[1], g_serial[2], g_serial[3],
+		g_serial[4], g_serial[5], g_serial[6], g_serial[7]);
+	g_display->Text6x8(2, 64, tmp, false, true);
 
 	//Line between serial and version
 	g_display->Line(0, 63, 158, 63, false, true);
 
 	//Version info
-	g_display->Text6x8(2, 53, "Panel v0.1.0 2024-03-24", false, true);
-	g_display->Text6x8(2, 45, "MCU   v0.1.0 2024-03-24", false, true);
-	g_display->Text6x8(2, 37, "FPGA  v0.1.0 2024-03-24", false, true);
-	g_display->Text6x8(2, 29, "IBC   v0.1.0 2024-03-24", false, true);
+	g_display->Text6x8(2, 53, "IBC   vFIXME", false, true);
+	g_display->Text6x8(2, 45, "Super vFIXME", false, true);
+	g_display->Text6x8(2, 37, "Panel v0.1.0 " __DATE__, false, true);
+	buf.Clear();
+	buf.Printf("MCU   v%s", g_mcuFirmware);
+	g_display->Text6x8(2, 29, tmp, false, true);
+	g_display->Text6x8(2, 21, "FPGA  vFIXME", false, true);
 
 	//Line below version info
-	g_display->Line(0, 28, 158, 28, false, true);
+	g_display->Line(0, 20, 158, 20, false, true);
 
 	//Vertical line at right of address/version info
-	g_display->Line(158, 103, 158, 28, false, true);
+	g_display->Line(158, 103, 158, 20, false, true);
 
 	//Done, push the update to the display
 	g_display->StartRefresh();

@@ -30,8 +30,12 @@
 #include "triggercrossbar.h"
 #include "CrossbarCLISessionContext.h"
 #include <microkvs/driver/STM32StorageBank.h>
+#include "../front/regids.h"
 
 void LogTemperatures();
+void UpdateFrontPanelDisplay();
+void SetFrontPanelCS(bool b);
+void SendFrontPanelByte(uint8_t data);
 
 int main()
 {
@@ -93,6 +97,9 @@ int main()
 	CrossbarCLISessionContext uartContext;
 	uartContext.Initialize(&uartStream, "user");
 
+	//Update the display
+	UpdateFrontPanelDisplay();
+
 	//Enable interrupts only after all setup work is done
 	EnableInterrupts();
 
@@ -149,6 +156,84 @@ void PollFPGA()
 		if(frame != NULL)
 			g_ethProtocol->OnRxFrame(frame);
 	}
+}
+
+void SetFrontPanelCS(bool b)
+{
+	g_fpga->BlockingWrite8(REG_FRONT_CTRL, b);
+}
+
+void SendFrontPanelByte(uint8_t data)
+{
+	//Send the data byte
+	g_fpga->BlockingWrite8(REG_FRONT_DATA, data);
+
+	//Block until not busy
+	while(0 != g_fpga->BlockingRead8(REG_FRONT_STAT))
+	{}
+}
+
+/**
+	@brief Push new content to the front panel display
+ */
+void UpdateFrontPanelDisplay()
+{
+	g_log("Updating front panel display\n");
+
+	//TODO: 50 second timeout between refresh cycles, can't update if already updating
+
+	//Update IPv4 address
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_IP4_ADDR);
+	for(size_t i=0; i<4; i++)
+		SendFrontPanelByte(g_ipConfig.m_address.m_octets[i]);
+	SetFrontPanelCS(1);
+	g_logTimer->Sleep(1);
+
+	//TODO: set IPv6 address
+
+	//Set Ethernet link state
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_ETH_LINK);
+	if(!g_basetLinkUp)
+		SendFrontPanelByte(0xff);
+	else
+		SendFrontPanelByte(0x03);	//TODO: actual speed
+	SetFrontPanelCS(1);
+	g_logTimer->Sleep(1);
+
+	//Set serial number
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_SERIAL);
+	for(size_t i=0; i<8; i++)
+		SendFrontPanelByte(g_fpgaSerial[i]);
+	SetFrontPanelCS(1);
+	g_logTimer->Sleep(1);
+
+	//Set our firmware revision number
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_MCU_FW);
+	const char* rev = "0.1.0";
+	for(size_t i=0; i<strlen(rev); i++)
+		SendFrontPanelByte(rev[i]);
+	SendFrontPanelByte(' ');
+	const char* date = __DATE__;
+	for(size_t i=0; i<strlen(date); i++)
+		SendFrontPanelByte(date[i]);
+	SetFrontPanelCS(1);
+	g_logTimer->Sleep(1);
+
+	//TODO: FPGA firmware version
+
+	//TODO: query supervisor firmware
+
+	//Refresh the display
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_REFRESH);
+	SetFrontPanelCS(1);
+	g_logTimer->Sleep(1);
+
+	g_log("Done\n");
 }
 
 /**

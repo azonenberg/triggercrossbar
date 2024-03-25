@@ -66,6 +66,11 @@ module ManagementSubsystem(
 	//Tachometers for fans
 	input wire[1:0]					fan_tach,
 
+	//SPI interface to front panel
+	output wire						frontpanel_sck,
+	output wire						frontpanel_mosi,
+	output wire						frontpanel_cs_n,
+
 	//Configuration registers in core clock domain
 	output wire						relay_en,
 	output wire						relay_dir,
@@ -317,6 +322,35 @@ module ManagementSubsystem(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Front panel SPI interface
+
+	wire		front_shift_en;
+	wire[7:0]	front_shift_data;
+	wire		front_shift_done;
+
+	SPIHostInterface spi(
+		.clk(sys_clk),
+		.clkdiv(32),		//8ish MHz
+
+		.spi_sck(frontpanel_sck),
+		.spi_mosi(frontpanel_mosi),
+		.spi_miso(1'b0),	//tx only
+
+		.shift_en(front_shift_en),
+		.shift_done(front_shift_done),
+		.tx_data(front_shift_data),
+		.rx_data());
+
+	ila_0 ila(
+		.clk(sys_clk),
+		.probe0(front_shift_en),
+		.probe1(front_shift_data),
+		.probe2(front_shift_done),
+		.probe3(frontpanel_sck),
+		.probe4(frontpanel_mosi),
+		.probe5(frontpanel_cs_n));
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Register interface
 
 	ManagementRegisterInterface regs (
@@ -384,6 +418,10 @@ module ManagementSubsystem(
 		.mgmt_lane1_done(mgmt_lane1_done),
 		.mgmt_lane0_rx_rstdone(mgmt_lane0_rx_rstdone),
 		.mgmt_lane1_rx_rstdone(mgmt_lane1_rx_rstdone),
+		.front_shift_en(front_shift_en),
+		.front_shift_done(front_shift_done),
+		.front_shift_data(front_shift_data),
+		.front_cs_n(frontpanel_cs_n),
 
 		//Control registers (port RX clock domain)
 		.xg0_rx_clk(xg0_rx_clk),

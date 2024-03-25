@@ -101,6 +101,11 @@ module ManagementRegisterInterface(
 	output logic[7:0] 				txfifo_wr_data = 0,
 	output logic	 				txfifo_wr_commit = 0,
 
+	output logic					front_shift_en = 0,
+	output logic[7:0]				front_shift_data = 0,
+	input wire						front_shift_done,
+	output logic					front_cs_n = 1,
+
 	//still in core clock domain, synchronizer in serdes module
 	output logic					serdes_config_updated = 0,
 	output bert_txconfig_t			tx0_config = 0,
@@ -249,6 +254,11 @@ module ManagementRegisterInterface(
 											//20:16 = register addr (W)
 											//15:0	= register data (RW)
 
+		//Front panel SPI interface
+		REG_FRONT_CTRL		= 16'h0050,		//0 = CS# value
+		REG_FRONT_DATA		= 16'h0051,		//byte of data to send
+		REG_FRONT_STAT		= 16'h0052,		//0 = transmitter busy
+
 		//10G interface
 		REG_XG0_STAT		= 16'h0060,		//0 = link up
 
@@ -342,8 +352,8 @@ module ManagementRegisterInterface(
 	logic					vsc_mdio_busy_latched	= 0;
 
 	logic					relay_busy	= 0;
-
 	logic[1:0]				drp_busy	= 0;
+	logic					front_busy	= 0;
 
 	always_ff @(posedge clk) begin
 
@@ -361,6 +371,7 @@ module ManagementRegisterInterface(
 		serdes_config_updated	<= 0;
 		mgmt_lane0_en			<= 0;
 		mgmt_lane1_en			<= 0;
+		front_shift_en			<= 0;
 
 		//Start a new read
 		if(rd_en)
@@ -389,6 +400,12 @@ module ManagementRegisterInterface(
 			drp_busy[0]			<= 0;
 		if(mgmt_lane1_done)
 			drp_busy[1]			<= 0;
+
+		//Manage SPI bus state
+		if(front_shift_en)
+			front_busy			<= 1;
+		if(front_shift_done)
+			front_busy			<= 0;
 
 		//Continue a read
 		if(rd_en || reading) begin
@@ -477,6 +494,8 @@ module ManagementRegisterInterface(
 					REG_VOLT_RAM_1:		rd_data	<= volt_ram[15:8];
 					REG_VOLT_AUX:		rd_data	<= volt_aux[7:0];
 					REG_VOLT_AUX_1:		rd_data	<= volt_aux[15:8];
+
+					REG_FRONT_STAT:		rd_data <= {7'b0, front_busy };
 
 					REG_FPGA_IRQSTAT: begin
 						rd_data		<= {7'b0, !rxheader_rd_empty };
@@ -582,6 +601,12 @@ module ManagementRegisterInterface(
 					REG_RELAY_TOGGLE_1: begin
 						relay_dir					<= wr_data[7];
 						relay_en					<= 1;
+					end
+
+					REG_FRONT_CTRL: front_cs_n		<= wr_data[0];
+					REG_FRONT_DATA: begin
+						front_shift_en				<= 1;
+						front_shift_data			<= wr_data;
 					end
 
 					REG_BERT_LANE0_PRBS: begin
