@@ -127,7 +127,7 @@ uint16_t g_voutsense = 0;
 uint16_t g_ibcTemp = 0;
 uint16_t g_iin = 0;
 uint16_t g_iout = 0;
-void PollIBCSensors();
+bool PollIBCSensors();
 
 //Status output from the IBC
 enum
@@ -217,7 +217,7 @@ int main()
 		}
 
 		//Update sensors
-		PollIBCSensors();
+		bool sensorsUpdated = PollIBCSensors();
 
 		//Check for overflows on our log message timer
 		g_log.UpdateOffset(60000);
@@ -238,24 +238,26 @@ int main()
 		//Normal operation
 		if(g_powerState == STATE_ON)
 		{
-			/*
 			//Check if 12V input power is lost
-			if(PollPowerFailure())
+			if(sensorsUpdated)
 			{
-				//Continue to log 12V and 3.3V at 10ms intervals until we lose power,
-				//so we can track how long the decay took
-				g_log("Logging voltages until we lose power completely...\n");
-				LogIndenter li(g_log);
-				while(true)
+				if(PollPowerFailure())
 				{
-					auto vin = Get12VRailVoltage();
-					auto v48 = ReadIBCRegister(IBC_REG_VIN);
-					g_log("48V0:    %d.%03d V\n", v48/1000, v48 % 1000);
-					g_log("12V0:    %d.%03d V\n", vin/1000, vin % 1000);
-					g_log("3V3_SB:  %d mV\n", g_adc->GetSupplyVoltage());
-					g_logTimer->Sleep(100);
+					//Continue to log 12V and 3.3V at 10ms intervals until we lose power,
+					//so we can track how long the decay took
+					g_log("Logging voltages until we lose power completely...\n");
+					LogIndenter li(g_log);
+					while(true)
+					{
+						auto vin = Get12VRailVoltage();
+						auto v48 = ReadIBCRegister(IBC_REG_VIN);
+						g_log("48V0:    %d.%03d V\n", v48/1000, v48 % 1000);
+						g_log("12V0:    %d.%03d V\n", vin/1000, vin % 1000);
+						g_log("3V3_SB:  %d mV\n", g_adc->GetSupplyVoltage());
+						g_logTimer->Sleep(100);
+					}
 				}
-			}*/
+			}
 
 			//Check all rails (other than 1v8 which still has a solder defect on PGOOD that I don't feel like bodging)
 			//to see if any of them went out of tolerance (indicating a short)
@@ -279,8 +281,10 @@ int main()
 
 /**
 	@brief Requests more sensor data from the IBC
+
+	@return true if sensor values are updated
  */
-void PollIBCSensors()
+bool PollIBCSensors()
 {
 	static IBCRegisterReader regreader;
 	static TempSensorReader tempreader;
@@ -340,7 +344,10 @@ void PollIBCSensors()
 			}
 
 			state = 0;
+			return true;
 	}
+
+	return false;
 }
 
 /**
@@ -385,11 +392,10 @@ void PrintIBCSensors()
 bool PollPowerFailure()
 {
 	auto v12 = Get12VRailVoltage();
-	auto v48 = ReadIBCRegister(IBC_REG_VIN);
-	if( (v12 < 11000) || (v48 < 40000) )
+	if( (v12 < 11000) || (g_vin48 < 40000) )
 	{
 		g_log(Logger::ERROR, "Input power failure detected!\n");
-		g_log("48V0:  %d.%03d V\n", v48/1000, v48 % 1000);
+		g_log("48V0:  %d.%03d V\n", g_vin48/1000, g_vin48 % 1000);
 		g_log("12V0:  %d.%03d V\n", v12/1000, v12 % 1000);
 
 		*g_fail_led = 0;
@@ -398,8 +404,8 @@ bool PollPowerFailure()
 
 		g_log("Power failure process completed\n");
 		v12 = Get12VRailVoltage();
-		v48 = ReadIBCRegister(IBC_REG_VIN);
-		g_log("48V0:   %d.%03d V\n", v48/1000, v48 % 1000);
+		g_vin48 = ReadIBCRegister(IBC_REG_VIN);
+		g_log("48V0:   %d.%03d V\n", g_vin48/1000, g_vin48 % 1000);
 		g_log("12V0:   %d.%03d V\n", v12/1000, v12 % 1000);
 		g_log("3V3_SB: %d mV\n", g_adc->GetSupplyVoltage());
 		return true;
