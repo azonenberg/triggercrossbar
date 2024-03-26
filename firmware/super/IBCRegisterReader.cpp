@@ -27,31 +27,61 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef supervisor_h
-#define supervisor_h
+#include "supervisor.h"
+#include "IBCRegisterReader.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
+/**
+	@brief Nonblocking read of a register from the IBC
 
-#include <peripheral/ADC.h>
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
-#include <peripheral/Power.h>
-#include <peripheral/RCC.h>
-#include <peripheral/SPI.h>
-#include <peripheral/Timer.h>
-#include <peripheral/UART.h>
-#include <util/Logger.h>
-#include <util/FIFO.h>
+	Call this function periodically
+ */
+bool IBCRegisterReader::ReadRegisterNonblocking(uint8_t regid, uint16_t& regval)
+{
+	switch(m_state)
+	{
+		//Start a new register access
+		case STATE_IDLE:
+			g_i2c->NonblockingStart(1, g_ibcI2cAddress, false);
+			m_state = STATE_ADDR_START;
+			break;
 
-extern UART* g_uart;
-extern Logger g_log;
+		//Wait for the start sequence to finish
+		case STATE_ADDR_START:
+			if(g_i2c->IsStartDone())
+			{
+				g_i2c->NonblockingWrite(regid);
+				m_state = STATE_REGID;
+			}
+			break;
 
-extern I2C* g_i2c;
-extern const uint8_t g_ibcI2cAddress;
-extern const uint8_t g_tempI2cAddress;
+		//Wait for register ID to send
+		case STATE_REGID:
+			if(g_i2c->IsWriteDone())
+			{
+				//Start the read
+				g_i2c->NonblockingStart(2, g_ibcI2cAddress, true);
+				m_state = STATE_DATA_LO;
+			}
+			break;
 
-#endif
+		//Wait for the first data byte to be ready
+		case STATE_DATA_LO:
+			if(g_i2c->IsReadReady())
+			{
+				m_tmpval = g_i2c->GetReadData();
+				m_state = STATE_DATA_HI;
+			}
+			break;
+
+		//Wait for the second data byte to be ready
+		case STATE_DATA_HI:
+			if(g_i2c->IsReadReady())
+			{
+				regval = g_i2c->GetReadData() | (m_tmpval << 8);
+				m_state = STATE_IDLE;
+				return true;
+			}
+	}
+
+	return false;
+}

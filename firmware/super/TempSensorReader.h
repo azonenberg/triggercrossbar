@@ -27,31 +27,34 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef supervisor_h
-#define supervisor_h
+#ifndef TempSensorReader_h
+#define TempSensorReader_h
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
+/**
+	@brief Nonblocking wrapper for reading the temperature
+ */
+class TempSensorReader
+{
+public:
+	TempSensorReader()
+	: m_state(STATE_IDLE)
+	, m_tmpval(0)
+	{}
 
-#include <peripheral/ADC.h>
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
-#include <peripheral/Power.h>
-#include <peripheral/RCC.h>
-#include <peripheral/SPI.h>
-#include <peripheral/Timer.h>
-#include <peripheral/UART.h>
-#include <util/Logger.h>
-#include <util/FIFO.h>
+	bool ReadTempNonblocking(uint16_t& regval);
 
-extern UART* g_uart;
-extern Logger g_log;
+protected:
 
-extern I2C* g_i2c;
-extern const uint8_t g_ibcI2cAddress;
-extern const uint8_t g_tempI2cAddress;
+	enum state_t
+	{
+		STATE_IDLE,
+		STATE_ADDR_START,
+		STATE_REGID,
+		STATE_DATA_LO,
+		STATE_DATA_HI
+	} m_state;
+
+	uint8_t m_tmpval;
+};
 
 #endif

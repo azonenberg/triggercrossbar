@@ -30,9 +30,11 @@
 #include "supervisor.h"
 #include "../ibc/i2cregs.h"
 #include "superregs.h"
+#include "IBCRegisterReader.h"
+#include "TempSensorReader.h"
 
 //UART console
-UART* g_uart = NULL;
+UART* g_uart = nullptr;
 Logger g_log;
 
 Timer* g_logTimer;
@@ -83,7 +85,6 @@ GPIOPin* g_softReset = nullptr;
 ADC* g_adc = nullptr;
 I2C* g_i2c = nullptr;
 uint16_t Get12VRailVoltage();
-uint16_t ReadThermalSensor(uint8_t addr);
 uint16_t ReadIBCRegister(uint8_t addr);
 const uint8_t g_tempI2cAddress = 0x90;
 const uint8_t g_ibcI2cAddress = 0x42;
@@ -118,6 +119,23 @@ char g_version[20] = "0.1.0 " __DATE__;
 
 SPI* g_spi = nullptr;
 GPIOPin* g_spiCS = nullptr;
+
+//Latest IBC sensor readings
+uint16_t g_vin48 = 0;
+uint16_t g_vout12 = 0;
+uint16_t g_voutsense = 0;
+uint16_t g_ibcTemp = 0;
+uint16_t g_iin = 0;
+uint16_t g_iout = 0;
+void PollIBCSensors();
+
+//Status output from the IBC
+enum
+{
+	PRINT_IDLE,
+	PRINT_REQUESTED,
+	PRINT_REFRESHING
+} g_ibcPrintState;
 
 int main()
 {
@@ -198,6 +216,9 @@ int main()
 			continue;
 		}
 
+		//Update sensors
+		PollIBCSensors();
+
 		//Check for overflows on our log message timer
 		g_log.UpdateOffset(60000);
 
@@ -217,6 +238,7 @@ int main()
 		//Normal operation
 		if(g_powerState == STATE_ON)
 		{
+			/*
 			//Check if 12V input power is lost
 			if(PollPowerFailure())
 			{
@@ -233,7 +255,7 @@ int main()
 					g_log("3V3_SB:  %d mV\n", g_adc->GetSupplyVoltage());
 					g_logTimer->Sleep(100);
 				}
-			}
+			}*/
 
 			//Check all rails (other than 1v8 which still has a solder defect on PGOOD that I don't feel like bodging)
 			//to see if any of them went out of tolerance (indicating a short)
@@ -256,17 +278,69 @@ int main()
 // Sensor interfacing
 
 /**
-	@brief Read a temperature sensor at the given I2C address and return the temperature (in 8.8 fixed point format)
+	@brief Requests more sensor data from the IBC
  */
-uint16_t ReadThermalSensor(uint8_t addr)
+void PollIBCSensors()
 {
-	if(!g_i2c->BlockingWrite8(addr, 0x00))
-		return 0xff;
-	uint16_t reply;
-	if(!g_i2c->BlockingRead16(addr, reply))
-		return 0xff;
+	static IBCRegisterReader regreader;
+	static TempSensorReader tempreader;
 
-	return reply;
+	static int state = 0;
+
+	//Read the values
+	switch(state)
+	{
+		case 0:
+			if(tempreader.ReadTempNonblocking(g_ibcTemp))
+				state ++;
+			break;
+
+		case 1:
+			if(regreader.ReadRegisterNonblocking(IBC_REG_VIN, g_vin48))
+				state ++;
+			break;
+
+		case 2:
+			if(regreader.ReadRegisterNonblocking(IBC_REG_VOUT, g_vout12))
+				state ++;
+			break;
+
+		case 3:
+			if(regreader.ReadRegisterNonblocking(IBC_REG_VSENSE, g_voutsense))
+				state ++;
+			break;
+
+		case 4:
+			if(regreader.ReadRegisterNonblocking(IBC_REG_IIN, g_iin))
+				state ++;
+			break;
+
+		case 5:
+			if(regreader.ReadRegisterNonblocking(IBC_REG_IOUT, g_iout))
+				state ++;
+			break;
+
+		//end of loop, wrap around
+		default:
+
+			//print sensor values if requested (power up or down)
+			switch(g_ibcPrintState)
+			{
+				case PRINT_REQUESTED:
+					g_ibcPrintState = PRINT_REFRESHING;
+					break;
+
+				case PRINT_REFRESHING:
+					g_ibcPrintState = PRINT_IDLE;
+					PrintIBCSensors();
+					break;
+
+				default:
+					break;
+			}
+
+			state = 0;
+	}
 }
 
 /**
@@ -290,20 +364,14 @@ uint16_t Get12VRailVoltage()
 
 void PrintIBCSensors()
 {
-	//Print value
-	g_log("IBC board temperature: %uhk C\n", ReadThermalSensor(g_tempI2cAddress));
-
-	//Read initial IBC sensor values
-	auto vin = ReadIBCRegister(IBC_REG_VIN);
-	auto vout = ReadIBCRegister(IBC_REG_VOUT);
-	auto vsense = ReadIBCRegister(IBC_REG_VSENSE);
-	auto iin = ReadIBCRegister(IBC_REG_IIN);
-	auto iout = ReadIBCRegister(IBC_REG_IOUT);
-	g_log("IBC vin    = %d.%03d V\n", vin / 1000, vin % 1000);
-	g_log("IBC vout   = %d.%03d V\n", vout / 1000, vout % 1000);
-	g_log("IBC vsense = %d.%03d V\n", vsense / 1000, vsense % 1000);
-	g_log("IBC iin    = %d.%03d A\n", iin / 1000, iin % 1000);
-	g_log("IBC iout   = %d.%03d A\n", iout / 1000, iout % 1000);
+	g_log("IBC status\n");
+	LogIndenter li(g_log);
+	g_log("Temperature = %uhk C\n", g_ibcTemp);
+	g_log("vin         = %2d.%03d V\n", g_vin48 / 1000, g_vin48 % 1000);
+	g_log("vout        = %2d.%03d V\n", g_vout12 / 1000, g_vout12 % 1000);
+	g_log("vsense      = %2d.%03d V\n", g_voutsense / 1000, g_voutsense % 1000);
+	g_log("iin         = %2d.%03d A\n", g_iin / 1000, g_iin % 1000);
+	g_log("iout        = %2d.%03d A\n", g_iout / 1000, g_iout % 1000);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -439,7 +507,7 @@ void PowerOn()
 	*g_en_3v0_n = 1;
 
 	//Print all IBC sensor values
-	PrintIBCSensors();
+	g_ibcPrintState = PRINT_REQUESTED;
 
 	//All power rails came up if we get here
 	g_log("Power is good, releasing FPGA reset\n");
@@ -734,7 +802,7 @@ void InitSensors()
 		g_log(Logger::ERROR, "Failed to initialize I2C temp sensor at 0x%02x\n", g_tempI2cAddress);
 
 	//Print initial values from every sensor
-	PrintIBCSensors();
+	g_ibcPrintState = PRINT_REQUESTED;
 
 	//Read IBC firmware version
 	g_i2c->BlockingWrite8(g_ibcI2cAddress, IBC_REG_VERSION);
