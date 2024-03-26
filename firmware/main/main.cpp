@@ -33,7 +33,6 @@
 #include "../front/regids.h"
 
 void LogTemperatures();
-void UpdateFrontPanelDisplay();
 void SetFrontPanelCS(bool b);
 void SendFrontPanelByte(uint8_t data);
 
@@ -78,10 +77,13 @@ int main()
 	//Set up the DACs
 	InitDACs();
 
+	//Connect to the supervisor
+	InitSupervisor();
+
 	//Bring up sensors
 	InitSensors();
 
-	//Begin initializing fabric ports
+	//Begin initializing network ports
 	InitSFP();
 	InitManagementPHY();
 
@@ -181,6 +183,7 @@ void UpdateFrontPanelDisplay()
 	g_log("Updating front panel display\n");
 
 	//TODO: 50 second timeout between refresh cycles, can't update if already updating
+	//(but queue the refresh request and refresh again as soon as we can)
 
 	//Update IPv4 address
 	SetFrontPanelCS(0);
@@ -188,7 +191,7 @@ void UpdateFrontPanelDisplay()
 	for(size_t i=0; i<4; i++)
 		SendFrontPanelByte(g_ipConfig.m_address.m_octets[i]);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(1);
+	g_logTimer->Sleep(2);
 
 	//TODO: set IPv6 address
 
@@ -200,7 +203,7 @@ void UpdateFrontPanelDisplay()
 	else
 		SendFrontPanelByte(0x03);	//TODO: actual speed
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(1);
+	g_logTimer->Sleep(2);
 
 	//Set serial number
 	SetFrontPanelCS(0);
@@ -208,7 +211,7 @@ void UpdateFrontPanelDisplay()
 	for(size_t i=0; i<8; i++)
 		SendFrontPanelByte(g_fpgaSerial[i]);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(1);
+	g_logTimer->Sleep(2);
 
 	//Set our firmware revision number
 	SetFrontPanelCS(0);
@@ -221,24 +224,23 @@ void UpdateFrontPanelDisplay()
 	for(size_t i=0; i<strlen(date); i++)
 		SendFrontPanelByte(date[i]);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(1);
+	g_logTimer->Sleep(2);
 
-	//TODO: query supervisor and IBC firmware
-	const char superFirmware[20] = "SUPER_FW_TODO";
+	//Supervisor firmware version
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_SUPER_FW);
-	for(size_t i=0; i<sizeof(superFirmware); i++)
-		SendFrontPanelByte(superFirmware[i]);
+	for(size_t i=0; i<sizeof(g_superVersion); i++)
+		SendFrontPanelByte(g_superVersion[i]);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(1);
+	g_logTimer->Sleep(2);
 
-	const char ibcFirmware[20] = "IBC_FW_TODO";
+	//IBC firmware version
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_IBC_FW);
-	for(size_t i=0; i<sizeof(ibcFirmware); i++)
-		SendFrontPanelByte(ibcFirmware[i]);
+	for(size_t i=0; i<sizeof(g_ibcVersion); i++)
+		SendFrontPanelByte(g_ibcVersion[i]);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(1);
+	g_logTimer->Sleep(2);
 
 	//TODO: FPGA firmware version
 	const char fpgaFirmware[20] = "FPGA_FW_TODO";
@@ -247,7 +249,7 @@ void UpdateFrontPanelDisplay()
 	for(size_t i=0; i<sizeof(fpgaFirmware); i++)
 		SendFrontPanelByte(fpgaFirmware[i]);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(1);
+	g_logTimer->Sleep(2);
 
 	//FPGA temperature
 	auto temp = GetFPGATemperature();
@@ -256,7 +258,7 @@ void UpdateFrontPanelDisplay()
 	SendFrontPanelByte(temp & 0xff);
 	SendFrontPanelByte(temp >> 8);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(1);
+	g_logTimer->Sleep(2);
 
 	//MCU temperature
 	temp = g_dts->GetTemperature();
@@ -265,13 +267,13 @@ void UpdateFrontPanelDisplay()
 	SendFrontPanelByte(temp & 0xff);
 	SendFrontPanelByte(temp >> 8);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(1);
+	g_logTimer->Sleep(2);
 
 	//Refresh the display
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_REFRESH);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(1);
+	g_logTimer->Sleep(2);
 
 	g_log("Done\n");
 }

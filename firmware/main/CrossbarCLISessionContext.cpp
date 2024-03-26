@@ -74,6 +74,7 @@ enum cmdid_t
 	CMD_PULSE64,
 	CMD_RELOAD,*/
 	CMD_REGISTER,
+	CMD_REFRESH,
 	//CMD_ROLLBACK,
 	CMD_ROUTE,
 	CMD_SET,
@@ -418,6 +419,9 @@ static const clikeyword_t g_rootCommands[] =
 	/*{"hostname",	CMD_HOSTNAME,		g_hostnameCommands,		"Change the host name"},
 	{"interface",	CMD_INTERFACE,		g_interfaceCommands,	"Configure interface properties"},
 	{"ip",			CMD_IP,				g_ipCommands,			"Configure IP addresses"},
+	*/
+	{"refresh",		CMD_REFRESH,		nullptr,				"Refresh the front panel display"},
+	/*
 	{"reload",		CMD_RELOAD,			nullptr,				"Restart the system"},
 	{"rollback",	CMD_ROLLBACK,		nullptr,				"Revert all changes made since last commit"},
 	*/
@@ -547,7 +551,13 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 		case CMD_IP:
 			OnIPCommand();
 			break;
+		*/
 
+		case CMD_REFRESH:
+			UpdateFrontPanelDisplay();
+			break;
+
+		/*
 		case CMD_RELOAD:
 			OnReload();
 			break;

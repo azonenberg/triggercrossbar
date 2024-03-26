@@ -104,6 +104,7 @@ void InitFPGA();
 void InitI2C();
 void InitEEPROM();
 void InitDACs();
+void InitSupervisor();
 
 void InitSensors();
 
@@ -119,6 +120,8 @@ uint16_t GetFPGAVCCINT();
 uint16_t GetFPGAVCCAUX();
 uint16_t GetFPGAVCCBRAM();
 uint16_t GetSFPTemperature();
+
+void UpdateFrontPanelDisplay();
 
 void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
 
@@ -159,5 +162,11 @@ extern OctalDAC* g_rxDacs[2];
 extern OctalDAC* g_txDac;
 
 extern bool g_basetLinkUp;
+
+extern SPI* g_superSPI;
+extern GPIOPin* g_superSPICS;
+
+extern char g_superVersion[20];
+extern char g_ibcVersion[20];
 
 #endif

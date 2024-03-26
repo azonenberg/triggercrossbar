@@ -36,9 +36,12 @@
 #include <stm32.h>
 
 #include <peripheral/ADC.h>
+#include <peripheral/Flash.h>
 #include <peripheral/GPIO.h>
 #include <peripheral/I2C.h>
+#include <peripheral/Power.h>
 #include <peripheral/RCC.h>
+#include <peripheral/SPI.h>
 #include <peripheral/Timer.h>
 #include <peripheral/UART.h>
 #include <util/Logger.h>

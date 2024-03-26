@@ -29,6 +29,7 @@
 
 #include "supervisor.h"
 #include "../ibc/i2cregs.h"
+#include "superregs.h"
 
 //UART console
 UART* g_uart = NULL;
@@ -36,6 +37,7 @@ Logger g_log;
 
 Timer* g_logTimer;
 
+void InitPower();
 void InitGPIOs();
 void InitClocks();
 void InitUART();
@@ -44,6 +46,7 @@ void DetectHardware();
 void InitADC();
 void InitI2C();
 void InitSensors();
+void InitSPI();
 
 void PrintIBCSensors();
 
@@ -113,6 +116,9 @@ char g_ibcVersion[20] = {0};
 //Our version string
 char g_version[20] = "0.1.0 " __DATE__;
 
+SPI* g_spi = nullptr;
+GPIOPin* g_spiCS = nullptr;
+
 int main()
 {
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
@@ -122,6 +128,7 @@ int main()
 	//RCCHelper::EnableSyscfg();
 
 	//Hardware setup
+	InitPower();
 	InitClocks();
 	InitUART();
 	InitLog();
@@ -130,6 +137,7 @@ int main()
 	InitADC();
 	InitI2C();
 	InitSensors();
+	InitSPI();
 
 	//Wait 5 seconds in case something goes wrong during first power up
 	//g_log("5 second delay\n");
@@ -141,8 +149,55 @@ int main()
 
 	//Main event loop
 	//TODO: support warm reset and/or hard power cycle on request
+	bool lastCS = true;
+	uint8_t nbyte = 0;
+	uint8_t cmd = 0;
 	while(1)
 	{
+		//Find CS# falling edges
+		auto cs = *g_spiCS;
+		if(lastCS && !cs)
+		{
+			nbyte = 0;
+
+			//Send dummy data in response to the command
+			g_spi->NonblockingWriteDevice(0x00);
+		}
+		lastCS = cs;
+
+		//If CS# is low, disable other processing
+		//TODO: interrupt based flow here or something?
+		if(!cs)
+		{
+			//Process SPI data bytes
+			if(g_spi->PollReadDataReady())
+			{
+				uint8_t data = g_spi->BlockingReadDevice();
+
+				//First byte is command
+				if(nbyte == 0)
+					cmd = data;
+
+				//Send reply data
+				switch(cmd)
+				{
+					//Read our fimware version
+					case SUPER_REG_VERSION:
+						g_spi->BlockingWriteDevice((uint8_t*)g_version, sizeof(g_version));
+						break;
+
+					//Read IBC firmware version
+					case SUPER_REG_IBCVERSION:
+						g_spi->BlockingWriteDevice((uint8_t*)g_ibcVersion, sizeof(g_ibcVersion));
+						break;
+				}
+
+				nbyte ++;
+			}
+
+			continue;
+		}
+
 		//Check for overflows on our log message timer
 		g_log.UpdateOffset(60000);
 
@@ -374,10 +429,10 @@ void PowerOn()
 	StartRail(*g_en_gtx_1v8, *g_pgood_gtx_1v8, 50, "GTX_1V8");
 
 	//3V3 needs to come up after 1V8 so that VCCO - VCCAUX (1V8) is always <2.625V
-	StartRail(*g_en_3v3, *g_pgood_3v3, 50, "3V3");
+	StartRail(*g_en_3v3, *g_pgood_3v3, 100, "3V3");
 
 	//1V2 should turn on at the same time or later than GTX_1V0
-	StartRail(*g_en_1v2, *g_pgood_1v2, 50, "1V2");
+	StartRail(*g_en_1v2, *g_pgood_1v2, 100, "1V2");
 
 	//Turn on 3V0_N last
 	g_log("Turning on 3V0_N (no PGOOD signal available)\n");
@@ -540,16 +595,25 @@ void StartRail(GPIOPin& en, GPIOPin& pgood, uint32_t timeout, const char* name)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Peripheral initialization
 
+void InitPower()
+{
+	RCCHelper::Enable(&PWR);
+	Power::ConfigureLDO(RANGE_VOS1);
+}
+
 void InitClocks()
 {
-	//No need to mess with flash wait states
-	//At full voltage (Range 1) we can run up to 16 MHz with no wait states, which is more than adequate for our needs
+	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
+	//A bit of extra latency is fine, the CPU being faster than flash is not.
+	Flash::SetConfiguration(32, RANGE_VOS1);
+
+	//Set operating frequency
 	RCCHelper::InitializePLLFromHSI16(
 		4,	//VCO at 16*4 = 64 MHz
-		4,	//CPU frequency is 64/4 = 16 MHz (max 32)
-		1,	//AHB at 16 MHz (max 32)
-		1,	//APB2 at 16 MHz (max 32)
-		1);	//APB1 at 16 MHz (max 32)
+		2,	//CPU frequency is 64/2 = 32 MHz (max 32)
+		1,	//AHB at 32 MHz (max 32)
+		1,	//APB2 at 32 MHz (max 32)
+		1);	//APB1 at 32 MHz (max 32)
 }
 
 void InitUART()
@@ -559,8 +623,8 @@ void InitUART()
 	GPIOPin uart_tx(&GPIOB, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 0);
 	GPIOPin uart_rx(&GPIOB, 7, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 0);
 
-	//USART2 is on APB1 (16MHz), so we need a divisor of 138.88, round to 139
-	static UART uart(&USART2, 139);
+	//USART2 is on APB1 (32MHz), so we need a divisor of 277.77, round to 278
+	static UART uart(&USART2, 278);
 	g_uart = &uart;
 
 	//Enable the UART RX interrupt
@@ -652,10 +716,10 @@ void InitI2C()
 	static GPIOPin i2c_scl(&GPIOA, 9, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 1, true);
 	static GPIOPin i2c_sda(&GPIOA, 10, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 1, true);
 
-	//I2C1 runs off our kernel clock (16 MHz)
-	//Prescale by 4 to get 4 MHz
-	//Divide by 40 after that to get 100 kHz
-	static I2C i2c(&I2C1, 4, 40);
+	//I2C1 runs off our kernel clock (32 MHz)
+	//Prescale by 8 to get 4 MHz
+	//Divide by 10 after that to get 400 kHz
+	static I2C i2c(&I2C1, 8, 10);
 	g_i2c = &i2c;
 }
 
@@ -732,6 +796,7 @@ void InitGPIOs()
 	static GPIOPin mcu_rst_n(&GPIOA, 3, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	static GPIOPin mcu_ready(&GPIOA, 0, GPIOPin::MODE_INPUT, 0, false);
 	static GPIOPin fpga_rst_n(&GPIOA, 1, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW, 0, true);
+	static GPIOPin fpga_init(&GPIOB, 12, GPIOPin::MODE_INPUT, 0, false);
 
 	static GPIOPin pwr_button(&GPIOA, 12, GPIOPin::MODE_INPUT, 0, false);
 	static GPIOPin rst_button(&GPIOA, 15, GPIOPin::MODE_INPUT, 0, false);
@@ -778,3 +843,22 @@ void InitGPIOs()
 	g_softPower = &pwr_button;
 	g_softReset = &rst_button;
 }
+
+void InitSPI()
+{
+	g_log("Initializing SPI\n");
+
+	//Set up GPIOs
+	static GPIOPin spi_sck(&GPIOA, 5, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
+	static GPIOPin spi_mosi(&GPIOA, 7, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
+	static GPIOPin spi_miso(&GPIOA, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
+	static GPIOPin spi_cs_n(&GPIOA, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
+
+	//Set up the SPI bus
+	static SPI spi(&SPI1, true, 2, false);
+	g_spi = &spi;
+
+	//Save the CS# pin
+	g_spiCS = &spi_cs_n;
+}
+

@@ -37,6 +37,7 @@
 #include <ctype.h>
 #include "DeviceFPGAInterface.h"
 #include "QSPIEthernetInterface.h"
+#include "../super/superregs.h"
 
 void TrimSpaces(char* str);
 
@@ -233,7 +234,7 @@ void InitLEDs()
 }
 
 /**
-	@brief Initialze the DACs used for the IO subsystem
+	@brief Initialize the DACs used for the IO subsystem
  */
 void InitDACs()
 {
@@ -285,6 +286,53 @@ void InitDACs()
 	}
 
 	g_log("DAC init complete\n");
+}
+
+/**
+	@brief Initialize the SPI bus to the supervisor
+ */
+void InitSupervisor()
+{
+	g_log("Initializing supervisor\n");
+	LogIndenter li(g_log);
+
+	//Set up the GPIOs for chip selects and deselect everything
+	static GPIOPin super_cs_n(&GPIOE, 4, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
+	super_cs_n = 1;
+	g_superSPICS = &super_cs_n;
+	g_logTimer->Sleep(1);
+
+	//Initialize the rest of our IOs
+	static GPIOPin spi_sck(&GPIOE, 2, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 5);
+	static GPIOPin spi_miso(&GPIOE, 5, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 5);
+	static GPIOPin spi_mosi(&GPIOE, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 5);
+
+	//SPI4 runs on spi 4/5 kernel clock domain
+	//default after reset is APB2 clock which is 64 MHz, divide by 64 to get 1 MHz
+	static SPI super_spi(&SPI4, true, 64);
+	g_superSPI = &super_spi;
+
+	//Get the supervisor firmware version
+	super_cs_n = 0;
+	g_superSPI->BlockingWrite(SUPER_REG_VERSION);
+	g_superSPI->WaitForWrites();
+	g_superSPI->DiscardRxData();
+	for(size_t i=0; i<sizeof(g_superVersion); i++)
+		g_superVersion[i] = g_superSPI->BlockingRead();
+	super_cs_n = 1;
+	g_logTimer->Sleep(1);
+	g_log("Firmware version: %s\n", g_superVersion);
+
+	//Get IBC firmware version
+	super_cs_n = 0;
+	g_superSPI->BlockingWrite(SUPER_REG_IBCVERSION);
+	g_superSPI->WaitForWrites();
+	g_superSPI->DiscardRxData();
+	for(size_t i=0; i<sizeof(g_ibcVersion); i++)
+		g_ibcVersion[i] = g_superSPI->BlockingRead();
+	super_cs_n = 1;
+	g_logTimer->Sleep(1);
+	g_log("IBC firmware version: %s\n", g_ibcVersion);
 }
 
 void InitQSPI()

@@ -27,114 +27,18 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "triggercrossbar.h"
-
 /**
-	@brief Global Ethernet interface
+	@file
+	@author	Andrew D. Zonenberg
+	@brief	SPI register definitions for supervisor
  */
-EthernetInterface* g_ethIface = nullptr;
+#ifndef superregs_h
+#define superregs_h
 
-/**
-	@brief Global key-value store for persistent configuration
- */
-KVS* g_kvs = nullptr;
+enum superregs_t
+{
+	SUPER_REG_VERSION		= 0x00,		//Our version string
+	SUPER_REG_IBCVERSION	= 0x01		//IBC version string
+};
 
-/**
-	@brief Character device for logging
- */
-LogSink<MAX_LOG_SINKS>* g_logSink = nullptr;
-
-/**
-	@brief Logger for output stuff
- */
-Logger g_log;
-
-/**
-	@brief Timer used by logger
- */
-Timer* g_logTimer = nullptr;
-
-/**
-	@brief Interface to the FPGA
- */
-FPGAInterface* g_fpga = nullptr;
-
-/**
-	@brief Our MAC address
- */
-MACAddress g_macAddress;
-
-/**
-	@brief Our IPv4 address
- */
-IPv4Config g_ipConfig;
-
-/**
-	@brief Ethernet protocol stack
- */
-EthernetProtocol* g_ethProtocol = nullptr;
-
-/**
-	@brief QSPI interface to FPGA
- */
-OctoSPI* g_qspi = nullptr;
-
-/**
-	@brief UART console
- */
-UART* g_cliUART = nullptr;
-
-/**
-	@brief Digital temperature sensor
- */
-DigitalTempSensor* g_dts = nullptr;
-
-///@brief MAC address I2C EEPROM
-I2C* g_macI2C = nullptr;
-
-///@brief SFP+ DOM / ID EEPROM
-I2C* g_sfpI2C = nullptr;
-
-///@brief GPIO LEDs
-GPIOPin* g_leds[4] = {0};
-
-///@brief SFP mod_abs
-GPIOPin* g_sfpModAbsPin = nullptr;
-
-///@brief SFP tx_disable
-GPIOPin* g_sfpTxDisablePin = nullptr;
-
-///@brief SFP tx_fault
-GPIOPin* g_sfpTxFaultPin = nullptr;
-
-///@brief SFP laser fault detected
-bool g_sfpFaulted = false;
-
-///@brief SFP module inserted (does not imply link is up)
-bool g_sfpPresent = false;
-
-///@brief FPGA die serial number
-uint8_t g_fpgaSerial[8] = {0};
-
-///@brief DACs for RX channels
-OctalDAC* g_rxDacs[2] = {nullptr, nullptr};
-
-///@brief DACs for TX channels
-OctalDAC* g_txDac = nullptr;
-
-///@brief BaseT link status
-bool g_basetLinkUp = false;
-
-//TODO: SFP+ link status
-
-///@brief SPI bus to supervisor
-SPI* g_superSPI = nullptr;
-
-///@brief Chip select for supervisor CS
-GPIOPin* g_superSPICS = nullptr;
-
-///@brief Version string for supervisor MCU
-char g_superVersion[20] = {0};
-
-///@brief Version string for IBC MCU
-char g_ibcVersion[20] = {0};
+#endif
