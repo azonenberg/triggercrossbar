@@ -208,6 +208,23 @@ int main()
 					case SUPER_REG_IBCVERSION:
 						g_spi->BlockingWriteDevice((uint8_t*)g_ibcVersion, sizeof(g_ibcVersion));
 						break;
+
+					//IBC sensors
+					case SUPER_REG_IBCVIN:
+						g_spi->BlockingWriteDevice((uint8_t*)&g_vin48, sizeof(g_vin48));
+						break;
+					case SUPER_REG_IBCIIN:
+						g_spi->BlockingWriteDevice((uint8_t*)&g_iin, sizeof(g_iin));
+						break;
+					case SUPER_REG_IBCTEMP:
+						g_spi->BlockingWriteDevice((uint8_t*)&g_ibcTemp, sizeof(g_ibcTemp));
+						break;
+					case SUPER_REG_IBCVOUT:
+						g_spi->BlockingWriteDevice((uint8_t*)&g_vout12, sizeof(g_vout12));
+						break;
+					case SUPER_REG_IBCIOUT:
+						g_spi->BlockingWriteDevice((uint8_t*)&g_iout, sizeof(g_iout));
+						break;
 				}
 
 				nbyte ++;

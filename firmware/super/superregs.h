@@ -38,7 +38,13 @@
 enum superregs_t
 {
 	SUPER_REG_VERSION		= 0x00,		//Our version string
-	SUPER_REG_IBCVERSION	= 0x01		//IBC version string
+	SUPER_REG_IBCVERSION	= 0x01,		//IBC version string
+
+	SUPER_REG_IBCVIN		= 0x10,		//IBC input voltage (nominal 48)
+	SUPER_REG_IBCIIN		= 0x11,		//IBC input current
+	SUPER_REG_IBCTEMP		= 0x12,		//IBC temperature
+	SUPER_REG_IBCVOUT		= 0x13,		//IBC output voltage (nominal 12)
+	SUPER_REG_IBCIOUT		= 0x14,		//IBC output current
 };
 
 #endif

@@ -47,6 +47,12 @@ enum front_regid_t
 
 	FRONT_FPGA_TEMP		= 0x10,	//FPGA die temperature
 	FRONT_MCU_TEMP		= 0x11,	//MCU die temperature
+	FRONT_IBC_TEMP		= 0x12,	//IBC board temperature
+
+	FRONT_IBC_VIN		= 0x20,	//IBC input voltage
+	FRONT_IBC_IIN		= 0x21,	//IBC input power
+	FRONT_IBC_VOUT		= 0x22,	//IBC output voltage
+	FRONT_IBC_IOUT		= 0x23,	//IBC output power
 
 	FRONT_REFRESH		= 0xff
 };

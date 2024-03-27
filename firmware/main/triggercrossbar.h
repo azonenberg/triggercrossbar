@@ -136,6 +136,8 @@ uint16_t ManagementPHYExtendedRead(uint8_t mmd, uint8_t regid);
 void ManagementPHYWrite(uint8_t regid, uint16_t regval);
 void ManagementPHYExtendedWrite(uint8_t regid, uint8_t mmd, uint16_t regval);
 
+uint16_t SupervisorRegRead(uint8_t regid);
+
 enum mdioreg_t
 {
 	//IEEE defined registers

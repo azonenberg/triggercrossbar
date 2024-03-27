@@ -31,10 +31,12 @@
 #include "CrossbarCLISessionContext.h"
 #include <microkvs/driver/STM32StorageBank.h>
 #include "../front/regids.h"
+#include "../super/superregs.h"
 
 void LogTemperatures();
 void SetFrontPanelCS(bool b);
 void SendFrontPanelByte(uint8_t data);
+void SendFrontPanelSensor(uint8_t cmd, uint16_t value);
 
 int main()
 {
@@ -175,6 +177,16 @@ void SendFrontPanelByte(uint8_t data)
 	{}
 }
 
+void SendFrontPanelSensor(uint8_t cmd, uint16_t value)
+{
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(cmd);
+	SendFrontPanelByte(value & 0xff);
+	SendFrontPanelByte(value >> 8);
+	SetFrontPanelCS(1);
+	g_logTimer->Sleep(2);
+}
+
 /**
 	@brief Push new content to the front panel display
  */
@@ -251,23 +263,16 @@ void UpdateFrontPanelDisplay()
 	SetFrontPanelCS(1);
 	g_logTimer->Sleep(2);
 
-	//FPGA temperature
-	auto temp = GetFPGATemperature();
-	SetFrontPanelCS(0);
-	SendFrontPanelByte(FRONT_FPGA_TEMP);
-	SendFrontPanelByte(temp & 0xff);
-	SendFrontPanelByte(temp >> 8);
-	SetFrontPanelCS(1);
-	g_logTimer->Sleep(2);
+	//Temperatures
+	SendFrontPanelSensor(FRONT_FPGA_TEMP, GetFPGATemperature());
+	SendFrontPanelSensor(FRONT_MCU_TEMP, g_dts->GetTemperature());
 
-	//MCU temperature
-	temp = g_dts->GetTemperature();
-	SetFrontPanelCS(0);
-	SendFrontPanelByte(FRONT_MCU_TEMP);
-	SendFrontPanelByte(temp & 0xff);
-	SendFrontPanelByte(temp >> 8);
-	SetFrontPanelCS(1);
-	g_logTimer->Sleep(2);
+	//IBC voltages
+	SendFrontPanelSensor(FRONT_IBC_VIN, SupervisorRegRead(SUPER_REG_IBCVIN));
+	SendFrontPanelSensor(FRONT_IBC_IIN, SupervisorRegRead(SUPER_REG_IBCIIN));
+	SendFrontPanelSensor(FRONT_IBC_VOUT, SupervisorRegRead(SUPER_REG_IBCVOUT));
+	SendFrontPanelSensor(FRONT_IBC_IOUT, SupervisorRegRead(SUPER_REG_IBCIOUT));
+	SendFrontPanelSensor(FRONT_IBC_TEMP, SupervisorRegRead(SUPER_REG_IBCTEMP));
 
 	//Refresh the display
 	SetFrontPanelCS(0);
@@ -276,6 +281,21 @@ void UpdateFrontPanelDisplay()
 	g_logTimer->Sleep(2);
 
 	g_log("Done\n");
+}
+
+uint16_t SupervisorRegRead(uint8_t regid)
+{
+	*g_superSPICS = 0;
+	g_superSPI->BlockingWrite(regid);
+	g_superSPI->WaitForWrites();
+	g_superSPI->DiscardRxData();
+	uint16_t tmp = g_superSPI->BlockingRead();
+	tmp |= (g_superSPI->BlockingRead() << 8);
+	*g_superSPICS = 1;
+
+	g_logTimer->Sleep(1);
+
+	return tmp;
 }
 
 /**

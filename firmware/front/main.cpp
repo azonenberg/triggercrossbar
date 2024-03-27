@@ -79,6 +79,11 @@ char g_superFirmware[20] = {0};
 char g_fpgaFirmware[20] = {0};
 uint16_t g_fpgaTemp = 0;
 uint16_t g_mcuTemp = 0;
+uint16_t g_ibcTemp = 0;
+uint16_t g_vin = 0;
+uint16_t g_iin = 0;
+uint16_t g_vout = 0;
+uint16_t g_iout = 0;
 
 int main()
 {
@@ -226,6 +231,45 @@ int main()
 							g_mcuTemp = data;
 						else if(nbyte == 2)
 							g_mcuTemp |= data << 8;
+						break;
+
+					//IBC board temperature
+					case FRONT_IBC_TEMP:
+						if(nbyte == 1)
+							g_ibcTemp = data;
+						else if(nbyte == 2)
+							g_ibcTemp |= data << 8;
+						break;
+
+					//IBC input
+					case FRONT_IBC_VIN:
+						if(nbyte == 1)
+							g_vin = data;
+						else if(nbyte == 2)
+							g_vin |= data << 8;
+						break;
+					case FRONT_IBC_IIN:
+						if(nbyte == 1)
+							g_iin = data;
+						else if(nbyte == 2)
+							g_iin |= data << 8;
+						break;
+
+					//IBC output
+					case FRONT_IBC_VOUT:
+						if(nbyte == 1)
+							g_vout = data;
+						else if(nbyte == 2)
+							g_vout |= data << 8;
+						break;
+					case FRONT_IBC_IOUT:
+						if(nbyte == 1)
+							g_iout = data;
+						else if(nbyte == 2)
+							g_iout |= data << 8;
+						break;
+
+					default:
 						break;
 
 				}
@@ -508,6 +552,7 @@ void RefreshDisplay()
 	uint8_t ytop = 103;
 	uint8_t textheight = 8;
 	uint8_t textwidth = 6;
+	uint8_t xright = 211;
 
 	//Text box extents
 	uint8_t textleft = xleft + 2;
@@ -587,9 +632,16 @@ void RefreshDisplay()
 	g_display->Line(lineright, ytop, lineright, texty, false, true);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Right area
+	// Right area: system health
+
+	texty = ytop;
+
+	//horizontal line above link state
+	g_display->Line(lineright, texty, xright, texty, false, true);
+	texty -= 2;
 
 	//Top right corner: SFP+ or baseT indicator
+	texty -= textheight;
 	const char* linkSpeed = "";
 	switch(g_linkSpeed)
 	{
@@ -614,29 +666,68 @@ void RefreshDisplay()
 			break;
 	}
 	if(g_linkSpeed > 3)
-		g_display->Text6x8(181, 93, linkSpeed, true, false);
+		g_display->Text6x8(181, texty, linkSpeed, true, false);
 	else
-		g_display->Text6x8(181, 93, linkSpeed, false, true);
+		g_display->Text6x8(181, texty, linkSpeed, false, true);
 
-	//TODO
+	//horizontal line below link state
+	g_display->Line(lineright, texty, xright, texty, false, true);
+	texty -= 2;
+
+	//IBC input stats
 	textleft = 151;
-	texty = 77;
-	g_display->Text6x8(textleft, texty, "IN 48.xxxV", false, true);
+	texty -= textheight;
+	buf.Clear();
+	buf.Printf("IN %2d.%03dV", g_vin / 1000, g_vin % 1000);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
 
 	texty -= textheight;
-	g_display->Text6x8(textleft, texty, "    0.xxxA", false, true);
+	buf.Clear();
+	buf.Printf("   %2d.%03dA", g_iin / 1000, g_iin % 1000);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
 
 	texty -= textheight;
-	g_display->Text6x8(textleft, texty, "   10.xxxW", false, true);
+	uint32_t pwr = ( (uint32_t)g_vin * (uint32_t)g_iin ) / 1000;	//gives power in mW
+	buf.Clear();
+	buf.Printf("   %2d.%03dW", pwr / 1000, pwr % 1000);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
+
+	//horizontal line between input and output stats
+	g_display->Line(lineright, texty, xright, texty, false, true);
+	texty -= 2;
+
+	//IBC output stats
+	texty -= textheight;
+	buf.Clear();
+	buf.Printf("OP %2d.%03dV", g_vout / 1000, g_vout % 1000);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
 
 	texty -= textheight;
+	buf.Clear();
+	buf.Printf("   %2d.%03dA", g_iout / 1000, g_iout % 1000);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
 
 	texty -= textheight;
-	g_display->Text6x8(textleft, texty, "IBC  50.xC", false, true);
+	pwr = ( (uint32_t)g_vout * (uint32_t)g_iout ) / 1000;
+	buf.Clear();
+	buf.Printf("   %2d.%03dW", pwr / 1000, pwr % 1000);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
+
+	//Horizontal line before temps
+	g_display->Line(lineright, texty, xright, texty, false, true);
+	texty -= 2;
+
+	//IBC temperature
+	texty -= textheight;
+	int degreal = g_ibcTemp >> 8;
+	int degfrac = (g_ibcTemp & 0xff) * 10;
+	buf.Clear();
+	buf.Printf("IBC  %2d.%dC", degreal, degfrac >> 8);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
 
 	texty -= textheight;
-	int degreal = g_mcuTemp >> 8;
-	int degfrac = (g_mcuTemp & 0xff) * 10;
+	degreal = g_mcuTemp >> 8;
+	degfrac = (g_mcuTemp & 0xff) * 10;
 	buf.Clear();
 	buf.Printf("MCU  %2d.%dC", degreal, degfrac >> 8);
 	g_display->Text6x8(textleft, texty, tmp, false, true);
@@ -655,6 +746,13 @@ void RefreshDisplay()
 	buf.Clear();
 	buf.Printf("PANL %2d.%dC", degreal, degfrac >> 8);
 	g_display->Text6x8(textleft, texty, tmp, false, true);
+
+	//horizontal line below text
+	g_display->Line(lineright, texty, xright, texty, false, true);
+
+	//Vertical line at left and right side
+	g_display->Line(lineright, ytop, lineright, texty, false, true);
+	g_display->Line(xright, ytop, xright, texty, false, true);
 
 	//Done, push the update to the display
 	g_display->StartRefresh();
