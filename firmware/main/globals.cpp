@@ -138,3 +138,6 @@ char g_superVersion[20] = {0};
 
 ///@brief Version string for IBC MCU
 char g_ibcVersion[20] = {0};
+
+///@brief USERCODE of the FPGA (build timestamp)
+uint32_t g_usercode = 0;

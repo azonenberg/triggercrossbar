@@ -134,6 +134,17 @@ module ManagementRegisterInterface(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// USERCODE register
+
+	wire[31:0] usercode;
+
+	USR_ACCESSE2 user(
+		.DATA(usercode),
+		.CFGCLK(),
+		.DATAVALID()
+		);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Pipeline registers for some external flags
 
 	logic	mgmt0_mdio_busy_ff = 0;
@@ -235,6 +246,12 @@ module ManagementRegisterInterface(
 		REG_VOLT_RAM_1		= 16'h0019,
 		REG_VOLT_AUX		= 16'h001a,
 		REG_VOLT_AUX_1		= 16'h001b,
+
+		//Bitstream IDCODE
+		REG_USERCODE		= 16'h001c,		//bitstream usercode
+		REG_USERCODE_1		= 16'h001d,
+		REG_USERCODE_2		= 16'h001e,
+		REG_USERCODE_3		= 16'h001f,
 
 		//Reasons for an IRQ
 		REG_FPGA_IRQSTAT	= 16'h0020,		//
@@ -494,6 +511,11 @@ module ManagementRegisterInterface(
 					REG_VOLT_RAM_1:		rd_data	<= volt_ram[15:8];
 					REG_VOLT_AUX:		rd_data	<= volt_aux[7:0];
 					REG_VOLT_AUX_1:		rd_data	<= volt_aux[15:8];
+
+					REG_USERCODE:		rd_data	<= usercode[7:0];
+					REG_USERCODE_1:		rd_data	<= usercode[15:8];
+					REG_USERCODE_2:		rd_data	<= usercode[23:16];
+					REG_USERCODE_3:		rd_data	<= usercode[31:24];
 
 					REG_FRONT_STAT:		rd_data <= {7'b0, front_busy };
 

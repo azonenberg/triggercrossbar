@@ -254,12 +254,36 @@ void UpdateFrontPanelDisplay()
 	SetFrontPanelCS(1);
 	g_logTimer->Sleep(2);
 
-	//TODO: FPGA firmware version
-	const char fpgaFirmware[20] = "FPGA_FW_TODO";
+	//Format FPGA firmware string based on the usercode (see XAPP1232)
+	char tmp[20] = {0};
+	StringBuffer buf(tmp, sizeof(buf));
+	int day = g_usercode >> 27;
+	int mon = (g_usercode >> 23) & 0xf;
+	int yr = 2000 + ((g_usercode >> 17) & 0x3f);
+	static const char* months[16] =
+	{
+		"",		//months in usercode use 1-based indexing
+		"Jan",
+		"Feb",
+		"Mar",
+		"Apr",
+		"May",
+		"Jun",
+		"Jul",
+		"Aug",
+		"Sep",
+		"Oct",
+		"Nov",
+		"Dec",
+		"",
+		"",
+		""
+	};
+	buf.Printf("0.1.0 %s %02d %04d", months[mon], day, yr);
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_FPGA_FW);
-	for(size_t i=0; i<sizeof(fpgaFirmware); i++)
-		SendFrontPanelByte(fpgaFirmware[i]);
+	for(size_t i=0; i<sizeof(tmp); i++)
+		SendFrontPanelByte(tmp[i]);
 	SetFrontPanelCS(1);
 	g_logTimer->Sleep(2);
 

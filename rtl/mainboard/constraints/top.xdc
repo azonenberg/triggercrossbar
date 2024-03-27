@@ -1,4 +1,9 @@
 ########################################################################################################################
+# Timestamp in usercode
+
+set_property BITSTREAM.CONFIG.USR_ACCESS TIMESTAMP [current_design]
+
+########################################################################################################################
 # Pin assignments
 
 set_property PACKAGE_PIN Y8 [get_ports clk_200mhz_p]

@@ -131,6 +131,29 @@ void InitFPGA()
 		break;
 	}
 
+	//Read USERCODE
+	g_usercode = g_fpga->BlockingRead32(REG_USERCODE);
+	g_log("Usercode: %08x\n", g_usercode);
+	{
+		LogIndenter li(g_log);
+
+		//Format per XAPP1232:
+		//31:27 day
+		//26:23 month
+		//22:17 year
+		//16:12 hr
+		//11:6 min
+		//5:0 sec
+		int day = g_usercode >> 27;
+		int mon = (g_usercode >> 23) & 0xf;
+		int yr = 2000 + ((g_usercode >> 17) & 0x3f);
+		int hr = (g_usercode >> 12) & 0x1f;
+		int min = (g_usercode >> 6) & 0x3f;
+		int sec = g_usercode & 0x3f;
+		g_log("Bitstream timestamp: %04d-%02d-%02d %02d:%02d:%02d\n",
+			yr, mon, day, hr, min, sec);
+	}
+
 	//Set all bidir ports to input so we know what state they're in
 	g_log("Setting all relays to input mode\n");
 	for(int chan=0; chan<4; chan++)
