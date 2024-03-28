@@ -107,7 +107,6 @@ int main()
 
 	//Main event loop
 	const int logTimerMax = 60000;
-	bool lastCS = true;
 	uint8_t nbyte = 0;
 	uint8_t cmd = 0;
 	while(1)
@@ -136,11 +135,10 @@ int main()
 		//Check for overflows on our log message timer
 		g_log.UpdateOffset(logTimerMax);
 
-		//Find CS# falling edges
+		//Reset byte counter on CS# high
 		auto cs = *g_fpgaSPICS;
-		if(lastCS && !cs)
+		if(cs)
 			nbyte = 0;
-		lastCS = cs;
 
 		//Process SPI data bytes
 		if(g_fpgaSPI->PollReadDataReady())
@@ -632,15 +630,13 @@ void RefreshDisplay()
 	g_display->Line(lineright, ytop, lineright, texty, false, true);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Right area: system health
+	// Top right: Ethernet state
 
 	texty = ytop;
-
-	//horizontal line above link state
-	g_display->Line(lineright, texty, xright, texty, false, true);
 	texty -= 2;
 
 	//Top right corner: SFP+ or baseT indicator
+	uint8_t linkx = textright - textwidth*5;
 	texty -= textheight;
 	const char* linkSpeed = "";
 	switch(g_linkSpeed)
@@ -666,11 +662,16 @@ void RefreshDisplay()
 			break;
 	}
 	if(g_linkSpeed > 3)
-		g_display->Text6x8(181, texty, linkSpeed, true, false);
+		g_display->Text6x8(linkx, texty, linkSpeed, true, false);
 	else
-		g_display->Text6x8(181, texty, linkSpeed, false, true);
+		g_display->Text6x8(linkx, texty, linkSpeed, false, true);
 
-	//horizontal line below link state
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Right area: system health
+
+	texty = ytop;
+
+	//Horizontal line at top
 	g_display->Line(lineright, texty, xright, texty, false, true);
 	texty -= 2;
 
@@ -756,6 +757,34 @@ void RefreshDisplay()
 
 	//Done, push the update to the display
 	g_display->StartRefresh();
+
+	////////////
+
+	//Print all of our data fields so we can check what's right
+	g_log("Serial: %02x%02x%02x%02x%02x%02x%02x%02x\n",
+		g_serial[0], g_serial[1], g_serial[2], g_serial[3],
+		g_serial[4], g_serial[5], g_serial[6], g_serial[7]);
+	g_log("IBC version: %s\n", g_ibcFirmware);
+	g_log("Super version: %s\n", g_superFirmware);
+	g_log("MCU version: %s\n", g_mcuFirmware);
+	g_log("FPGA version: %s\n", g_fpgaFirmware);
+	g_log("IP: %d.%d.%d.%d\n", g_ipv4Addr[0], g_ipv4Addr[1], g_ipv4Addr[2], g_ipv4Addr[3]);
+	g_log("Vin %05d mV\n", g_vin);
+	g_log("Iin %05d mA\n", g_iin);
+	g_log("Vout %05d mV\n", g_vout);
+	g_log("Iout %05d mA\n", g_iout);
+
+	//Clear fields
+	memset(g_ibcFirmware, 0, sizeof(g_ibcFirmware));
+	memset(g_superFirmware, 0, sizeof(g_superFirmware));
+	memset(g_mcuFirmware, 0, sizeof(g_mcuFirmware));
+	memset(g_fpgaFirmware, 0, sizeof(g_fpgaFirmware));
+	memset(g_ipv4Addr, 0, sizeof(g_ipv4Addr));
+	memset(g_serial, 0, sizeof(g_serial));
+	g_vin = 0;
+	g_iin = 0;
+	g_vout = 0;
+	g_iout = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
