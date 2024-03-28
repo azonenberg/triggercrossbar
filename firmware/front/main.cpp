@@ -62,9 +62,6 @@ Display* g_display = nullptr;
 GPIOPin* g_inmodeLED[4] = {nullptr};
 GPIOPin* g_outmodeLED[4] = {nullptr};
 
-uint16_t g_nextBlink = 0;
-const uint16_t g_blinkDelay = 2500;
-
 SPI* g_fpgaSPI = nullptr;
 GPIOPin* g_fpgaSPICS = nullptr;
 
@@ -119,17 +116,6 @@ int main()
 				g_display->FinishRefresh();
 				g_log("display refresh complete\n");
 			}
-		}
-
-		//Heartbeat blinky
-		if(g_logTimer->GetCount() >= g_nextBlink)
-		{
-			*g_inmodeLED[0] = !*g_inmodeLED[0];
-			g_nextBlink = g_logTimer->GetCount() + g_blinkDelay;
-
-			//Handle wraps
-			if(g_nextBlink >= logTimerMax)
-				g_nextBlink = 0;
 		}
 
 		//Check for overflows on our log message timer
@@ -265,6 +251,19 @@ int main()
 							g_iout = data;
 						else if(nbyte == 2)
 							g_iout |= data << 8;
+						break;
+
+					//Port direction indicator LEDs
+					case FRONT_DIR_LEDS:
+						*g_outmodeLED[0] = (data & 1) == 1;
+						*g_outmodeLED[1] = (data & 2) == 2;
+						*g_outmodeLED[2] = (data & 4) == 4;
+						*g_outmodeLED[3] = (data & 8) == 8;
+
+						*g_inmodeLED[0] = (data & 0x10) == 0x10;
+						*g_inmodeLED[1] = (data & 0x20) == 0x20;
+						*g_inmodeLED[2] = (data & 0x40) == 0x40;
+						*g_inmodeLED[3] = (data & 0x80) == 0x80;
 						break;
 
 					default:
@@ -433,7 +432,7 @@ void InitGPIOs()
 	g_outmodeLED[2] = &dirout_led2;
 	g_outmodeLED[3] = &dirout_led3;
 
-	//DEBUG: turn on all port direction LEDs
+	//Turn on all port direction LEDs until we're initialized
 	for(int i=0; i<4; i++)
 	{
 		*g_inmodeLED[i] = 1;

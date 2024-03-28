@@ -210,6 +210,33 @@ void CrossbarSCPIServer::GracefulDisconnect(int id, TCPTableEntry* socket)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Command handling
 
+void CrossbarSCPIServer::UpdateDirectionLEDs()
+{
+	uint8_t dir = 0;
+
+	if(g_bidirOut[0])
+		dir |= 0x1;
+	else
+		dir |= 0x10;
+
+	if(g_bidirOut[1])
+		dir |= 0x2;
+	else
+		dir |= 0x20;
+
+	if(g_bidirOut[2])
+		dir |= 0x4;
+	else
+		dir |= 0x40;
+
+	if(g_bidirOut[3])
+		dir |= 0x8;
+	else
+		dir |= 0x80;
+
+	SetFrontPanelDirectionLEDs(dir);
+}
+
 void CrossbarSCPIServer::OnCommand(char* line, TCPTableEntry* socket)
 {
 	/*g_log("Got SCPI command: %s\n", line);
@@ -359,6 +386,9 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		//Poll until not busy
 		while(g_fpga->BlockingRead16(REG_RELAY_STAT) != 0)
 		{}
+
+		//Update direction LEDs
+		UpdateDirectionLEDs();
 	}
 
 	//RX prescaler

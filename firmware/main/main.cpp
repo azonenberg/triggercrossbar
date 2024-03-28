@@ -101,7 +101,8 @@ int main()
 	CrossbarCLISessionContext uartContext;
 	uartContext.Initialize(&uartStream, "user");
 
-	//Update the display
+	//Update the display and set the direction LEDs to all-input (default state on new FPGA bitstream load)
+	SetFrontPanelDirectionLEDs(0xf0);
 	UpdateFrontPanelDisplay();
 
 	//Enable interrupts only after all setup work is done
@@ -183,6 +184,15 @@ void SendFrontPanelSensor(uint8_t cmd, uint16_t value)
 	SendFrontPanelByte(cmd);
 	SendFrontPanelByte(value & 0xff);
 	SendFrontPanelByte(value >> 8);
+	SetFrontPanelCS(1);
+	g_logTimer->Sleep(2);
+}
+
+void SetFrontPanelDirectionLEDs(uint8_t leds)
+{
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_DIR_LEDS);
+	SendFrontPanelByte(leds);
 	SetFrontPanelCS(1);
 	g_logTimer->Sleep(2);
 }

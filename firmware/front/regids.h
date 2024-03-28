@@ -54,6 +54,10 @@ enum front_regid_t
 	FRONT_IBC_VOUT		= 0x22,	//IBC output voltage
 	FRONT_IBC_IOUT		= 0x23,	//IBC output power
 
+	FRONT_DIR_LEDS		= 0x30,	//Direction LEDS
+								//High nibble = IN11:8
+								//Low nibble = OUT11:8
+
 	FRONT_REFRESH		= 0xff
 };
 

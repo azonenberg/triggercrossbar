@@ -95,6 +95,8 @@ protected:
 	void SerdesPMAReset(uint8_t lane);
 
 	void PrintFloat(CharacterDevice& buf, float f);
+
+	void UpdateDirectionLEDs();
 };
 
 #endif

@@ -153,14 +153,14 @@ module ManagementSubsystem(
 	wire[15:0] fan1_rpm;
 
 	Tachometer #(
-		.REFCLK_HZ(187500000)
+		.REFCLK_HZ(250000000)
 	) tach0 (
 		.clk(sys_clk),
 		.tach(fan_tach[0]),
 		.rpm(fan0_rpm));
 
 	Tachometer #(
-		.REFCLK_HZ(187500000)
+		.REFCLK_HZ(250000000)
 	) tach1 (
 		.clk(sys_clk),
 		.tach(fan_tach[1]),

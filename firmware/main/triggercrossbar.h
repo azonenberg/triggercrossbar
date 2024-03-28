@@ -172,4 +172,6 @@ extern char g_superVersion[20];
 extern char g_ibcVersion[20];
 extern uint32_t g_usercode;
 
+void SetFrontPanelDirectionLEDs(uint8_t leds);
+
 #endif
