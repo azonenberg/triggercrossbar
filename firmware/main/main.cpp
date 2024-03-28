@@ -119,12 +119,11 @@ int main()
 
 	//Main event loop
 	uint32_t nextAgingTick = 0;
+	uint32_t nextLedTick = 0;
 	while(1)
 	{
 		//Wait for an interrupt
 		//asm("wfi");
-
-		//TODO: periodic refresh of activity LEDs
 
 		//Check if anything happened on the FPGA
 		if(irq)
@@ -140,6 +139,13 @@ int main()
 		//Poll for UART input
 		if(g_cliUART->HasInput())
 			uartContext.OnKeystroke(g_cliUART->BlockingRead());
+
+		//Refresh of activity LEDs at 10 Hz
+		if(g_logTimer->GetCount() > nextLedTick)
+		{
+			UpdateFrontPanelActivityLEDs();
+			nextLedTick = g_logTimer->GetCount() + 1000;
+		}
 
 		//Check for aging on stuff once a second
 		if(g_logTimer->GetCount() > nextAgingTick)

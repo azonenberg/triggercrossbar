@@ -376,7 +376,14 @@ module ManagementRegisterInterface(
 	logic					front_busy	= 0;
 
 	//DEBUG: front panel indicator LED state
-	logic[23:0]				front_led_state = 24'h555555;
+	logic[23:0]				front_led_state = 24'h00000f;
+	logic[25:0] 			ledcount = 0;
+	always_ff @(posedge clk) begin
+		if(ledcount == 0)
+			front_led_state <= {front_led_state[22:0], front_led_state[23]};
+		ledcount	<= ledcount + 1;
+	end
+
 
 	always_ff @(posedge clk) begin
 
