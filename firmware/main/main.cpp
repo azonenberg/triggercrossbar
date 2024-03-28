@@ -37,6 +37,7 @@ void LogTemperatures();
 void SetFrontPanelCS(bool b);
 void SendFrontPanelByte(uint8_t data);
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value);
+void UpdateFrontPanelActivityLEDs();
 
 int main()
 {
@@ -103,6 +104,7 @@ int main()
 
 	//Update the display and set the direction LEDs to all-input (default state on new FPGA bitstream load)
 	SetFrontPanelDirectionLEDs(0xf0);
+	UpdateFrontPanelActivityLEDs();
 	UpdateFrontPanelDisplay();
 
 	//Enable interrupts only after all setup work is done
@@ -121,6 +123,8 @@ int main()
 	{
 		//Wait for an interrupt
 		//asm("wfi");
+
+		//TODO: periodic refresh of activity LEDs
 
 		//Check if anything happened on the FPGA
 		if(irq)
@@ -193,6 +197,22 @@ void SetFrontPanelDirectionLEDs(uint8_t leds)
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_DIR_LEDS);
 	SendFrontPanelByte(leds);
+	SetFrontPanelCS(1);
+	g_logTimer->Sleep(2);
+}
+
+void UpdateFrontPanelActivityLEDs()
+{
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_PORT_LEDS);
+
+	for(int i=0; i<3; i++)
+	{
+		g_fpga->BlockingWrite8(REG_FRONT_LED_0 + i, 0x00);
+		while(0 != g_fpga->BlockingRead8(REG_FRONT_STAT))
+		{}
+	}
+
 	SetFrontPanelCS(1);
 	g_logTimer->Sleep(2);
 }

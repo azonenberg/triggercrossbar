@@ -266,6 +266,14 @@ int main()
 						*g_inmodeLED[3] = (data & 0x80) == 0x80;
 						break;
 
+					//Port status LEDs
+					case FRONT_PORT_LEDS:
+						if(nbyte <= 3)
+							g_expander->BatchUpdateValue(nbyte-1, data);
+						if(nbyte == 3)
+							g_expander->BatchCommitValue();
+						break;
+
 					default:
 						break;
 

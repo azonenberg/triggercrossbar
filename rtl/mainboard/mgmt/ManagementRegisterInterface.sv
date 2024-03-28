@@ -275,6 +275,9 @@ module ManagementRegisterInterface(
 		REG_FRONT_CTRL		= 16'h0050,		//0 = CS# value
 		REG_FRONT_DATA		= 16'h0051,		//byte of data to send
 		REG_FRONT_STAT		= 16'h0052,		//0 = transmitter busy
+		REG_FRONT_LED_0		= 16'h0053,
+		REG_FRONT_LED_1		= 16'h0054,
+		REG_FRONT_LED_2		= 16'h0055,
 
 		//10G interface
 		REG_XG0_STAT		= 16'h0060,		//0 = link up
@@ -371,6 +374,9 @@ module ManagementRegisterInterface(
 	logic					relay_busy	= 0;
 	logic[1:0]				drp_busy	= 0;
 	logic					front_busy	= 0;
+
+	//DEBUG: front panel indicator LED state
+	logic[23:0]				front_led_state = 24'h555555;
 
 	always_ff @(posedge clk) begin
 
@@ -629,6 +635,20 @@ module ManagementRegisterInterface(
 					REG_FRONT_DATA: begin
 						front_shift_en				<= 1;
 						front_shift_data			<= wr_data;
+					end
+
+					//Special registers for saying "push front panel LED state
+					REG_FRONT_LED_0: begin
+						front_shift_en				<= 1;
+						front_shift_data			<= front_led_state[7:0];
+					end
+					REG_FRONT_LED_1: begin
+						front_shift_en				<= 1;
+						front_shift_data			<= front_led_state[15:8];
+					end
+					REG_FRONT_LED_2: begin
+						front_shift_en				<= 1;
+						front_shift_data			<= front_led_state[23:16];
 					end
 
 					REG_BERT_LANE0_PRBS: begin

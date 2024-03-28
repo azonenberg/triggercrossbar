@@ -95,3 +95,17 @@ void TCA6424A::SetOutputValue(uint8_t chan, bool value)
 	uint8_t data[2] = {regid, m_outvals[group]};
 	m_i2c->BlockingWrite(m_address, data, 2);
 }
+
+/**
+	@brief Push updates to the expander
+ */
+void TCA6424A::BatchCommitValue()
+{
+	//Send to the device
+	for(int block=0; block<3; block++)
+	{
+		uint8_t regid = 0x04 + block;
+		uint8_t data[2] = {regid, m_outvals[block]};
+		m_i2c->BlockingWrite(m_address, data, 2);
+	}
+}

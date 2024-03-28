@@ -41,6 +41,11 @@ public:
 	void SetDirection(uint8_t chan, bool input);
 	void SetOutputValue(uint8_t chan, bool value);
 
+	void BatchUpdateValue(uint8_t block, uint8_t value)
+	{ m_outvals[block] = value; };
+
+	void BatchCommitValue();
+
 protected:
 
 	///@brief The I2C channel to sue
