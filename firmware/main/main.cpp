@@ -194,6 +194,9 @@ void UpdateFrontPanelDisplay()
 {
 	g_log("Updating front panel display\n");
 
+	char tmp[20] = {0};
+	StringBuffer buf(tmp, sizeof(tmp));
+
 	//TODO: 50 second timeout between refresh cycles, can't update if already updating
 	//(but queue the refresh request and refresh again as soon as we can)
 
@@ -225,16 +228,16 @@ void UpdateFrontPanelDisplay()
 	SetFrontPanelCS(1);
 	g_logTimer->Sleep(2);
 
-	//Set our firmware revision number
+	//Our firmware version number
+	static const char* buildtime = __TIME__;
+	buf.Clear();
+	buf.Printf("%s %c%c%c%c%c%c",
+		__DATE__, buildtime[0], buildtime[1], buildtime[3], buildtime[4], buildtime[6], buildtime[7]);
+	buf.Printf("hai");
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_MCU_FW);
-	const char* rev = "0.1.0";
-	for(size_t i=0; i<strlen(rev); i++)
-		SendFrontPanelByte(rev[i]);
-	SendFrontPanelByte(' ');
-	const char* date = __DATE__;
-	for(size_t i=0; i<strlen(date); i++)
-		SendFrontPanelByte(date[i]);
+	for(size_t i=0; i<sizeof(tmp); i++)
+		SendFrontPanelByte(tmp[i]);
 	SetFrontPanelCS(1);
 	g_logTimer->Sleep(2);
 
@@ -255,11 +258,13 @@ void UpdateFrontPanelDisplay()
 	g_logTimer->Sleep(2);
 
 	//Format FPGA firmware string based on the usercode (see XAPP1232)
-	char tmp[20] = {0};
-	StringBuffer buf(tmp, sizeof(buf));
+	buf.Clear();
 	int day = g_usercode >> 27;
 	int mon = (g_usercode >> 23) & 0xf;
 	int yr = 2000 + ((g_usercode >> 17) & 0x3f);
+	int hr = (g_usercode >> 12) & 0x1f;
+	int min = (g_usercode >> 6) & 0x3f;
+	int sec = g_usercode & 0x3f;
 	static const char* months[16] =
 	{
 		"",		//months in usercode use 1-based indexing
@@ -279,7 +284,7 @@ void UpdateFrontPanelDisplay()
 		"",
 		""
 	};
-	buf.Printf("0.1.0 %s %02d %04d", months[mon], day, yr);
+	buf.Printf("%s %02d %04d %02d%02d%02d", months[mon], day, yr, hr, min, sec);
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_FPGA_FW);
 	for(size_t i=0; i<sizeof(tmp); i++)

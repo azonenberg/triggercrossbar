@@ -193,25 +193,25 @@ int main()
 
 					//Main MCU firmware
 					case FRONT_MCU_FW:
-						if(nbyte < sizeof(g_mcuFirmware))
+						if(nbyte < sizeof(g_mcuFirmware)-1)
 							g_mcuFirmware[nbyte-1] = data;
 						break;
 
 					//IBC MCU firmware
 					case FRONT_IBC_FW:
-						if(nbyte < sizeof(g_ibcFirmware))
+						if(nbyte < sizeof(g_ibcFirmware)-1)
 							g_ibcFirmware[nbyte-1] = data;
 						break;
 
 					//Supervisor MCU firmware
 					case FRONT_SUPER_FW:
-						if(nbyte < sizeof(g_superFirmware))
+						if(nbyte < sizeof(g_superFirmware)-1)
 							g_superFirmware[nbyte-1] = data;
 						break;
 
 					//FPGA firmware
 					case FRONT_FPGA_FW:
-						if(nbyte < sizeof(g_fpgaFirmware))
+						if(nbyte < sizeof(g_fpgaFirmware)-1)
 							g_fpgaFirmware[nbyte-1] = data;
 						break;
 
@@ -538,7 +538,7 @@ void InitDisplay()
 void RefreshDisplay()
 {
 	char tmp[128];
-	StringBuffer buf(tmp, sizeof(buf));
+	StringBuffer buf(tmp, sizeof(tmp));
 
 	g_display->Clear();
 
@@ -600,25 +600,29 @@ void RefreshDisplay()
 	//Version info
 	texty -= textheight;
 	buf.Clear();
-	buf.Printf("IBC   v%s", g_ibcFirmware);
+	buf.Printf("IBC   %s", g_ibcFirmware);
 	g_display->Text6x8(textleft, texty, tmp, false, true);
 
 	texty -= textheight;
 	buf.Clear();
-	buf.Printf("Super v%s", g_superFirmware);
+	buf.Printf("Super %s", g_superFirmware);
 	g_display->Text6x8(textleft, texty, tmp, false, true);
 
 	texty -= textheight;
-	g_display->Text6x8(textleft, texty, "Panel v0.1.0 " __DATE__, false, true);
-
-	texty -= textheight;
+	static const char* buildtime = __TIME__;
 	buf.Clear();
-	buf.Printf("MCU   v%s", g_mcuFirmware);
+	buf.Printf("Panel %s %c%c%c%c%c%c",
+		__DATE__, buildtime[0], buildtime[1], buildtime[3], buildtime[4], buildtime[6], buildtime[7]);
 	g_display->Text6x8(textleft, texty, tmp, false, true);
 
 	texty -= textheight;
 	buf.Clear();
-	buf.Printf("FPGA  v%s", g_fpgaFirmware);
+	buf.Printf("MCU   %s", g_mcuFirmware);
+	g_display->Text6x8(textleft, texty, tmp, false, true);
+
+	texty -= textheight;
+	buf.Clear();
+	buf.Printf("FPGA  %s", g_fpgaFirmware);
 	g_display->Text6x8(textleft, texty, tmp, false, true);
 
 	//Line below version info

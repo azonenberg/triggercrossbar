@@ -32,6 +32,7 @@
 #include "superregs.h"
 #include "IBCRegisterReader.h"
 #include "TempSensorReader.h"
+#include <util/StringBuffer.h>
 
 //UART console
 UART* g_uart = nullptr;
@@ -115,7 +116,7 @@ void PowerOff();
 char g_ibcVersion[20] = {0};
 
 //Our version string
-char g_version[20] = "0.1.0 " __DATE__;
+char g_version[20] = {0};
 
 SPI* g_spi = nullptr;
 GPIOPin* g_spiCS = nullptr;
@@ -156,6 +157,13 @@ int main()
 	InitI2C();
 	InitSensors();
 	InitSPI();
+
+	//Format version string
+	StringBuffer buf(g_version, sizeof(g_version));
+	static const char* buildtime = __TIME__;
+	buf.Printf("%s %c%c%c%c%c%c",
+		__DATE__, buildtime[0], buildtime[1], buildtime[3], buildtime[4], buildtime[6], buildtime[7]);
+	g_log("Firmware version %s\n", g_version);
 
 	//Wait 5 seconds in case something goes wrong during first power up
 	//g_log("5 second delay\n");

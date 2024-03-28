@@ -29,6 +29,7 @@
 
 #include "ibc.h"
 #include "i2cregs.h"
+#include <util/StringBuffer.h>
 
 //UART console
 UART* g_uart = NULL;
@@ -58,7 +59,7 @@ I2C* g_i2c = nullptr;
 ADC* g_adc = nullptr;
 
 //Firmware version string
-char g_version[20] = "0.1.0 " __DATE__;
+char g_version[20] = {0};
 
 int main()
 {
@@ -77,6 +78,11 @@ int main()
 	InitADC();
 	InitSensors();
 
+	//Format version string
+	StringBuffer buf(g_version, sizeof(g_version));
+	static const char* buildtime = __TIME__;
+	buf.Printf("%s %c%c%c%c%c%c",
+		__DATE__, buildtime[0], buildtime[1], buildtime[3], buildtime[4], buildtime[6], buildtime[7]);
 	g_log("Firmware version %s\n", g_version);
 
 	//Initalize our GPIOs and make sure all rails are off
