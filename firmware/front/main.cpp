@@ -757,34 +757,6 @@ void RefreshDisplay()
 
 	//Done, push the update to the display
 	g_display->StartRefresh();
-
-	////////////
-
-	//Print all of our data fields so we can check what's right
-	g_log("Serial: %02x%02x%02x%02x%02x%02x%02x%02x\n",
-		g_serial[0], g_serial[1], g_serial[2], g_serial[3],
-		g_serial[4], g_serial[5], g_serial[6], g_serial[7]);
-	g_log("IBC version: %s\n", g_ibcFirmware);
-	g_log("Super version: %s\n", g_superFirmware);
-	g_log("MCU version: %s\n", g_mcuFirmware);
-	g_log("FPGA version: %s\n", g_fpgaFirmware);
-	g_log("IP: %d.%d.%d.%d\n", g_ipv4Addr[0], g_ipv4Addr[1], g_ipv4Addr[2], g_ipv4Addr[3]);
-	g_log("Vin %05d mV\n", g_vin);
-	g_log("Iin %05d mA\n", g_iin);
-	g_log("Vout %05d mV\n", g_vout);
-	g_log("Iout %05d mA\n", g_iout);
-
-	//Clear fields
-	memset(g_ibcFirmware, 0, sizeof(g_ibcFirmware));
-	memset(g_superFirmware, 0, sizeof(g_superFirmware));
-	memset(g_mcuFirmware, 0, sizeof(g_mcuFirmware));
-	memset(g_fpgaFirmware, 0, sizeof(g_fpgaFirmware));
-	memset(g_ipv4Addr, 0, sizeof(g_ipv4Addr));
-	memset(g_serial, 0, sizeof(g_serial));
-	g_vin = 0;
-	g_iin = 0;
-	g_vout = 0;
-	g_iout = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
