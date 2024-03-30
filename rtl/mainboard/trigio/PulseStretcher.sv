@@ -29,72 +29,79 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-`include "CrossbarTypes.svh"
-
 /**
-	@file
-	@author Andrew D. Zonenberg
-	@brief The actual switch crossbar
-
-	Completely combinatorial
+	@brief Pulse stretcher with blink functionality during heavy activity
  */
-module CrossbarMatrix(
-	input wire					clk_250mhz,
-
-	input wire[11:0]			trig_in,
-	output logic[11:0]			trig_out,
-
-	input wire muxsel_t[11:0]	muxsel,
-
-	output wire[11:0]			trig_in_led,
-	output wire[11:0]			trig_out_led
+module PulseStretcher(
+	input wire		clk,
+	input wire		pulse,
+	output logic	stretched = 0
 );
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// The actual muxes
+	//assume 250 MHz clock for now
+	//~4 Hz pulse rate so ~125ms between toggles
+	//so 62500000 cycles. 2^26 is close enough for this purpose and is a nice round number
 
-	always_comb begin
+	logic[25:0] count 			= 0;
 
-		for(integer i=0; i<12; i=i+1) begin
-			trig_out[i]	= trig_in[muxsel[i]];
-		end
+	enum logic[1:0]
+	{
+		STATE_IDLE		= 0,
+		STATE_BLINK_ON	= 1,
+		STATE_BLINK_OFF	= 2,
+		STATE_ARM_OFF	= 3
+	} state = STATE_IDLE;
 
-	end
+	always_ff @(posedge clk) begin
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Pulse stretching for LEDs
+		case(state)
 
-	for(genvar g=0; g<12; g=g+1) begin : pstretch
+			//Nothing to do, LED off
+			STATE_IDLE: begin
+				if(pulse) begin
+					count		<= 1;
+					stretched	<= 1;
+					state		<= STATE_BLINK_ON;
+				end
+			end
 
-		//Synchronize into local clock domain
-		wire	trig_in_sync;
-		ThreeStageSynchronizer #(
-			.IN_REG(0)
-		) sync_trig_in(
-			.clk_in(),
-			.din(trig_in[g]),
-			.clk_out(clk_250mhz),
-			.dout(trig_in_sync));
+			//Turn on the LED, ignore further pulses during the on time
+			STATE_BLINK_ON: begin
+				count <= count + 1;
+				if(count == 0) begin
+					stretched	<= 0;
+					state		<= STATE_BLINK_OFF;
+				end
+			end
 
-		wire	trig_out_sync;
-		ThreeStageSynchronizer #(
-			.IN_REG(0)
-		) sync_trig_out(
-			.clk_in(),
-			.din(trig_out[g]),
-			.clk_out(clk_250mhz),
-			.dout(trig_out_sync));
+			//LED off, but watch for more pulses
+			STATE_BLINK_OFF: begin
+				count <= count + 1;
+
+				//Go back to idle when timeout expires
+				if(count == 0)
+					state	<= STATE_IDLE;
+
+				//Get ready to turn on again if we get another pulse
+				if(pulse)
+					state	<= STATE_ARM_OFF;
+
+			end
+
+			//LED off, but will turn on after timeout
+			STATE_ARM_OFF: begin
+				count <= count + 1;
+
+				//Go back to idle when timeout expires
+				if(count == 0) begin
+					count		<= 1;
+					stretched	<= 1;
+					state		<= STATE_BLINK_ON;
+				end
+			end
 
 
-		PulseStretcher stretch_in(
-			.clk(clk_250mhz),
-			.pulse(trig_in_sync),
-			.stretched(trig_in_led[g]));
-
-		PulseStretcher stretch_out(
-			.clk(clk_250mhz),
-			.pulse(trig_out_sync),
-			.stretched(trig_out_led[g]));
+		endcase
 
 	end
 

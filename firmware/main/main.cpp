@@ -120,6 +120,7 @@ int main()
 	//Main event loop
 	uint32_t nextAgingTick = 0;
 	uint32_t nextLedTick = 0;
+	uint32_t displayRefreshTick = 0;
 	while(1)
 	{
 		//Wait for an interrupt
@@ -152,6 +153,14 @@ int main()
 		{
 			g_ethProtocol->OnAgingTick();
 			nextAgingTick = g_logTimer->GetCount() + 10000;
+
+			//Refresh front panel display once an hour
+			displayRefreshTick = 0;
+			if(displayRefreshTick >= 3600)
+			{
+				UpdateFrontPanelDisplay();
+				displayRefreshTick = 0;
+			}
 		}
 	}
 	return 0;
@@ -176,6 +185,10 @@ void PollFPGA()
 void SetFrontPanelCS(bool b)
 {
 	g_fpga->BlockingWrite8(REG_FRONT_CTRL, b);
+
+	//workaround for slow firmware
+	if(b)
+		g_logTimer->Sleep(10);
 }
 
 void SendFrontPanelByte(uint8_t data)
@@ -195,7 +208,6 @@ void SendFrontPanelSensor(uint8_t cmd, uint16_t value)
 	SendFrontPanelByte(value & 0xff);
 	SendFrontPanelByte(value >> 8);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(2);
 }
 
 void SetFrontPanelDirectionLEDs(uint8_t leds)
@@ -204,7 +216,6 @@ void SetFrontPanelDirectionLEDs(uint8_t leds)
 	SendFrontPanelByte(FRONT_DIR_LEDS);
 	SendFrontPanelByte(leds);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(2);
 }
 
 void UpdateFrontPanelActivityLEDs()
@@ -220,7 +231,6 @@ void UpdateFrontPanelActivityLEDs()
 	}
 
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(2);
 }
 
 /**
@@ -242,7 +252,6 @@ void UpdateFrontPanelDisplay()
 	for(size_t i=0; i<4; i++)
 		SendFrontPanelByte(g_ipConfig.m_address.m_octets[i]);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(2);
 
 	//TODO: set IPv6 address
 
@@ -254,7 +263,6 @@ void UpdateFrontPanelDisplay()
 	else
 		SendFrontPanelByte(0x03);	//TODO: actual speed
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(2);
 
 	//Set serial number
 	SetFrontPanelCS(0);
@@ -262,7 +270,6 @@ void UpdateFrontPanelDisplay()
 	for(size_t i=0; i<8; i++)
 		SendFrontPanelByte(g_fpgaSerial[i]);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(2);
 
 	//Our firmware version number
 	static const char* buildtime = __TIME__;
@@ -275,7 +282,6 @@ void UpdateFrontPanelDisplay()
 	for(size_t i=0; i<sizeof(tmp); i++)
 		SendFrontPanelByte(tmp[i]);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(2);
 
 	//Supervisor firmware version
 	SetFrontPanelCS(0);
@@ -283,7 +289,6 @@ void UpdateFrontPanelDisplay()
 	for(size_t i=0; i<sizeof(g_superVersion); i++)
 		SendFrontPanelByte(g_superVersion[i]);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(2);
 
 	//IBC firmware version
 	SetFrontPanelCS(0);
@@ -291,7 +296,6 @@ void UpdateFrontPanelDisplay()
 	for(size_t i=0; i<sizeof(g_ibcVersion); i++)
 		SendFrontPanelByte(g_ibcVersion[i]);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(2);
 
 	//Format FPGA firmware string based on the usercode (see XAPP1232)
 	buf.Clear();
@@ -326,7 +330,6 @@ void UpdateFrontPanelDisplay()
 	for(size_t i=0; i<sizeof(tmp); i++)
 		SendFrontPanelByte(tmp[i]);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(2);
 
 	//Temperatures
 	SendFrontPanelSensor(FRONT_FPGA_TEMP, GetFPGATemperature());
@@ -343,7 +346,6 @@ void UpdateFrontPanelDisplay()
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_REFRESH);
 	SetFrontPanelCS(1);
-	g_logTimer->Sleep(2);
 
 	g_log("Done\n");
 }

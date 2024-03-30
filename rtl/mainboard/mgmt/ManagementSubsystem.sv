@@ -72,6 +72,8 @@ module ManagementSubsystem(
 	output wire						frontpanel_cs_n,
 
 	//Configuration registers in core clock domain
+	input wire[11:0]				trig_in_led,
+	input wire[11:0]				trig_out_led,
 	output wire						relay_en,
 	output wire						relay_dir,
 	output wire[1:0]				relay_channel,
@@ -330,7 +332,7 @@ module ManagementSubsystem(
 
 	SPIHostInterface spi(
 		.clk(sys_clk),
-		.clkdiv(125),		//2 MHz
+		.clkdiv(250),		//1 MHz
 
 		.spi_sck(frontpanel_sck),
 		.spi_mosi(frontpanel_mosi),
@@ -340,15 +342,6 @@ module ManagementSubsystem(
 		.shift_done(front_shift_done),
 		.tx_data(front_shift_data),
 		.rx_data());
-
-	ila_0 ila(
-		.clk(sys_clk),
-		.probe0(front_shift_en),
-		.probe1(front_shift_data),
-		.probe2(front_shift_done),
-		.probe3(frontpanel_sck),
-		.probe4(frontpanel_mosi),
-		.probe5(frontpanel_cs_n));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Register interface
@@ -422,6 +415,8 @@ module ManagementSubsystem(
 		.front_shift_done(front_shift_done),
 		.front_shift_data(front_shift_data),
 		.front_cs_n(frontpanel_cs_n),
+		.trig_in_led(trig_in_led),
+		.trig_out_led(trig_out_led),
 
 		//Control registers (port RX clock domain)
 		.xg0_rx_clk(xg0_rx_clk),

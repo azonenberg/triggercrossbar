@@ -79,6 +79,7 @@ bool g_fpgaUp = false;
 GPIOPin* g_fpga_done = nullptr;
 GPIOPin* g_mcu_rst_n = nullptr;
 GPIOPin* g_fpga_rst_n = nullptr;
+GPIOPin* g_fpga_init_n = nullptr;
 
 GPIOPin* g_softPower = nullptr;
 GPIOPin* g_softReset = nullptr;
@@ -175,21 +176,15 @@ int main()
 
 	//Main event loop
 	//TODO: support warm reset and/or hard power cycle on request
-	bool lastCS = true;
 	uint8_t nbyte = 0;
 	uint8_t cmd = 0;
+	const uint16_t timerMax = 60000;
 	while(1)
 	{
-		//Find CS# falling edges
+		//Reset count when CS goes high
 		auto cs = *g_spiCS;
-		if(lastCS && !cs)
-		{
+		if(cs == 1)
 			nbyte = 0;
-
-			//Send dummy data in response to the command
-			g_spi->NonblockingWriteDevice(0x00);
-		}
-		lastCS = cs;
 
 		//If CS# is low, disable other processing
 		//TODO: interrupt based flow here or something?
@@ -237,15 +232,13 @@ int main()
 
 				nbyte ++;
 			}
-
-			continue;
 		}
 
 		//Update sensors
 		bool sensorsUpdated = PollIBCSensors();
 
 		//Check for overflows on our log message timer
-		g_log.UpdateOffset(60000);
+		g_log.UpdateOffset(timerMax);
 
 		//Check for power button activity
 		PollPowerButtons();
@@ -257,6 +250,8 @@ int main()
 			{
 				*g_ok_led = !*g_ok_led;
 				g_nextBlink = g_logTimer->GetCount() + g_blinkDelay;
+				if(g_nextBlink > timerMax)
+					g_nextBlink -= timerMax;
 			}
 		}
 
@@ -286,10 +281,11 @@ int main()
 
 			//Check all rails (other than 1v8 which still has a solder defect on PGOOD that I don't feel like bodging)
 			//to see if any of them went out of tolerance (indicating a short)
+			//1V2 PGOOD also seems to have issues? skip check for the moment
 			MonitorRail(*g_pgood_3v3, "3V3");
 			//MonitorRail(pgood_1v8, "1V8");
 			MonitorRail(*g_pgood_gtx_1v8, "GTX_1V8");
-			MonitorRail(*g_pgood_1v2, "1V2");
+			//MonitorRail(*g_pgood_1v2, "1V2");
 			MonitorRail(*g_pgood_1v0, "1V0");
 			MonitorRail(*g_pgood_gtx_1v0, "GTX_1V0");
 
@@ -452,6 +448,7 @@ void PowerOff()
 	//Place FPGA and MCU in reset immediately
 	//TODO: do we want to tip them off and give them some window of time to do a clean shutdown??
 	*g_fpga_rst_n = 0;
+	*g_fpga_init_n = 0;
 	*g_mcu_rst_n = 0;
 
 	//Shut rails off at 1ms intervals in reverse order of startup
@@ -537,13 +534,19 @@ void PowerOn()
 	g_log("Turning on 3V0_N (no PGOOD signal available)\n");
 	*g_en_3v0_n = 1;
 
-	//Print all IBC sensor values
+	//Queue print of all IBC sensor values
 	g_ibcPrintState = PRINT_REQUESTED;
 
-	//All power rails came up if we get here
-	g_log("Power is good, releasing FPGA reset\n");
+	//S25FL128S datasheet calls for 300us minimum from Vcc high to reads
+	//Give it 500 to be safe
+	g_log("All power rails are up, waiting for flash Tpu\n");
+	g_logTimer->Sleep(5000);
+
+	//Start up the FPGA and have fun
+	g_log("Releasing FPGA reset\n");
 	*g_ok_led = 1;
 	*g_fpga_rst_n = 1;
+	*g_fpga_init_n = 1;
 
 	//Everything started up if we get here
 	//TODO: wait for heartbeat from MCU too?
@@ -895,7 +898,7 @@ void InitGPIOs()
 	static GPIOPin mcu_rst_n(&GPIOA, 3, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	static GPIOPin mcu_ready(&GPIOA, 0, GPIOPin::MODE_INPUT, 0, false);
 	static GPIOPin fpga_rst_n(&GPIOA, 1, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW, 0, true);
-	static GPIOPin fpga_init(&GPIOB, 12, GPIOPin::MODE_INPUT, 0, false);
+	static GPIOPin fpga_init(&GPIOB, 12, GPIOPin::MODE_OUTPUT, 0, true);
 
 	static GPIOPin pwr_button(&GPIOA, 12, GPIOPin::MODE_INPUT, 0, false);
 	static GPIOPin rst_button(&GPIOA, 15, GPIOPin::MODE_INPUT, 0, false);
@@ -913,6 +916,7 @@ void InitGPIOs()
 
 	mcu_rst_n = 0;
 	fpga_rst_n = 0;
+	fpga_init = 0;
 	fail_led = 0;
 	ok_led = 0;
 
@@ -938,6 +942,7 @@ void InitGPIOs()
 	g_fpga_done = &fpga_done;
 	g_mcu_rst_n = &mcu_rst_n;
 	g_fpga_rst_n = &fpga_rst_n;
+	g_fpga_init_n = &fpga_init;
 
 	g_softPower = &pwr_button;
 	g_softReset = &rst_button;
@@ -948,10 +953,11 @@ void InitSPI()
 	g_log("Initializing SPI\n");
 
 	//Set up GPIOs
-	static GPIOPin spi_sck(&GPIOA, 5, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
-	static GPIOPin spi_mosi(&GPIOA, 7, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
-	static GPIOPin spi_miso(&GPIOA, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
-	static GPIOPin spi_cs_n(&GPIOA, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
+	auto slew = GPIOPin::SLEW_MEDIUM;
+	static GPIOPin spi_sck(&GPIOA, 5, GPIOPin::MODE_PERIPHERAL, slew, 0);
+	static GPIOPin spi_mosi(&GPIOA, 7, GPIOPin::MODE_PERIPHERAL, slew, 0);
+	static GPIOPin spi_miso(&GPIOA, 6, GPIOPin::MODE_PERIPHERAL, slew, 0);
+	static GPIOPin spi_cs_n(&GPIOA, 4, GPIOPin::MODE_PERIPHERAL, slew, 0);
 
 	//Set up the SPI bus
 	static SPI spi(&SPI1, true, 2, false);

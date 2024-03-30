@@ -2,6 +2,8 @@
 
 You probably don't want to build this as is, there's a couple of bugs. May or may not respin later on with fixes, for now I'm just bodging my prototype.
 
+Bodge log at https://docs.google.com/document/d/14ighvhOLtBR-3ShkNhyRGlamA1f7WH5_sXfJCJYxb1o/edit
+
 # What is it?
 
 When finished, it will be a 1U rack-mountable appliance with a TBD number of BNC and/or SMA connectors on the back side for trigger inputs and outputs. Some will be input only, some output only, and some bidirectional. Exact mix is TBD.

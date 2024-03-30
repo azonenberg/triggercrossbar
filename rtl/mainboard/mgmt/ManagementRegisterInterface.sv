@@ -89,6 +89,9 @@ module ManagementRegisterInterface(
 	output logic[1:0]				relay_channel = 0,
 	input wire						relay_done,
 
+	input wire[11:0]				trig_in_led,
+	input wire[11:0]				trig_out_led,
+
 	output muxsel_t[11:0]			muxsel = 0,
 
 	output logic					rxfifo_rd_en = 0,
@@ -375,15 +378,23 @@ module ManagementRegisterInterface(
 	logic[1:0]				drp_busy	= 0;
 	logic					front_busy	= 0;
 
-	//DEBUG: front panel indicator LED state
-	logic[23:0]				front_led_state = 24'h00000f;
-	logic[25:0] 			ledcount = 0;
-	always_ff @(posedge clk) begin
-		if(ledcount == 0)
-			front_led_state <= {front_led_state[22:0], front_led_state[23]};
-		ledcount	<= ledcount + 1;
-	end
+	//Front panel LED indicator state
+	logic[3:0]				relay_state = 0;
+	logic[23:0]				front_led_state;
+	always_comb begin
+		for(integer i=0; i<12; i=i+1)
+			front_led_state[i+12]	<= trig_in_led[11-i];
+		front_led_state[11:0]	<= trig_out_led[11:0];
 
+		//If relays are in input mode, never light up the output port indicator
+		for(integer i=0; i<12; i=i+1) begin
+			if(i >= 8) begin
+				if(relay_state[i-8])
+					front_led_state[i]	= 0;
+			end
+		end
+
+	end
 
 	always_ff @(posedge clk) begin
 
@@ -402,6 +413,10 @@ module ManagementRegisterInterface(
 		mgmt_lane0_en			<= 0;
 		mgmt_lane1_en			<= 0;
 		front_shift_en			<= 0;
+
+		//Track relay state
+		if(relay_en)
+			relay_state[relay_channel]	<= relay_dir;
 
 		//Start a new read
 		if(rd_en)

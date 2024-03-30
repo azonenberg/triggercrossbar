@@ -496,13 +496,19 @@ module top(
 	`include "CrossbarTypes.svh"
 
 	muxsel_t[11:0]	muxsel;
+	wire[11:0]		trig_in_led;
+	wire[11:0]		trig_out_led;
 
 	(* keep_hierarchy = "yes" *)
 	CrossbarMatrix matrix(
 		.trig_in(trig_in),
 		.trig_out(trig_out),
 
-		.muxsel(muxsel)
+		.muxsel(muxsel),
+
+		.clk_250mhz(clk_250mhz),
+		.trig_in_led(trig_in_led),
+		.trig_out_led(trig_out_led)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -541,6 +547,8 @@ module top(
 		.frontpanel_sck(frontpanel_sck),
 		.frontpanel_mosi(frontpanel_mosi),
 		.frontpanel_cs_n(frontpanel_cs_n),
+		.trig_in_led(trig_in_led),
+		.trig_out_led(trig_out_led),
 
 		.muxsel(muxsel),
 
