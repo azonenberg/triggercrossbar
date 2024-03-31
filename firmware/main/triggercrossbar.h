@@ -164,9 +164,12 @@ extern OctalDAC* g_rxDacs[2];
 extern OctalDAC* g_txDac;
 
 extern bool g_basetLinkUp;
+extern uint8_t g_basetLinkSpeed;
 
 extern SPI* g_superSPI;
 extern GPIOPin* g_superSPICS;
+
+extern bool g_displayRefreshPending;
 
 extern char g_superVersion[20];
 extern char g_ibcVersion[20];

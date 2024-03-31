@@ -112,18 +112,21 @@ void PollPHYs()
 	bool bup = (bstat & 4) == 4;
 	if(bup && !g_basetLinkUp)
 	{
-		int speed = 0;
+		g_basetLinkSpeed = 0;
 		if( (bctl & 0x40) == 0x40)
-			speed |= 2;
+			g_basetLinkSpeed |= 2;
 		if( (bctl & 0x2000) == 0x2000)
-			speed |= 1;
-		g_log("Interface mgmt0: link is up at %s\n", g_linkSpeedNamesLong[speed]);
+			g_basetLinkSpeed |= 1;
+		g_log("Interface mgmt0: link is up at %s\n", g_linkSpeedNamesLong[g_basetLinkSpeed]);
+		g_displayRefreshPending = true;
 
 		g_ethProtocol->OnLinkUp();
 	}
 	else if(!bup && g_basetLinkUp)
 	{
 		g_log("Interface mgmt0: link is down\n");
+		g_basetLinkSpeed = 0xff;
+		g_displayRefreshPending = true;
 		g_ethProtocol->OnLinkDown();
 	}
 	g_basetLinkUp = bup;

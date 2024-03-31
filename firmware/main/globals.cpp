@@ -125,6 +125,9 @@ OctalDAC* g_txDac = nullptr;
 ///@brief BaseT link status
 bool g_basetLinkUp = false;
 
+//Ethernet link speed
+uint8_t g_basetLinkSpeed = 0;
+
 //TODO: SFP+ link status
 
 ///@brief SPI bus to supervisor
@@ -141,3 +144,6 @@ char g_ibcVersion[20] = {0};
 
 ///@brief USERCODE of the FPGA (build timestamp)
 uint32_t g_usercode = 0;
+
+///Request refresh of the display if link state changes
+bool g_displayRefreshPending = false;

@@ -39,6 +39,12 @@ void SendFrontPanelByte(uint8_t data);
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value);
 void UpdateFrontPanelActivityLEDs();
 
+///@brief Seconds remaining before we can update the display again
+uint32_t g_displayCooldown = 0;
+
+///@brief Seconds since we last refreshed the display
+uint32_t g_secSinceLastDisplayRefresh = 0;
+
 int main()
 {
 	//Initialize power (must be the very first thing done after reset)
@@ -120,7 +126,6 @@ int main()
 	//Main event loop
 	uint32_t nextAgingTick = 0;
 	uint32_t nextLedTick = 0;
-	uint32_t displayRefreshTick = 0;
 	while(1)
 	{
 		//Wait for an interrupt
@@ -148,18 +153,27 @@ int main()
 			nextLedTick = g_logTimer->GetCount() + 1000;
 		}
 
-		//Check for aging on stuff once a second
+		//1 Hz timer for various aging processes
 		if(g_logTimer->GetCount() > nextAgingTick)
 		{
 			g_ethProtocol->OnAgingTick();
 			nextAgingTick = g_logTimer->GetCount() + 10000;
 
-			//Refresh front panel display once an hour
-			displayRefreshTick = 0;
-			if(displayRefreshTick >= 3600)
-			{
+			//Don't update the display more than once every 45 sec
+			if(g_displayCooldown)
+				g_displayCooldown --;
+
+			//If a display refresh was requested, do that
+			else if(g_displayRefreshPending)
 				UpdateFrontPanelDisplay();
-				displayRefreshTick = 0;
+
+			//Refresh front panel display at least once every two hours
+			else
+			{
+				g_secSinceLastDisplayRefresh ++;
+
+				if(g_secSinceLastDisplayRefresh >= 7200)
+					UpdateFrontPanelDisplay();
 			}
 		}
 	}
@@ -239,6 +253,8 @@ void UpdateFrontPanelActivityLEDs()
 void UpdateFrontPanelDisplay()
 {
 	g_log("Updating front panel display\n");
+	g_displayRefreshPending = false;
+	g_secSinceLastDisplayRefresh = 0;
 
 	char tmp[20] = {0};
 	StringBuffer buf(tmp, sizeof(tmp));
@@ -258,10 +274,11 @@ void UpdateFrontPanelDisplay()
 	//Set Ethernet link state
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_ETH_LINK);
-	if(!g_basetLinkUp)
-		SendFrontPanelByte(0xff);
+	//TODO: send 0x03 if baseT link is up
+	if(g_basetLinkUp)
+		SendFrontPanelByte(g_basetLinkSpeed);
 	else
-		SendFrontPanelByte(0x03);	//TODO: actual speed
+		SendFrontPanelByte(0xff);
 	SetFrontPanelCS(1);
 
 	//Set serial number
@@ -347,7 +364,8 @@ void UpdateFrontPanelDisplay()
 	SendFrontPanelByte(FRONT_REFRESH);
 	SetFrontPanelCS(1);
 
-	g_log("Done\n");
+	//Don't update the display more than once every N seconds (since it might still be busy)
+	g_displayCooldown = 45;
 }
 
 uint16_t SupervisorRegRead(uint8_t regid)
