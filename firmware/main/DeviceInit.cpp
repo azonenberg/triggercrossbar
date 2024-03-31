@@ -475,6 +475,9 @@ void InitSensors()
 			g_log(Logger::ERROR, "Fan %d:                                 STOPPED\n", i, rpm);
 		else
 			g_log("Fan %d:                                 %d RPM\n", i, rpm);
+
+		//skip reading fan1 as we don't have it connected
+		break;
 	}
 
 	//Read FPGA temperature

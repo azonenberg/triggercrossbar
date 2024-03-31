@@ -359,6 +359,9 @@ void UpdateFrontPanelDisplay()
 	SendFrontPanelSensor(FRONT_IBC_IOUT, SupervisorRegRead(SUPER_REG_IBCIOUT));
 	SendFrontPanelSensor(FRONT_IBC_TEMP, SupervisorRegRead(SUPER_REG_IBCTEMP));
 
+	//Fan
+	SendFrontPanelSensor(FRONT_FAN_RPM, GetFanRPM(0));
+
 	//Refresh the display
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_REFRESH);

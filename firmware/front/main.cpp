@@ -81,6 +81,7 @@ uint16_t g_vin = 0;
 uint16_t g_iin = 0;
 uint16_t g_vout = 0;
 uint16_t g_iout = 0;
+uint16_t g_fanspeed = 0;
 
 int main()
 {
@@ -251,6 +252,14 @@ int main()
 							g_iout = data;
 						else if(nbyte == 2)
 							g_iout |= data << 8;
+						break;
+
+					//Fan RPM indicator
+					case FRONT_FAN_RPM:
+						if(nbyte == 1)
+							g_fanspeed = data;
+						else if(nbyte == 2)
+							g_fanspeed |= data << 8;
 						break;
 
 					//Port direction indicator LEDs
@@ -758,6 +767,15 @@ void RefreshDisplay()
 	buf.Clear();
 	buf.Printf("PANL %2d.%dC", degreal, degfrac >> 8);
 	g_display->Text6x8(textleft, texty, tmp, false, true);
+
+	//Get the fan speed
+	texty -= textheight;
+	buf.Clear();
+	buf.Printf("FAN  %5d", g_fanspeed);
+	bool fanSpeedOK = true;
+	if( (g_fanspeed < 7000) || (g_fanspeed > 15000) )
+		fanSpeedOK = false;
+	g_display->Text6x8(textleft, texty, tmp, !fanSpeedOK, fanSpeedOK);
 
 	//horizontal line below text
 	g_display->Line(lineright, texty, xright, texty, false, true);
