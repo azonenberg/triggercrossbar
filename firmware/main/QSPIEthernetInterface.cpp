@@ -90,6 +90,11 @@ EthernetFrame* QSPIEthernetInterface::GetRxFrame()
 		g_log(Logger::ERROR, "Got a %d byte long frame (max size 1500, FPGA should not have done this)\n", (int)len);
 		return nullptr;
 	}
+	if(len == 0)
+	{
+		g_log(Logger::ERROR, "Got a zero-byte Ethernet frame, makes no sense\n");
+		return nullptr;
+	}
 
 	//Make sure we have somewhere to put the frame
 	if(m_rxFreeList.IsEmpty())

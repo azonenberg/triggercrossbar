@@ -145,5 +145,8 @@ char g_ibcVersion[20] = {0};
 ///@brief USERCODE of the FPGA (build timestamp)
 uint32_t g_usercode = 0;
 
-///Request refresh of the display if link state changes
+///@brief Request refresh of the display if link state changes
 bool g_displayRefreshPending = false;
+
+///@brief SFP+ link state
+bool g_sfpLinkUp;

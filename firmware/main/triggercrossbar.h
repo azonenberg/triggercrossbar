@@ -165,6 +165,7 @@ extern OctalDAC* g_txDac;
 
 extern bool g_basetLinkUp;
 extern uint8_t g_basetLinkSpeed;
+extern bool g_sfpLinkUp;
 
 extern SPI* g_superSPI;
 extern GPIOPin* g_superSPICS;

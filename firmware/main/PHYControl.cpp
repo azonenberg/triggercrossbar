@@ -131,32 +131,28 @@ void PollPHYs()
 	}
 	g_basetLinkUp = bup;
 
-	//TODO: poll XG0_STAT
-	/*
+	//Get the SFP link status
 	uint32_t status = g_fpga->BlockingRead32(REG_XG0_STAT);
 	if(status & 1)
 	{
 		//Link went up?
-		if(g_linkState[i] != LINK_STATE_UP)
+		if(!g_sfpLinkUp)
 		{
-			g_linkState[i] = LINK_STATE_UP;
-			g_linkSpeed[i] = LINK_SPEED_10G;
-
-			g_log("Interface %s (%s): link is up at %s\n",
-				g_interfaceNames[i],
-				g_interfaceDescriptions[i],
-				g_linkSpeedNamesLong[g_linkSpeed[i]]);
+			g_log("Interface xg0: link is up at 10 Gbps\n");
+			g_sfpLinkUp = true;
+			g_displayRefreshPending = true;
 		}
 	}
 
 	else
 	{
 		//Link went down?
-		if(g_linkState[i] != LINK_STATE_DOWN)
+		if(g_sfpLinkUp)
 		{
-			g_linkState[i] = LINK_STATE_DOWN;
-			g_log("Interface %s (%s): link is down\n", g_interfaceNames[i], g_interfaceDescriptions[i]);
+			g_log("Interface xg0: link is down\n");
+			g_sfpLinkUp = false;
+			g_displayRefreshPending = true;
+			g_ethProtocol->OnLinkDown();
 		}
 	}
-	*/
 }

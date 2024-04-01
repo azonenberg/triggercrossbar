@@ -126,6 +126,7 @@ int main()
 	//Main event loop
 	uint32_t nextAgingTick = 0;
 	uint32_t nextLedTick = 0;
+	uint32_t nextPhyPoll = 0;
 	while(1)
 	{
 		//Wait for an interrupt
@@ -135,9 +136,13 @@ int main()
 		if(irq)
 			PollFPGA();
 
-		//Check if we had a PHY link state change
+		//Check if we had a PHY link state change at 20 Hz
 		//TODO: add irq bit for this so we don't have to poll nonstop
-		PollPHYs();
+		if(g_logTimer->GetCount() > nextPhyPoll)
+		{
+			PollPHYs();
+			nextPhyPoll = g_logTimer->GetCount() + 500;
+		}
 
 		//Check if we had an optic inserted or removed
 		PollSFP();
@@ -192,7 +197,10 @@ void PollFPGA()
 	{
 		auto frame = g_ethIface->GetRxFrame();
 		if(frame != NULL)
+		{
 			g_ethProtocol->OnRxFrame(frame);
+			g_log("frame\n");
+		}
 	}
 }
 
@@ -259,9 +267,6 @@ void UpdateFrontPanelDisplay()
 	char tmp[20] = {0};
 	StringBuffer buf(tmp, sizeof(tmp));
 
-	//TODO: 50 second timeout between refresh cycles, can't update if already updating
-	//(but queue the refresh request and refresh again as soon as we can)
-
 	//Update IPv4 address
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_IP4_ADDR);
@@ -274,8 +279,9 @@ void UpdateFrontPanelDisplay()
 	//Set Ethernet link state
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_ETH_LINK);
-	//TODO: send 0x03 if baseT link is up
-	if(g_basetLinkUp)
+	if(g_sfpLinkUp)
+		SendFrontPanelByte(0x03);
+	else if(g_basetLinkUp)
 		SendFrontPanelByte(g_basetLinkSpeed);
 	else
 		SendFrontPanelByte(0xff);
