@@ -62,6 +62,8 @@ module ManagementSubsystem(
 
 	input wire						xg0_rx_clk,
 	input wire						xg0_link_up,
+	input wire						xg0_tx_clk,
+	output EthernetTxBus			xg0_tx_bus,
 
 	//Tachometers for fans
 	input wire[1:0]					fan_tach,
@@ -169,7 +171,7 @@ module ManagementSubsystem(
 		.rpm(fan1_rpm));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// FIFO for storing incoming Ethernet frames
+	// FIFO for storing inbound/outbound Ethernet frames
 
 	wire		rxfifo_rd_en;
 	wire		rxfifo_rd_pop_single;
@@ -205,6 +207,14 @@ module ManagementSubsystem(
 		.dout(eth_link_up_txclk)
 	);
 
+	wire		xg0_link_up_txclk;
+	ThreeStageSynchronizer xg0_link_up_txclk(
+		.clk_in(xg0_rx_clk),
+		.din(xg0_link_up),
+		.clk_out(xg0_tx_clk),
+		.dout(xg0_link_up_txclk)
+	);
+
 	ManagementTxFifo tx_fifo(
 		.sys_clk(sys_clk),
 
@@ -216,6 +226,22 @@ module ManagementSubsystem(
 		.link_up(eth_link_up_txclk),
 		.tx_ready(mgmt0_tx_ready),
 		.tx_bus(mgmt0_tx_bus)
+	);
+
+	wire		xg_txfifo_wr_en;
+	wire[7:0]	xg_txfifo_wr_data;
+	wire		xg_txfifo_wr_commit;
+
+	Management10GTxFifo xg_tx_fifo(
+		.sys_clk(sys_clk),
+
+		.wr_en(xg_txfifo_wr_en),
+		.wr_data(xg_txfifo_wr_data),
+		.wr_commit(xg_txfifo_wr_commit),
+
+		.tx_clk(xg0_tx_clk),
+		.link_up(xg0_link_up_txclk),
+		.tx_bus(xg0_tx_bus)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -390,6 +416,9 @@ module ManagementSubsystem(
 		.txfifo_wr_en(txfifo_wr_en),
 		.txfifo_wr_data(txfifo_wr_data),
 		.txfifo_wr_commit(txfifo_wr_commit),
+		.xg_txfifo_wr_en(xg_txfifo_wr_en),
+		.xg_txfifo_wr_data(xg_txfifo_wr_data),
+		.xg_txfifo_wr_commit(xg_txfifo_wr_commit),
 		.relay_en(relay_en),
 		.relay_dir(relay_dir),
 		.relay_channel(relay_channel),

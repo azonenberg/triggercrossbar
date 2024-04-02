@@ -65,8 +65,18 @@ EthernetFrame* QSPIEthernetInterface::GetTxFrame()
 void QSPIEthernetInterface::SendTxFrame(EthernetFrame* frame)
 {
 	//TODO: DMA optimizations
-	g_fpga->BlockingWrite(REG_EMAC_BUFFER, frame->RawData(), frame->Length());
-	g_fpga->BlockingWrite8(REG_EMAC_COMMIT, 0);
+
+	//Separate TX buffers for 1G (8 bit datapath in FPGA) and 10G (32 bit datapath in FPGA)
+	if(g_sfpLinkUp)
+	{
+		g_fpga->BlockingWrite(REG_XG_TX_BUFFER, frame->RawData(), frame->Length());
+		g_fpga->BlockingWrite8(REG_XG_COMMIT, 0);
+	}
+	else
+	{
+		g_fpga->BlockingWrite(REG_EMAC_BUFFER, frame->RawData(), frame->Length());
+		g_fpga->BlockingWrite8(REG_EMAC_COMMIT, 0);
+	}
 
 	//Done, put on free list
 	m_txFreeList.Push(frame);

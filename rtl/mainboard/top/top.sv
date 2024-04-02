@@ -448,11 +448,6 @@ module top(
 		.eth_rx_bus(eth_rx_bus));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// TX side muxing for SFP vs RGMII PHY to allow management from either
-
-	//TODO: actually make this work, we need to handle different bus widths which will mean changes to ManagementTxFifo
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Curve25519 crypto_scalarmult accelerator (for speeding up SSH key exchange)
 
 	wire		crypt_en;
@@ -536,6 +531,8 @@ module top(
 
 		.xg0_rx_clk(xg0_mac_rx_clk),
 		.xg0_link_up(xg0_link_up),
+		.xg0_tx_clk(xg0_mac_tx_clk),
+		.xg0_tx_bus(xg0_mac_tx_bus),
 
 		.fan_tach(fan_tach),
 

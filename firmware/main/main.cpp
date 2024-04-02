@@ -197,10 +197,7 @@ void PollFPGA()
 	{
 		auto frame = g_ethIface->GetRxFrame();
 		if(frame != NULL)
-		{
 			g_ethProtocol->OnRxFrame(frame);
-			g_log("frame\n");
-		}
 	}
 }
 
