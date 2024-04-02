@@ -344,7 +344,7 @@ void UpdateFrontPanelDisplay()
 		"",
 		""
 	};
-	buf.Printf("%s %02d %04d %02d%02d%02d", months[mon], day, yr, hr, min, sec);
+	buf.Printf("%s %2d %04d %02d%02d%02d", months[mon], day, yr, hr, min, sec);
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_FPGA_FW);
 	for(size_t i=0; i<sizeof(tmp); i++)
