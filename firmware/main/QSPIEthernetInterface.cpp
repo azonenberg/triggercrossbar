@@ -62,7 +62,7 @@ EthernetFrame* QSPIEthernetInterface::GetTxFrame()
 		return m_txFreeList.Pop();
 }
 
-void QSPIEthernetInterface::SendTxFrame(EthernetFrame* frame)
+void QSPIEthernetInterface::SendTxFrame(EthernetFrame* frame, bool markFree)
 {
 	//TODO: DMA optimizations
 
@@ -79,7 +79,8 @@ void QSPIEthernetInterface::SendTxFrame(EthernetFrame* frame)
 	}
 
 	//Done, put on free list
-	m_txFreeList.Push(frame);
+	if(markFree)
+		m_txFreeList.Push(frame);
 }
 
 void QSPIEthernetInterface::CancelTxFrame(EthernetFrame* frame)

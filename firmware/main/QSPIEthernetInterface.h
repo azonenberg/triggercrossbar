@@ -51,11 +51,11 @@ public:
 	QSPIEthernetInterface();
 	virtual ~QSPIEthernetInterface();
 
-	virtual EthernetFrame* GetTxFrame();
-	virtual void SendTxFrame(EthernetFrame* frame);
-	virtual void CancelTxFrame(EthernetFrame* frame);
-	virtual EthernetFrame* GetRxFrame();
-	virtual void ReleaseRxFrame(EthernetFrame* frame);
+	virtual EthernetFrame* GetTxFrame() override;
+	virtual void SendTxFrame(EthernetFrame* frame, bool markFree=true) override;
+	virtual void CancelTxFrame(EthernetFrame* frame) override;
+	virtual EthernetFrame* GetRxFrame() override;
+	virtual void ReleaseRxFrame(EthernetFrame* frame) override;
 
 protected:
 
