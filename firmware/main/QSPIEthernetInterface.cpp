@@ -64,6 +64,13 @@ EthernetFrame* QSPIEthernetInterface::GetTxFrame()
 
 void QSPIEthernetInterface::SendTxFrame(EthernetFrame* frame, bool markFree)
 {
+	if(frame == nullptr)
+	{
+		//can't use logger to avoid infinite recursion
+		g_cliUART->Printf("tried to send a null frame\n");
+		return;
+	}
+
 	//TODO: DMA optimizations
 
 	//Separate TX buffers for 1G (8 bit datapath in FPGA) and 10G (32 bit datapath in FPGA)

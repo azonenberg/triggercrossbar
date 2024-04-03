@@ -39,11 +39,14 @@
 #include <util/FIFO.h>
 #include <staticnet/drivers/base/EthernetInterface.h>
 
+///@brief Number of frame buffers to allocate for frame reception
 #define QSPI_RX_BUFCOUNT 8
-#define QSPI_TX_BUFCOUNT 8
+
+///@brief Number of frame buffers to allocate for frame transmission
+#define QSPI_TX_BUFCOUNT 16
 
 /**
-	@brief Ethernet driver using FPGA based MAC attached voer quad SPI
+	@brief Ethernet driver using FPGA based MAC attached over quad SPI
  */
 class QSPIEthernetInterface : public EthernetInterface
 {
