@@ -824,6 +824,11 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 			for(int16_t xoff = -xrange; xoff <= xrange; xoff ++)
 			{
 				auto ber = DoEyeBERMeasurement(chan, g_bertRxPrescale[chan], xoff, yoff);
+
+				//this outer loop takes a while, process any FPGA events that may have appeared each iteration
+				while(CheckForFPGAEvents())
+				{}
+
 				PrintFloat(buf, ber);
 				buf.Printf(",");
 			}
@@ -866,6 +871,11 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		for(int16_t xoff = -xrange; xoff <= xrange; xoff ++)
 		{
 			auto ber = DoEyeBERMeasurement(chan, g_bertRxPrescale[chan], xoff, 0);
+
+			//this outer loop takes a while, process any FPGA events that may have appeared each iteration
+			while(CheckForFPGAEvents())
+			{}
+
 			PrintFloat(buf, ber);
 			buf.Printf(",");
 			buf.Flush();

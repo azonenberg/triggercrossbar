@@ -42,7 +42,7 @@ protected:
 	virtual bool IsPortOpen(uint16_t port) override;
 	virtual void OnConnectionAccepted(TCPTableEntry* state) override;
 	virtual void OnConnectionClosed(TCPTableEntry* state) override;
-	virtual bool OnRxData(TCPTableEntry* state, uint8_t* payload, uint16_t payloadLen) override;
+	virtual void OnRxData(TCPTableEntry* state, uint8_t* payload, uint16_t payloadLen) override;
 
 	virtual uint32_t GenerateInitialSequenceNumber() override;
 

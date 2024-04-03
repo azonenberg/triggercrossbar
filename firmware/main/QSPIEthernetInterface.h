@@ -43,7 +43,7 @@
 #define QSPI_RX_BUFCOUNT 8
 
 ///@brief Number of frame buffers to allocate for frame transmission
-#define QSPI_TX_BUFCOUNT 16
+#define QSPI_TX_BUFCOUNT 32
 
 /**
 	@brief Ethernet driver using FPGA based MAC attached over quad SPI

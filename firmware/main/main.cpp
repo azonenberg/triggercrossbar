@@ -45,6 +45,8 @@ uint32_t g_displayCooldown = 0;
 ///@brief Seconds since we last refreshed the display
 uint32_t g_secSinceLastDisplayRefresh = 0;
 
+GPIOPin* g_irq = nullptr;
+
 int main()
 {
 	//Initialize power (must be the very first thing done after reset)
@@ -122,6 +124,7 @@ int main()
 	//Initialize the FPGA IRQ pin
 	GPIOPin irq(&GPIOH, 6, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
 	irq.SetPullMode(GPIOPin::PULL_DOWN);
+	g_irq = &irq;
 
 	//Main event loop
 	uint32_t next1HzTick = 0;
@@ -133,8 +136,7 @@ int main()
 		//asm("wfi");
 
 		//Check if anything happened on the FPGA
-		if(irq)
-			PollFPGA();
+		CheckForFPGAEvents();
 
 		//Check if we had a PHY link state change at 20 Hz
 		//TODO: add irq bit for this so we don't have to poll nonstop
@@ -188,6 +190,19 @@ int main()
 }
 
 /**
+	@brief Checks if the FPGA needs any events serviced
+
+	@return true if there are more events to process
+ */
+bool CheckForFPGAEvents()
+{
+	if(*g_irq)
+		PollFPGA();
+
+	return *g_irq;
+}
+
+/**
 	@brief Reads the FPGA status register to see why it sent us an IRQ
  */
 void PollFPGA()
@@ -198,7 +213,7 @@ void PollFPGA()
 	if(fpgastat & 1)
 	{
 		auto frame = g_ethIface->GetRxFrame();
-		if(frame != NULL)
+		if(frame != nullptr)
 			g_ethProtocol->OnRxFrame(frame);
 	}
 }

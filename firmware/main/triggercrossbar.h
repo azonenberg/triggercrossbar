@@ -178,4 +178,6 @@ extern uint32_t g_usercode;
 
 void SetFrontPanelDirectionLEDs(uint8_t leds);
 
+bool CheckForFPGAEvents();
+
 #endif

@@ -88,19 +88,21 @@ void ManagementTCPProtocol::OnConnectionClosed(TCPTableEntry* state)
 	}
 }
 
-bool ManagementTCPProtocol::OnRxData(TCPTableEntry* state, uint8_t* payload, uint16_t payloadLen)
+void ManagementTCPProtocol::OnRxData(TCPTableEntry* state, uint8_t* payload, uint16_t payloadLen)
 {
 	switch(state->m_localPort)
 	{
 		case SSH_PORT:
-			return m_ssh.OnRxData(state, payload, payloadLen);
+			m_ssh.OnRxData(state, payload, payloadLen);
+			break;
 
 		case SCPI_PORT:
-			return m_scpi.OnRxData(state, payload, payloadLen);
+			m_scpi.OnRxData(state, payload, payloadLen);
+			break;
 
 		//ignore it
 		default:
-			return true;
+			break;
 	}
 }
 

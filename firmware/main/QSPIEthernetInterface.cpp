@@ -110,7 +110,7 @@ EthernetFrame* QSPIEthernetInterface::GetRxFrame()
 	}
 	if(len == 0)
 	{
-		g_log(Logger::ERROR, "Got a zero-byte Ethernet frame, makes no sense\n");
+		//g_log(Logger::ERROR, "Got a zero-byte Ethernet frame, makes no sense\n");
 		return nullptr;
 	}
 

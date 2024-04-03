@@ -85,7 +85,7 @@
 
 	This is essentially a cap on window size in segments (vs bytes).
  */
-#define TCP_MAX_UNACKED 8
+#define TCP_MAX_UNACKED 16
 
 ///@brief Maximum age for a TCP segment before deciding to retransmit (in 100ms ticks)
 #define TCP_RETRANSMIT_TIMEOUT 2

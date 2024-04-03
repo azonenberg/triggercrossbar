@@ -77,7 +77,14 @@ public:
 			return;
 
 		m_tcp.SendTxSegment(m_socket, m_segment, m_buf.length());
+
 		m_segment = m_tcp.GetTxSegment(m_socket);
+		if(m_segment == nullptr)
+		{
+			g_log("failed to allocate buffer\n");
+			while(1)
+			{}
+		}
 		m_buf = StringBuffer(reinterpret_cast<char*>(m_segment->Payload()), TCP_IPV4_PAYLOAD_MTU);
 	}
 
