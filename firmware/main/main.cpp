@@ -124,8 +124,8 @@ int main()
 	irq.SetPullMode(GPIOPin::PULL_DOWN);
 
 	//Main event loop
-	uint32_t nextAgingTick = 0;
-	uint32_t nextLedTick = 0;
+	uint32_t next1HzTick = 0;
+	uint32_t next10HzTick = 0;
 	uint32_t nextPhyPoll = 0;
 	while(1)
 	{
@@ -151,18 +151,20 @@ int main()
 		if(g_cliUART->HasInput())
 			uartContext.OnKeystroke(g_cliUART->BlockingRead());
 
-		//Refresh of activity LEDs at 10 Hz
-		if(g_logTimer->GetCount() > nextLedTick)
+		//Refresh of activity LEDs and TCP retransmitsat 10 Hz
+		if(g_logTimer->GetCount() > next10HzTick)
 		{
 			UpdateFrontPanelActivityLEDs();
-			nextLedTick = g_logTimer->GetCount() + 1000;
+			g_ethProtocol->OnAgingTick10x();
+
+			next10HzTick = g_logTimer->GetCount() + 1000;
 		}
 
 		//1 Hz timer for various aging processes
-		if(g_logTimer->GetCount() > nextAgingTick)
+		if(g_logTimer->GetCount() > next1HzTick)
 		{
 			g_ethProtocol->OnAgingTick();
-			nextAgingTick = g_logTimer->GetCount() + 10000;
+			next1HzTick = g_logTimer->GetCount() + 10000;
 
 			//Don't update the display more than once every 45 sec
 			if(g_displayCooldown)

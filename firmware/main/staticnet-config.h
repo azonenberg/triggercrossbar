@@ -80,4 +80,14 @@
 ///@brief SCPI socket RX buffer size
 #define SCPI_RX_BUFFER_SIZE 2048
 
+/**
+	@brief Max pending (not ACKed) TCP segments for a given socket
+
+	This is essentially a cap on window size in segments (vs bytes).
+ */
+#define TCP_MAX_UNACKED 8
+
+///@brief Maximum age for a TCP segment before deciding to retransmit (in 100ms ticks)
+#define TCP_RETRANSMIT_TIMEOUT 2
+
 #endif

@@ -58,7 +58,7 @@ public:
 
 		//Nope, discard the unsent segment
 		else
-			m_tcp.CancelTxSegment(m_segment);
+			m_tcp.CancelTxSegment(m_segment, m_socket);
 	}
 
 	virtual void PrintBinary(char ch) override
