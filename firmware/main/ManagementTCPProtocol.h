@@ -44,8 +44,12 @@ protected:
 	virtual void OnConnectionClosed(TCPTableEntry* state) override;
 	virtual bool OnRxData(TCPTableEntry* state, uint8_t* payload, uint16_t payloadLen) override;
 
+	virtual uint32_t GenerateInitialSequenceNumber() override;
+
 	ManagementSSHTransportServer m_ssh;
 	CrossbarSCPIServer m_scpi;
+
+	STM32CryptoEngine m_crypt;
 };
 
 #endif

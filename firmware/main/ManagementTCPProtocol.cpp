@@ -70,6 +70,9 @@ void ManagementTCPProtocol::OnConnectionAccepted(TCPTableEntry* state)
 
 void ManagementTCPProtocol::OnConnectionClosed(TCPTableEntry* state)
 {
+	//Call base class to free memory
+	TCPProtocol::OnConnectionClosed(state);
+
 	switch(state->m_localPort)
 	{
 		case SSH_PORT:
@@ -99,4 +102,11 @@ bool ManagementTCPProtocol::OnRxData(TCPTableEntry* state, uint8_t* payload, uin
 		default:
 			return true;
 	}
+}
+
+uint32_t ManagementTCPProtocol::GenerateInitialSequenceNumber()
+{
+	uint32_t ret;
+	m_crypt.GenerateRandom(reinterpret_cast<uint8_t*>(&ret), sizeof(ret));
+	return ret;
 }
