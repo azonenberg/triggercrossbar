@@ -29,6 +29,7 @@
 
 #include "triggercrossbar.h"
 #include "DeviceCryptoEngine.h"
+#include "../../staticnet/contrib/tweetnacl_25519.h"
 
 DeviceCryptoEngine::DeviceCryptoEngine()
 {
@@ -77,4 +78,49 @@ void DeviceCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
 	while(status != 0)
 		status = g_fpga->BlockingRead8(REG_CRYPT_BASE + REG_CRYPT_STATUS);
 	g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, pub, ECDH_KEY_SIZE);
+}
+
+/**
+	@brief Verify a signed message
+
+	The signature is *prepended* to the message: first 64 bytes are signature, then the message
+ */
+bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t lengthIncludingSignature, uint8_t* publicKey)
+{
+	//fixed length cap
+	if(lengthIncludingSignature > 1024)
+		return false;
+
+	//If message isn't big enough to even have a signature it can't be valid
+	if (lengthIncludingSignature < ECDSA_SIG_SIZE)
+		return false;
+
+	//Hash the input message
+	uint8_t hash[SHA512_DIGEST_SIZE];
+	unsigned char tmpbuf[1024];
+	memcpy(tmpbuf, signedMessage, lengthIncludingSignature);
+	memcpy(tmpbuf + ECDSA_KEY_SIZE, publicKey, ECDSA_KEY_SIZE);
+	crypto_hash(hash, tmpbuf, lengthIncludingSignature);
+
+	//Modular reduction on the hash to stay within our field
+	reduce(hash);
+
+	//Unpack the packed public key
+	gf q[4];
+	gf p[4];
+	if (unpackneg(q, publicKey))
+		return false;
+
+	//Calculate the expected signature
+	scalarmult(p, q, hash);
+	scalarbase(q, signedMessage + 32);
+	add(p,q);
+	uint8_t t[32];
+	pack(t,p);
+
+	//Final signature verification
+	if (crypto_verify_32(signedMessage, t))
+		return false;
+
+	return true;
 }

@@ -44,6 +44,8 @@ public:
 	virtual void GenerateX25519KeyPair(uint8_t* pub);
 
 	virtual void SharedSecret(uint8_t* sharedSecret, uint8_t* clientPublicKey);
+
+	bool VerifySignature(uint8_t* signedMessage, uint32_t lengthIncludingSignature, uint8_t* publicKey);
 };
 
 #endif
