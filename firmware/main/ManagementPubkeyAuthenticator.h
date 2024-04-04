@@ -29,47 +29,25 @@
 
 /**
 	@file
-	@brief Declaration of CrossbarSSHKeyManager
+	@brief Declaration of ManagementPubkeyAuthenticator
  */
-#ifndef CrossbarSSHKeyManager_h
-#define CrossbarSSHKeyManager_h
-
-#ifndef MAX_SSH_KEYS
-#define MAX_SSH_KEYS 32
-#endif
+#ifndef ManagementPubkeyAuthenticator_h
+#define ManagementPubkeyAuthenticator_h
 
 /**
-	@brief A single entry in our authorized_keys list
+	@brief Base class for public key authentication providers
  */
-class AuthorizedKey
+class ManagementPubkeyAuthenticator : public SSHPubkeyAuthenticator
 {
 public:
-	uint8_t m_pubkey[ECDSA_KEY_SIZE];
-	char m_nickname[MAX_TOKEN_LEN];
+	virtual ~ManagementPubkeyAuthenticator() =default;
 
-	//needed by KVS
-	bool operator!= (const AuthorizedKey& rhs) const
-	{
-		if(memcmp(this, &rhs, sizeof(AuthorizedKey)) != 0)
-			return true;
-		return false;
-	}
-};
-
-class CrossbarSSHKeyManager
-{
-public:
-	CrossbarSSHKeyManager();
-
-	void LoadFromKVS();
-	void CommitToKVS();
-
-	bool AddPublicKey(const char* keyType, const char* keyBlobBase64, const char* keyDesc);
-
-	int FindKey(const uint8_t* search);
-
-	///@brief
-	AuthorizedKey m_authorizedKeys[MAX_SSH_KEYS];
+	virtual bool CanUseKey(
+		const char* username,
+		uint16_t username_len,
+		const SSHCurve25519KeyBlob* keyblob,
+		bool actualLoginAttempt
+		) override;
 };
 
 #endif

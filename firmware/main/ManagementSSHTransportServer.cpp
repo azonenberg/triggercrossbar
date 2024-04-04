@@ -78,7 +78,8 @@ ManagementSSHTransportServer::ManagementSSHTransportServer(TCPProtocol& tcp)
 	g_keyMgr.LoadFromKVS();
 
 	//Set up authenticators
-	UsePasswordAuthenticator(&m_auth);
+	UsePasswordAuthenticator(nullptr);
+	UsePubkeyAuthenticator(&m_auth);
 }
 
 ManagementSSHTransportServer::~ManagementSSHTransportServer()

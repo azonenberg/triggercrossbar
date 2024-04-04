@@ -35,7 +35,7 @@
 #define ManagementSSHTransportServer_h
 
 #include <staticnet/ssh/SSHTransportServer.h>
-#include "ManagementPasswordAuthenticator.h"
+#include "ManagementPubkeyAuthenticator.h"
 #include "CrossbarCLISessionContext.h"
 #include "DeviceCryptoEngine.h"
 
@@ -54,7 +54,7 @@ protected:
 	virtual void DropConnection(int id, TCPTableEntry* socket);
 	virtual void OnRxShellData(int id, TCPTableEntry* socket, char* data, uint16_t len);
 
-	ManagementPasswordAuthenticator m_auth;
+	ManagementPubkeyAuthenticator m_auth;
 
 	CrossbarCLISessionContext m_context[SSH_TABLE_SIZE];
 

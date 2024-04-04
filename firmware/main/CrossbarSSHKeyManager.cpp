@@ -191,7 +191,6 @@ bool CrossbarSSHKeyManager::AddPublicKey(
 		//If key matches, update the nickname and stop
 		if(0 == memcmp(m_authorizedKeys[i].m_pubkey, blob->m_pubKey, ECDSA_KEY_SIZE))
 		{
-			g_cliUART->Printf("Found same key in slot %d\n", i);
 			strncpy(m_authorizedKeys[i].m_nickname, keyDesc, KVS_NAMELEN);
 			m_authorizedKeys[i].m_nickname[KVS_NAMELEN] = 0;
 			return true;
@@ -204,7 +203,6 @@ bool CrossbarSSHKeyManager::AddPublicKey(
 		memcpy(m_authorizedKeys[freeSlot].m_pubkey, blob->m_pubKey, ECDSA_KEY_SIZE);
 		strncpy(m_authorizedKeys[freeSlot].m_nickname, keyDesc, KVS_NAMELEN);
 		m_authorizedKeys[freeSlot].m_nickname[KVS_NAMELEN] = 0;
-		g_cliUART->Printf("Saved key to slot %d\n", freeSlot);
 		return true;
 	}
 
@@ -214,4 +212,20 @@ bool CrossbarSSHKeyManager::AddPublicKey(
 		g_cliUART->Printf("Could not add SSH key (all %d slots in use)\n", MAX_SSH_KEYS);
 		return false;
 	}
+}
+
+/**
+	@brief Checks if a given key is in the authorized keys list
+
+	@return Zero or greater: slot of the key
+			Negative: not found
+ */
+int CrossbarSSHKeyManager::FindKey(const uint8_t* search)
+{
+	for(int i=0; i<MAX_SSH_KEYS; i++)
+	{
+		if(0 == memcmp(m_authorizedKeys[i].m_pubkey, search, ECDSA_KEY_SIZE))
+			return i;
+	}
+	return -1;
 }

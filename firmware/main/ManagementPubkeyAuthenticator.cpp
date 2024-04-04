@@ -27,49 +27,31 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-/**
-	@file
-	@brief Declaration of CrossbarSSHKeyManager
- */
-#ifndef CrossbarSSHKeyManager_h
-#define CrossbarSSHKeyManager_h
+#include "triggercrossbar.h"
+#include "ManagementPubkeyAuthenticator.h"
 
-#ifndef MAX_SSH_KEYS
-#define MAX_SSH_KEYS 32
-#endif
-
-/**
-	@brief A single entry in our authorized_keys list
- */
-class AuthorizedKey
+bool ManagementPubkeyAuthenticator::CanUseKey(
+	const char* username,
+	uint16_t username_len,
+	const SSHCurve25519KeyBlob* keyblob,
+	bool actualLoginAttempt
+	)
 {
-public:
-	uint8_t m_pubkey[ECDSA_KEY_SIZE];
-	char m_nickname[MAX_TOKEN_LEN];
-
-	//needed by KVS
-	bool operator!= (const AuthorizedKey& rhs) const
-	{
-		if(memcmp(this, &rhs, sizeof(AuthorizedKey)) != 0)
-			return true;
+	//TODO: make username configurable
+	if(!SSHTransportServer::StringMatchWithLength("admin", username, username_len))
 		return false;
-	}
-};
 
-class CrossbarSSHKeyManager
-{
-public:
-	CrossbarSSHKeyManager();
+	//Check if key is authorized
+	auto idx = g_keyMgr.FindKey(keyblob->m_pubKey);
+	if(idx < 0)
+		return false;
 
-	void LoadFromKVS();
-	void CommitToKVS();
+	//Null terminate username for debug logging
+	char nuname[SSH_MAX_USERNAME+1] = {0};
+	memcpy(nuname, username, username_len);
 
-	bool AddPublicKey(const char* keyType, const char* keyBlobBase64, const char* keyDesc);
-
-	int FindKey(const uint8_t* search);
-
-	///@brief
-	AuthorizedKey m_authorizedKeys[MAX_SSH_KEYS];
-};
-
-#endif
+	//It's good, log it if they're trying to log in (don't log soft queries of "is this key acceptable")
+	if(actualLoginAttempt)
+		g_log("SSH login attempt from user %s using key %s\n", nuname, g_keyMgr.m_authorizedKeys[idx].m_nickname);
+	return true;
+}
