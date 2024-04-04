@@ -29,100 +29,45 @@
 
 /**
 	@file
-	@brief Declaration of CrossbarCLISessionContext
+	@brief Declaration of CrossbarSSHKeyManager
  */
-#ifndef CrossbarCLISessionContext_h
-#define CrossbarCLISessionContext_h
+#ifndef CrossbarSSHKeyManager_h
+#define CrossbarSSHKeyManager_h
 
-#include "FPGAInterface.h"
-#include <embedded-cli/CLIOutputStream.h>
-#include <embedded-cli/CLISessionContext.h>
-#include <staticnet/cli/SSHOutputStream.h>
+#ifndef MAX_SSH_KEYS
+#define MAX_SSH_KEYS 32
+#endif
 
-class CrossbarCLISessionContext : public CLISessionContext
+/**
+	@brief A single entry in our authorized_keys list
+ */
+class AuthorizedKey
 {
 public:
-	CrossbarCLISessionContext();
+	uint8_t m_pubkey[ECDSA_KEY_SIZE];
+	char m_nickname[MAX_TOKEN_LEN];
 
-	void Initialize(int sessid, TCPTableEntry* socket, SSHTransportServer* server, const char* username)
+	//needed by KVS
+	bool operator!= (const AuthorizedKey& rhs) const
 	{
-		m_sshstream.Initialize(sessid, socket, server);
-		Initialize(&m_sshstream, username);
+		if(memcmp(this, &rhs, sizeof(AuthorizedKey)) != 0)
+			return true;
+		return false;
 	}
+};
 
-	//Generic init for non-SSH streams
-	void Initialize(CLIOutputStream* stream, const char* username)
-	{
-		m_stream = stream;
-		CLISessionContext::Initialize(m_stream, username);
-	}
+class CrossbarSSHKeyManager
+{
+public:
+	CrossbarSSHKeyManager();
 
-	SSHOutputStream* GetSSHStream()
-	{ return &m_sshstream; }
+	void LoadFromKVS();
+	void CommitToKVS();
 
-	virtual ~CrossbarCLISessionContext()
-	{}
+	bool AddPublicKey(const char* keyType, const char* keyBlobBase64, const char* keyDesc);
 
-	virtual void PrintPrompt();
-
-protected:
-
-	void LoadHostname();
-
-	virtual void OnExecute();
-	void OnExecuteRoot();
-
-	void OnCommit();
-	/*
-	void OnClearCounters(uint8_t interface);
-
-	void OnInterfaceCommand();
-
-	void OnDescription();
-	void OnDebug();
-
-	void OnIPCommand();
-	void OnIPAddress(const char* addr);
-	void OnIPGateway(const char* gw);
-
-	void OnNoCommand();
-	*/
-	void OnReload();
-	void OnRollback();
-
-	void OnSetCommand();
-	void OnSetRegister();
-	void OnSetMmdRegister();
-	//void OnSpeed();
-
-	void OnShowARPCache();
-	void OnShowCommand();
-	void OnShowFlash();
-	void OnShowFlashDetail();
-	void OnShowHardware();
-	/*void OnShowInterfaceCommand();
-	void OnShowInterfaceCounters(uint8_t interface);
-	void OnShowInterfaceStatus();*/
-	void OnShowIPAddress();
-	void OnShowIPRoute();
-	void OnShowMMDRegister();
-	void OnShowRegister();
-	void OnShowSSHFingerprint();
-	void OnShowSSHKeys();
-	//void OnShowTemperature();
-	void OnShowVersion();
-	void OnSSHCommand();
-	void OnSSHKey();
-	/*
-	void OnTest();
-	*/
-	void OnZeroize();
-
-	SSHOutputStream m_sshstream;
-	CLIOutputStream* m_stream;
-
-	///@brief Hostname (only used for display)
-	char m_hostname[33];
+	///@brief
+	AuthorizedKey m_authorizedKeys[MAX_SSH_KEYS];
 };
 
 #endif

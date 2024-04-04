@@ -74,6 +74,9 @@ ManagementSSHTransportServer::ManagementSSHTransportServer(TCPProtocol& tcp)
 	m_state[0].m_crypto->GetHostKeyFingerprint(buf, sizeof(buf));
 	g_log("ED25519 key fingerprint is SHA256:%s.\n", buf);
 
+	//Load authorized keys
+	g_keyMgr.LoadFromKVS();
+
 	//Set up authenticators
 	UsePasswordAuthenticator(&m_auth);
 }

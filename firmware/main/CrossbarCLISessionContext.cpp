@@ -37,61 +37,46 @@ static const char* hostname_objid = "hostname";
 //List of all valid commands
 enum cmdid_t
 {
-	/*CMD_10,
-	CMD_100,
-	CMD_1000,*/
 	CMD_ADDRESS,
-	/*CMD_AUTO,
-	CMD_AUTONEGOTIATION,*/
+	CMD_ALL,
 	CMD_ARP,
+	CMD_AUTHORIZED,
 	CMD_CACHE,
-	/*CMD_CLEAR,
+	//CMD_CLEAR,
 	CMD_COMMIT,
-	CMD_COUNTERS,
-	CMD_CROSSOVER,
-	CMD_DESCRIPTION,*/
+	//CMD_COUNTERS,
+	//CMD_DESCRIPTION,
 	CMD_DETAIL,
-	/*CMD_DEBUG,
-	CMD_DISTORTION,
-	CMD_END,*/
+	//CMD_DEBUG,
+	//CMD_END,
 	CMD_EXIT,
 	CMD_FINGERPRINT,
 	CMD_FLASH,
 	//CMD_GATEWAY,
 	CMD_HARDWARE,
-	/*CMD_HOSTNAME,
-	CMD_INTERFACE,*/
+	CMD_HOSTNAME,
+	//CMD_INTERFACE,
 	CMD_IP,
-	/*CMD_JITTER,
-	CMD_MASTER,
-	CMD_MDI,
-	CMD_MLT3,*/
+	CMD_KEY,
+	CMD_KEYS,
 	CMD_MMD,
-	/*CMD_MODE,
-	CMD_NO,
-	CMD_PREFER,
-	CMD_PULSE4,
-	CMD_PULSE64,
-	CMD_RELOAD,*/
+	//CMD_NO,
+	CMD_RELOAD,
 	CMD_REGISTER,
 	CMD_REFRESH,
-	//CMD_ROLLBACK,
+	CMD_ROLLBACK,
 	CMD_ROUTE,
 	CMD_SET,
 	CMD_SHOW,
-	/*CMD_SLAVE,
-	CMD_SPEED,*/
-	CMD_SSH,/*
-	CMD_STRAIGHT,
+	CMD_SSH,
+	CMD_SSH_ED25519,
+	/*
 	CMD_STATUS,
 	CMD_TEMPERATURE,
-	CMD_TEST,
-	CMD_TESTPATTERN,*/
-	CMD_VERSION,/*
-	CMD_VLAN,
-	CMD_WAVEFORM_TEST,
+	CMD_TEST,*/
+	CMD_VERSION,
 	CMD_ZEROIZE,
-
+	/*
 	CMD_XG0,
 	CMD_MGMT0
 	*/
@@ -141,8 +126,7 @@ static const clikeyword_t g_descriptionCommands[] =
 	{"<string>",	TEXT_TOKEN,			nullptr,	"New description for the port"},
 	{nullptr,		INVALID_COMMAND,	nullptr,	nullptr}
 };
-
-
+*/
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "hostname"
 
@@ -151,7 +135,7 @@ static const clikeyword_t g_hostnameCommands[] =
 	{"<string>",	FREEFORM_TOKEN,		nullptr,	"New host name"},
 	{nullptr,		INVALID_COMMAND,	nullptr,	nullptr}
 };
-
+/*
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "ip"
 
@@ -173,64 +157,6 @@ static const clikeyword_t g_ipCommands[] =
 	{"gateway",		CMD_GATEWAY,		g_ipGatewayCommands,	"Set the IPv4 default gateway of the device"},
 
 	{nullptr,		INVALID_COMMAND,	nullptr,				nullptr}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "mdi"
-
-static const clikeyword_t g_mdiCommands[] =
-{
-	{"auto",			CMD_AUTO,				nullptr,					"Auto MDI-X"},
-	{"crossover",		CMD_CROSSOVER,			nullptr,					"MDI-X mode"},
-	{"straight",		CMD_STRAIGHT,			nullptr,					"MDI mode"},
-	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "mode"
-
-static const clikeyword_t g_modeCommands[] =
-{
-	{"master",			CMD_MASTER,				nullptr,					"Master mode"},
-	{"slave",			CMD_SLAVE,				nullptr,					"Slave mode"},
-	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
-};
-
-static const clikeyword_t g_preferModeCommands[] =
-{
-	{"prefer",			CMD_PREFER,				g_modeCommands,				"Specify preference"},
-	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
-};
-
-static const clikeyword_t g_allModeCommands[] =
-{
-	{"auto",			CMD_AUTO,				g_preferModeCommands,		"Negotiate master or slave mode"},
-	{"master",			CMD_MASTER,				nullptr,					"Master mode"},
-	{"slave",			CMD_SLAVE,				nullptr,					"Slave mode"},
-	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "speed"
-
-static const clikeyword_t g_interfaceSpeedCommands[] =
-{
-	{"10",				CMD_10,					nullptr,					"10baseT"},
-	{"100",				CMD_100,				nullptr,					"100baseTX"},
-	{"1000",			CMD_1000,				nullptr,					"1000baseT"},
-	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "no" (interface mode)
-
-static const clikeyword_t g_interfaceNoCommands[] =
-{
-	{"autonegotiation",	CMD_AUTONEGOTIATION,	nullptr,					"Disable autonegotiation"},
-	{"speed",			CMD_SPEED,				g_interfaceSpeedCommands,	"Turn off advertisement of a specific speed"},
-	{"testpattern",		CMD_TESTPATTERN,		nullptr,					"Stop sending test patterns"},
-
-	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -309,8 +235,15 @@ static const clikeyword_t g_showIpCommands[] =
 	{nullptr,			INVALID_COMMAND,		nullptr,				nullptr}
 };
 
+static const clikeyword_t g_showSshAuthorized[] =
+{
+	{"keys",			CMD_KEYS,				nullptr,				"Show authorized keys"},
+	{nullptr,			INVALID_COMMAND,		nullptr,				nullptr}
+};
+
 static const clikeyword_t g_showSshCommands[] =
 {
+	{"authorized",		CMD_AUTHORIZED,			g_showSshAuthorized,	"Show authorized keys"},
 	{"fingerprint",		CMD_FINGERPRINT,		nullptr,				"Show the SSH host key fingerprint (in OpenSSH base64 SHA256 format)"},
 	{nullptr,			INVALID_COMMAND,		nullptr,				nullptr}
 };
@@ -369,32 +302,36 @@ static const clikeyword_t g_interfaceShowCommands[] =
 	{"hardware",		CMD_HARDWARE,		nullptr,					"Print hardware information"},
 	{"interface",		CMD_INTERFACE,		g_showInterfaceCommands,	"Display interface properties and stats"},
 	{"ip",				CMD_IP,				g_showIpCommands,			"Print IPv4 information"},
-		{"ssh",				CMD_SSH,			g_showSshCommands,			"Print SSH information"},
+	{"ssh",				CMD_SSH,			g_showSshCommands,			"Print SSH information"},
 	{"version",			CMD_VERSION,		nullptr,					"Show firmware / FPGA version"},
 	{nullptr,			INVALID_COMMAND,	nullptr,					nullptr}
 };
-
+*/
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "testpattern"
+// "ssh"
 
-static const clikeyword_t g_testpatternCommands[] =
+static const clikeyword_t g_sshCommandsDescription[] =
 {
-	{"distortion",		CMD_DISTORTION,			nullptr,					"Distortion test (mode 4)"},
-	{"jitter",			CMD_JITTER,				g_modeCommands,				"Jitter test (modes 2/3)"},
-	{"mlt3",			CMD_MLT3,				nullptr,					"MLT-3 idles (DP83867 only)"},
-	{"pulse4",			CMD_PULSE4,				nullptr,					"Pulse, 3 zeroes (DP83867 only)"},
-	{"pulse64",			CMD_PULSE64,			nullptr,					"Pulse, 63 zeroes (DP83867 only)"},
-	{"waveform",		CMD_WAVEFORM_TEST,		nullptr,					"Waveform test (mode 1)"},
+	{"<description>",	FREEFORM_TOKEN,			nullptr,					"Description of key (typically user@host)"},
 	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "vlan"
-
-static const clikeyword_t g_vlanCommands[] =
+static const clikeyword_t g_sshCommandsBlob[] =
 {
-	{"<1-4095>",	FREEFORM_TOKEN,		nullptr,	"VLAN number to assign"},
-	{nullptr,		INVALID_COMMAND,	nullptr,	nullptr}
+	{"<blob>",			FREEFORM_TOKEN,			g_sshCommandsDescription,	"Base64 encoded public key blob"},
+	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
+};
+
+static const clikeyword_t g_sshCommandsType[] =
+{
+	{"ssh-ed25519",		CMD_SSH_ED25519,		g_sshCommandsBlob,			"Ed25519 public key"},
+	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
+};
+
+static const clikeyword_t g_sshCommands[] =
+{
+	{"key",				CMD_KEY,				g_sshCommandsType,			"Authorize a new SSH public key"},
+	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -402,68 +339,37 @@ static const clikeyword_t g_vlanCommands[] =
 
 static const clikeyword_t g_zeroizeCommands[] =
 {
-	{"all",				FREEFORM_TOKEN,			NULL,				"Confirm erasing all flash data and return to default state"},
-	{NULL,				INVALID_COMMAND,		NULL,				NULL}
+	{"all",				FREEFORM_TOKEN,			nullptr,				"Confirm erasing all flash data and return to default state"},
+	{nullptr,			INVALID_COMMAND,		nullptr,				nullptr}
 };
-*/
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Top level command lists
 
 //Top level commands in root mode
 static const clikeyword_t g_rootCommands[] =
 {
-	/*{"clear",		CMD_CLEAR,			g_clearCommands,		"Clear performance counters and other debugging state"},
+	//{"clear",		CMD_CLEAR,			g_clearCommands,		"Clear performance counters and other debugging state"},
 	{"commit",		CMD_COMMIT,			nullptr,				"Commit volatile config changes to flash memory"},
-	{"debug",		CMD_DEBUG,			g_debugCommands,		"Enable debug output"},*/
+	//{"debug",		CMD_DEBUG,			g_debugCommands,		"Enable debug output"},
 	{"exit",		CMD_EXIT,			nullptr,				"Log out"},
-	/*{"hostname",	CMD_HOSTNAME,		g_hostnameCommands,		"Change the host name"},
+	{"hostname",	CMD_HOSTNAME,		g_hostnameCommands,		"Change the host name"},
+	/*
 	{"interface",	CMD_INTERFACE,		g_interfaceCommands,	"Configure interface properties"},
 	{"ip",			CMD_IP,				g_ipCommands,			"Configure IP addresses"},
 	*/
 	{"refresh",		CMD_REFRESH,		nullptr,				"Refresh the front panel display"},
-	/*
 	{"reload",		CMD_RELOAD,			nullptr,				"Restart the system"},
-	{"rollback",	CMD_ROLLBACK,		nullptr,				"Revert all changes made since last commit"},
-	*/
+	{"rollback",	CMD_ROLLBACK,		nullptr,				"Revert changes made since last commit"},
 	{"set",			CMD_SET,			g_setCommands,			"Set raw hardware registers"},
-	{"show",		CMD_SHOW,			g_showCommands,			"Print information"},/*
-	{"test",		CMD_TEST,			g_interfaceCommands,	"Run a cable test"},
-	{"zeroize",		CMD_ZEROIZE,		g_zeroizeCommands,		"Erase all configuration data and reload"},*/
+	{"show",		CMD_SHOW,			g_showCommands,			"Print information"},
+	{"ssh",			CMD_SSH,			g_sshCommands,			"Configure SSH protocol"},
+	//{"test",		CMD_TEST,			g_interfaceCommands,	"Run a cable test"},
+	{"zeroize",		CMD_ZEROIZE,		g_zeroizeCommands,		"Erase all configuration data and reload"},
 
 	{nullptr,		INVALID_COMMAND,	nullptr,				nullptr}
 };
-/*
-//Top level commands in interface mode
-static const clikeyword_t g_copperInterfaceRootCommands[] =
-{
-	{"autonegotiation",	CMD_AUTONEGOTIATION,	nullptr,					"Enable autonegotiation"},
-	{"description",		CMD_DESCRIPTION,		g_descriptionCommands,		"Set interface description"},
-	{"end",				CMD_END,				nullptr,					"Return to normal mode"},
-	{"exit",			CMD_EXIT,				nullptr,					"Return to normal mode"},
-	{"interface",		CMD_INTERFACE,			g_interfaceCommands,		"Configure another interface"},
-	{"mdi",				CMD_MDI,				g_mdiCommands,				"Specify auto or manual MDI/MDI-X mode"},
-	{"mode",			CMD_MODE,				g_allModeCommands,			"Specify 1000base-T master/slave mode"},
-	{"no",				CMD_NO,					g_interfaceNoCommands,		"Turn settings off"},
-	{"show",			CMD_SHOW,				g_interfaceShowCommands,	"Print information"},
-	{"speed",			CMD_SPEED,				g_interfaceSpeedCommands,	"Set port operating speed"},
-	{"testpattern",		CMD_TESTPATTERN,		g_testpatternCommands,		"Send a test pattern"},
-	{"vlan",			CMD_VLAN,				g_vlanCommands,				"Configure interface VLAN"},
-	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
-};
 
-static const clikeyword_t g_fiberInterfaceRootCommands[] =
-{
-	{"description",		CMD_DESCRIPTION,		g_descriptionCommands,		"Set interface description"},
-	{"end",				CMD_END,				nullptr,					"Return to normal mode"},
-	{"exit",			CMD_EXIT,				nullptr,					"Return to normal mode"},
-	{"interface",		CMD_INTERFACE,			g_interfaceCommands,		"Configure another interface"},
-	{"no",				CMD_NO,					g_interfaceNoCommands,		"Turn settings off"},
-	{"set",				CMD_SET,				g_interfaceSetCommands,		"Set raw hardware registers"},
-	{"show",			CMD_SHOW,				g_interfaceShowCommands,	"Print information"},
-	{"vlan",			CMD_VLAN,				g_vlanCommands,				"Configure interface VLAN"},
-	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
-};
-*/
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Main CLI code
 
@@ -518,11 +424,11 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 			//then 3 will be the interface ID
 			OnClearCounters(m_command[3].m_commandID - CMD_G0);
 			break;
-
+		*/
 		case CMD_COMMIT:
 			OnCommit();
 			break;
-
+		/*
 		case CMD_DEBUG:
 			OnDebug();
 			break;
@@ -539,11 +445,12 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 			{
 			}
 			break;
-		/*
-		case CMD_HOSTNAME:
-			strncpy(m_hostname, m_command[1].m_text, sizeof(m_hostname)-1);
-			break;
 
+		case CMD_HOSTNAME:
+			memcpy(m_hostname, m_command[1].m_text, sizeof(m_hostname)-1);
+			m_hostname[sizeof(m_hostname)-1] = '\0';
+			break;
+		/*
 		case CMD_INTERFACE:
 			OnInterfaceCommand();
 			break;
@@ -557,7 +464,6 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 			UpdateFrontPanelDisplay();
 			break;
 
-		/*
 		case CMD_RELOAD:
 			OnReload();
 			break;
@@ -565,7 +471,6 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 		case CMD_ROLLBACK:
 			OnRollback();
 			break;
-		*/
 
 		case CMD_SET:
 			OnSetCommand();
@@ -574,12 +479,16 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 		case CMD_SHOW:
 			OnShowCommand();
 			break;
-		/*
+
+		case CMD_SSH:
+			OnSSHCommand();
+			break;
+
 		case CMD_ZEROIZE:
 			if(!strcmp(m_command[1].m_text, "all"))
 				OnZeroize();
 			break;
-		*/
+
 		default:
 			m_stream->Printf("Unrecognized command\n");
 			break;
@@ -597,9 +506,10 @@ void CrossbarCLISessionContext::OnClearCounters(uint8_t interface)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "commit"
-
+*/
 void CrossbarCLISessionContext::OnCommit()
 {
+	/*
 	//Save interface configuration
 	for(int i=0; i<NUM_PORTS; i=i+1)
 	{
@@ -645,7 +555,7 @@ void CrossbarCLISessionContext::OnCommit()
 			}
 		}
 	}
-
+	*/
 	//Check if we already have the same hostname stored
 	auto hlog = g_kvs->FindObject(hostname_objid);
 	bool needToStoreHostname = true;
@@ -664,6 +574,10 @@ void CrossbarCLISessionContext::OnCommit()
 			m_stream->Printf("KVS write error\n");
 	}
 
+	//Save SSH authorized key list
+	g_keyMgr.CommitToKVS();
+
+	/*
 	//Save IP configuration
 	if(!g_kvs->StoreObjectIfNecessary<IPv4Address>(g_ipConfig.m_address, g_defaultIP, "ip.address"))
 		m_stream->Printf("KVS write error\n");
@@ -673,8 +587,10 @@ void CrossbarCLISessionContext::OnCommit()
 		m_stream->Printf("KVS write error\n");
 	if(!g_kvs->StoreObjectIfNecessary<IPv4Address>(g_ipConfig.m_gateway, g_defaultGateway, "ip.gateway"))
 		m_stream->Printf("KVS write error\n");
+	*/
 }
 
+/*
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "debug"
 
@@ -847,8 +763,7 @@ void CrossbarCLISessionContext::OnIPCommand()
 			break;
 	}
 }
-*/
-/*
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "no"
 
@@ -878,6 +793,8 @@ void CrossbarCLISessionContext::OnNoCommand()
 */
 void CrossbarCLISessionContext::OnReload()
 {
+	//TODO: do this through the supervisor to do a whole-system reset instead of just rebooting the MCU
+
 	g_log("Reload requested\n");
 	SCB.AIRCR = 0x05fa0004;
 	while(1)
@@ -890,14 +807,15 @@ void CrossbarCLISessionContext::OnReload()
 /**
 	@brief Load all of our configuration from the KVS, discarding any recent changes made in the CLI
  */
-/*
 void CrossbarCLISessionContext::OnRollback()
 {
-	ConfigureInterfaces();
+	g_keyMgr.LoadFromKVS();
+
+	//ConfigureInterfaces();
 	ConfigureIP();
 	LoadHostname();
 }
-*/
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "set"
 
@@ -987,6 +905,10 @@ void CrossbarCLISessionContext::OnShowCommand()
 		case CMD_SSH:
 			switch(m_command[2].m_commandID)
 			{
+				case CMD_AUTHORIZED:
+					OnShowSSHKeys();
+					break;
+
 				case CMD_FINGERPRINT:
 					OnShowSSHFingerprint();
 					break;
@@ -1063,11 +985,11 @@ void CrossbarCLISessionContext::OnShowFlash()
 		KVSListEntry list[nmax];
 		uint32_t nfound = g_kvs->EnumObjects(list, nmax);
 		m_stream->Printf("    Objects:\n");
-		m_stream->Printf("        Key               Size  Revisions\n");
+		m_stream->Printf("        Key                               Size  Revisions\n");
 		int size = 0;
 		for(uint32_t i=0; i<nfound; i++)
 		{
-			m_stream->Printf("        %-16s %5d  %d\n", list[i].key, list[i].size, list[i].revs);
+			m_stream->Printf("        %-32s %5d  %d\n", list[i].key, list[i].size, list[i].revs);
 			size += list[i].size;
 		}
 		m_stream->Printf("    %d objects total (%d.%02d kB)\n",
@@ -1140,7 +1062,7 @@ void CrossbarCLISessionContext::OnShowHardware()
 	if(device == 0x483)
 	{
 		//Look up the stepping number
-		const char* srev = NULL;
+		const char* srev = nullptr;
 		switch(rev)
 		{
 			case 0x1000:
@@ -1389,6 +1311,27 @@ void CrossbarCLISessionContext::OnShowRegister()
 	m_stream->Printf("Register 0x%02x = 0x%04x\n", regid, value);
 }
 
+void CrossbarCLISessionContext::OnShowSSHKeys()
+{
+	m_stream->Printf("Authorized keys:\n");
+	m_stream->Printf("Slot  Nickname                        Fingerprint\n");
+
+	STM32CryptoEngine tmp;
+	char fingerprint[64];
+
+	for(int i=0; i<MAX_SSH_KEYS; i++)
+	{
+		if(g_keyMgr.m_authorizedKeys[i].m_nickname[0] != '\0')
+		{
+			tmp.GetKeyFingerprint(fingerprint, sizeof(fingerprint), g_keyMgr.m_authorizedKeys[i].m_pubkey);
+			m_stream->Printf("%2d    %-30s  SHA256:%s\n",
+				i,
+				g_keyMgr.m_authorizedKeys[i].m_nickname,
+				fingerprint);
+		}
+	}
+}
+
 void CrossbarCLISessionContext::OnShowSSHFingerprint()
 {
 	char buf[64] = {0};
@@ -1456,105 +1399,27 @@ void CrossbarCLISessionContext::OnShowVersion()
 	m_stream->Printf("CLI source code last modified: %s\n", __TIMESTAMP__);
 	#endif
 }
-/*
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "testpattern"
 
-void CrossbarCLISessionContext::OnTestPattern()
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// "ssh"
+
+void CrossbarCLISessionContext::OnSSHCommand()
 {
-	int mode = 0;
 	switch(m_command[1].m_commandID)
 	{
-		case CMD_WAVEFORM_TEST:
-			mode = 1;
+		case CMD_KEY:
+			OnSSHKey();
 			break;
 
-		case CMD_JITTER:
-			if(m_command[2].m_commandID == CMD_MASTER)
-				mode = 2;
-			else
-				mode = 3;
-			break;
-
-		case CMD_DISTORTION:
-			mode = 4;
-			break;
-
-		case CMD_PULSE4:
-			if(IsActiveInterfaceDP83867())
-				mode = 6;
-			break;
-
-		case CMD_PULSE64:
-			if(IsActiveInterfaceDP83867())
-				mode = 7;
-			break;
-
-		case CMD_MLT3:
-			if(IsActiveInterfaceDP83867())
-				mode = 5;
+		default:
+			m_stream->Printf("Unrecognized command\n");
 			break;
 	}
-
-	//Save previous state if we're not already in test mode
-	auto oldGig = InterfacePHYRead(m_activeInterface, REG_GIG_CONTROL);
-	if( (oldGig & 0xe000) == 0)
-	{
-		m_testModeSavedRegisters[0] = InterfacePHYRead(m_activeInterface, REG_BASIC_CONTROL);
-
-		//KSZ9031 also needs preserving the MDIX register
-		if(IsActiveInterfaceKSZ9031())
-			m_testModeSavedRegisters[1] = InterfacePHYRead(m_activeInterface, REG_KSZ9031_MDIX);
-
-		m_testModeSavedRegisters[2] = oldGig;
-	}
-
-	//Force link up, no negotiation, 1000baseT, and enable the test mode on all pairs
-	InterfacePHYWrite(m_activeInterface, REG_BASIC_CONTROL, 0x0140);
-	if(IsActiveInterfaceKSZ9031())
-		InterfacePHYWrite(m_activeInterface, REG_KSZ9031_MDIX, 0x0040);
-	if(IsActiveInterfaceDP83867())
-		InterfacePHYExtendedWrite(m_activeInterface, 0x1f, REG_DP83867_TMCH_CTRL, 0x0480);
-	InterfacePHYWrite(m_activeInterface, REG_GIG_CONTROL, 0x1000 | (mode << 13));
-
-	//Update link state
-	g_log("Interface %s (%s): link is sending test pattern\n",
-		g_interfaceNames[m_activeInterface], g_interfaceDescriptions[m_activeInterface]);
-	g_linkState[m_activeInterface] = LINK_STATE_TESTPATTERN;
 }
 
-void CrossbarCLISessionContext::OnNoTestPattern()
+void CrossbarCLISessionContext::OnSSHKey()
 {
-	//Restore old register values in reverse order
-	InterfacePHYWrite(m_activeInterface, REG_GIG_CONTROL, m_testModeSavedRegisters[2]);
-	if(IsActiveInterfaceKSZ9031())
-		InterfacePHYWrite(m_activeInterface, REG_KSZ9031_MDIX, m_testModeSavedRegisters[1]);
-	InterfacePHYWrite(m_activeInterface, REG_BASIC_CONTROL, m_testModeSavedRegisters[0]);
-
-	//Restart negotiation so the link comes back up
-	RestartNegotiation(m_activeInterface);
-
-	g_log("Interface %s (%s): link is down\n",
-		g_interfaceNames[m_activeInterface], g_interfaceDescriptions[m_activeInterface]);
-	g_linkState[m_activeInterface] = LINK_STATE_DOWN;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "vlan"
-
-void CrossbarCLISessionContext::OnVlan()
-{
-	//Validate
-	uint16_t vlanNum = atoi(m_command[1].m_text);
-	if( (vlanNum < 1) || (vlanNum > 4095) )
-	{
-		m_stream->Printf("Invalid VLAN number\n");
-		return;
-	}
-
-	//Update our local config and push to hardware
-	g_portVlans[m_activeInterface] = vlanNum;
-	g_fpga->BlockingWrite16(GetInterfaceBase() + REG_VLAN_NUM, vlanNum);
+	g_keyMgr.AddPublicKey(m_command[2].m_text, m_command[3].m_text, m_command[4].m_text);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1565,7 +1430,7 @@ void CrossbarCLISessionContext::OnZeroize()
 	g_kvs->WipeAll();
 	OnReload();
 }
-
+/*
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Miscellaneous helpers
 

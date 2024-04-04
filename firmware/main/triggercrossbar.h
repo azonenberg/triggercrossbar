@@ -59,6 +59,8 @@
 #include "FPGAInterface.h"
 #include "OctalDAC.h"
 
+#include "CrossbarSSHKeyManager.h"
+
 #define MAX_LOG_SINKS SSH_TABLE_SIZE
 
 extern KVS* g_kvs;
@@ -179,5 +181,7 @@ extern uint32_t g_usercode;
 void SetFrontPanelDirectionLEDs(uint8_t leds);
 
 bool CheckForFPGAEvents();
+
+extern CrossbarSSHKeyManager g_keyMgr;
 
 #endif

@@ -6,7 +6,8 @@ CXXFLAGS=-g -O2 --std=c++17 -Wall -Wextra \
 	-I$(ROOTDIR)/stm32-cpp/devices/inc \
 	-I$(ROOTDIR)/stm32-cpp/src \
 	-DMICROKVS_WRITE_BLOCK_SIZE=32 \
-	-DTEST_BANK_SIZE=131072
+	-DTEST_BANK_SIZE=131072 \
+	-DMAX_TOKEN_LEN=96
 
 .ONESHELL:
 .SILENT: all

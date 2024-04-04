@@ -150,3 +150,6 @@ bool g_displayRefreshPending = false;
 
 ///@brief SFP+ link state
 bool g_sfpLinkUp;
+
+///@brief Key manager
+CrossbarSSHKeyManager g_keyMgr;
