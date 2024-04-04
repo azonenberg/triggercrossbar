@@ -76,17 +76,17 @@ protected:
 	/*
 	void OnClearCounters(uint8_t interface);
 
-	void OnInterfaceCommand();
-
 	void OnDescription();
 	void OnDebug();
 
 	void OnIPCommand();
 	void OnIPAddress(const char* addr);
 	void OnIPGateway(const char* gw);
-
-	void OnNoCommand();
 	*/
+	void OnNoCommand();
+	void OnNoSSHCommand();
+	void OnNoSSHKeyCommand();
+
 	void OnReload();
 	void OnRollback();
 

@@ -215,6 +215,15 @@ bool CrossbarSSHKeyManager::AddPublicKey(
 }
 
 /**
+	@brief Removes a key from the authorized_keys list
+ */
+void CrossbarSSHKeyManager::RemovePublicKey(int slot)
+{
+	if( (slot >= 0) && (slot < MAX_SSH_KEYS) )
+		memset(&m_authorizedKeys[slot], 0, sizeof(AuthorizedKey));
+}
+
+/**
 	@brief Checks if a given key is in the authorized keys list
 
 	@return Zero or greater: slot of the key

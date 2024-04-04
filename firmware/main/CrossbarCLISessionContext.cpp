@@ -48,19 +48,17 @@ enum cmdid_t
 	//CMD_DESCRIPTION,
 	CMD_DETAIL,
 	//CMD_DEBUG,
-	//CMD_END,
 	CMD_EXIT,
 	CMD_FINGERPRINT,
 	CMD_FLASH,
 	//CMD_GATEWAY,
 	CMD_HARDWARE,
 	CMD_HOSTNAME,
-	//CMD_INTERFACE,
 	CMD_IP,
 	CMD_KEY,
 	CMD_KEYS,
 	CMD_MMD,
-	//CMD_NO,
+	CMD_NO,
 	CMD_RELOAD,
 	CMD_REGISTER,
 	CMD_REFRESH,
@@ -70,30 +68,13 @@ enum cmdid_t
 	CMD_SHOW,
 	CMD_SSH,
 	CMD_SSH_ED25519,
-	/*
-	CMD_STATUS,
-	CMD_TEMPERATURE,
-	CMD_TEST,*/
+	//CMD_STATUS,
+	//CMD_TEMPERATURE,
+	//CMD_TEST,
 	CMD_VERSION,
-	CMD_ZEROIZE,
-	/*
-	CMD_XG0,
-	CMD_MGMT0
-	*/
+	CMD_ZEROIZE
 };
 /*
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "interface"
-
-// Out of alphabetical order so it can be referred to by other commands operating on interfaces to avoid duplication
-static const clikeyword_t g_interfaceCommands[] =
-{
-	{"mgmt0",		CMD_MGMT0,			nullptr,	"Management0"},
-	{"xg0",			CMD_XG0,			nullptr,	"10Gigabit0"},
-
-	{nullptr,		INVALID_COMMAND,	nullptr,	nullptr}
-};
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "clear"
 
@@ -118,14 +99,6 @@ static const clikeyword_t g_debugCommands[] =
 	{nullptr,		INVALID_COMMAND,	nullptr,	nullptr}
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "description"
-
-static const clikeyword_t g_descriptionCommands[] =
-{
-	{"<string>",	TEXT_TOKEN,			nullptr,	"New description for the port"},
-	{nullptr,		INVALID_COMMAND,	nullptr,	nullptr}
-};
 */
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "hostname"
@@ -158,10 +131,35 @@ static const clikeyword_t g_ipCommands[] =
 
 	{nullptr,		INVALID_COMMAND,	nullptr,				nullptr}
 };
+*/
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// "no"
+
+static const clikeyword_t g_noSshKeyCommands[] =
+{
+	{"<slot>",			FREEFORM_TOKEN,			nullptr,					"Slot number of the authorized SSH key to delete"},
+
+	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
+};
+
+static const clikeyword_t g_noSshCommands[] =
+{
+	{"key",				CMD_KEY,				g_noSshKeyCommands,			"Remove authorized SSH keys"},
+
+	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
+};
+
+static const clikeyword_t g_noCommands[] =
+{
+	{"ssh",				CMD_SSH,				g_noSshCommands,			"Remove authorized SSH keys"},
+
+	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "set"
-*/
+
 static const clikeyword_t g_setRegisterValues[] =
 {
 	{"<value>",			FREEFORM_TOKEN,			nullptr,					"Hexadecimal register value"},
@@ -247,23 +245,7 @@ static const clikeyword_t g_showSshCommands[] =
 	{"fingerprint",		CMD_FINGERPRINT,		nullptr,				"Show the SSH host key fingerprint (in OpenSSH base64 SHA256 format)"},
 	{nullptr,			INVALID_COMMAND,		nullptr,				nullptr}
 };
-/*
-static const clikeyword_t g_showIntSuffixCommands[] =
-{
-	//{"<cr>",			OPTIONAL_TOKEN,		nullptr,	""},
-	{"counters",		CMD_COUNTERS,		nullptr,	"Show interface performance counters"},
-	{nullptr,			INVALID_COMMAND,	nullptr,	nullptr}
-};
 
-static const clikeyword_t g_showInterfaceCommands[] =
-{
-	{"mgmt0",			CMD_MGMT0,			g_showIntSuffixCommands,	"Management0"},
-	{"xg0",				CMD_XG0,			g_showIntSuffixCommands,	"10Gigabit0"},
-
-	{"status",			CMD_STATUS,			nullptr,					"Display summary of all network interfaces"},
-	{nullptr,			INVALID_COMMAND,	nullptr,					nullptr}
-};
-*/
 static const clikeyword_t g_showFlashDetailCommands[] =
 {
 	{"<objname>",		FREEFORM_TOKEN,		nullptr,					"Name of the flash object to display"},
@@ -291,22 +273,7 @@ static const clikeyword_t g_showCommands[] =
 	{"register",		CMD_REGISTER,		g_showRegisterCommands,		"Read PHY registers"},
 	{nullptr,			INVALID_COMMAND,	nullptr,					nullptr}
 };
-/*
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "show" (interface mode)
 
-static const clikeyword_t g_interfaceShowCommands[] =
-{
-	{"arp",				CMD_ARP,			g_showArpCommands,			"Print ARP information"},
-	{"flash",			CMD_FLASH,			g_showFlashCommands,		"Display flash usage and log data"},
-	{"hardware",		CMD_HARDWARE,		nullptr,					"Print hardware information"},
-	{"interface",		CMD_INTERFACE,		g_showInterfaceCommands,	"Display interface properties and stats"},
-	{"ip",				CMD_IP,				g_showIpCommands,			"Print IPv4 information"},
-	{"ssh",				CMD_SSH,			g_showSshCommands,			"Print SSH information"},
-	{"version",			CMD_VERSION,		nullptr,					"Show firmware / FPGA version"},
-	{nullptr,			INVALID_COMMAND,	nullptr,					nullptr}
-};
-*/
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "ssh"
 
@@ -354,10 +321,8 @@ static const clikeyword_t g_rootCommands[] =
 	//{"debug",		CMD_DEBUG,			g_debugCommands,		"Enable debug output"},
 	{"exit",		CMD_EXIT,			nullptr,				"Log out"},
 	{"hostname",	CMD_HOSTNAME,		g_hostnameCommands,		"Change the host name"},
-	/*
-	{"interface",	CMD_INTERFACE,		g_interfaceCommands,	"Configure interface properties"},
-	{"ip",			CMD_IP,				g_ipCommands,			"Configure IP addresses"},
-	*/
+	//{"ip",			CMD_IP,				g_ipCommands,			"Configure IP addresses"},
+	{"no",			CMD_NO,				g_noCommands,			"Remove or disable features"},
 	{"refresh",		CMD_REFRESH,		nullptr,				"Refresh the front panel display"},
 	{"reload",		CMD_RELOAD,			nullptr,				"Restart the system"},
 	{"rollback",	CMD_ROLLBACK,		nullptr,				"Revert changes made since last commit"},
@@ -451,14 +416,14 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 			m_hostname[sizeof(m_hostname)-1] = '\0';
 			break;
 		/*
-		case CMD_INTERFACE:
-			OnInterfaceCommand();
-			break;
-
 		case CMD_IP:
 			OnIPCommand();
 			break;
 		*/
+
+		case CMD_NO:
+			OnNoCommand();
+			break;
 
 		case CMD_REFRESH:
 			UpdateFrontPanelDisplay();
@@ -509,53 +474,6 @@ void CrossbarCLISessionContext::OnClearCounters(uint8_t interface)
 */
 void CrossbarCLISessionContext::OnCommit()
 {
-	/*
-	//Save interface configuration
-	for(int i=0; i<NUM_PORTS; i=i+1)
-	{
-		//VLAN number for everything but management
-		if(i != MGMT_PORT)
-		{
-			if(!g_kvs->StoreObjectIfNecessary<uint16_t>(g_portVlans[i], 1, "%s.vlan", g_interfaceNames[i]))
-				m_stream->Printf("KVS write error\n");
-		}
-
-		//Description
-		//TODO: make string wrapper for StoreObjectIfNecessary
-		if(strcmp(g_defaultInterfaceDescriptions[i], g_interfaceDescriptions[i]) != 0)
-		{
-			bool nameChanged = true;
-
-			//See if the previously stored name is the same and only store if different
-			auto plog = g_kvs->FindObjectF("%s.desc", g_interfaceNames[i]);
-			if(plog)
-			{
-				auto olddesc = (const char*)g_kvs->MapObject(plog);
-
-				char tmp[DESCRIPTION_LEN] = {0};
-				auto len = plog->m_len;
-				if(len >= DESCRIPTION_LEN)
-					len = DESCRIPTION_LEN - 1;
-				memcpy(tmp, olddesc, len);
-
-				if(strcmp(tmp, g_interfaceDescriptions[i]) == 0)
-					nameChanged = false;
-			}
-
-			if(nameChanged)
-			{
-				if(!g_kvs->StoreObject(
-					(uint8_t*)g_interfaceDescriptions[i],
-					strlen(g_interfaceDescriptions[i]),
-					"%s.desc",
-					g_interfaceNames[i]))
-				{
-					m_stream->Printf("KVS write error\n");
-				}
-			}
-		}
-	}
-	*/
 	//Check if we already have the same hostname stored
 	auto hlog = g_kvs->FindObject(hostname_objid);
 	bool needToStoreHostname = true;
@@ -606,32 +524,6 @@ void CrossbarCLISessionContext::OnDebug()
 			m_stream->Printf("Unrecognized command\n");
 			break;
 	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "description"
-
-void CrossbarCLISessionContext::OnDescription()
-{
-	strncpy(g_interfaceDescriptions[m_activeInterface], m_command[1].m_text, DESCRIPTION_LEN-1);
-	g_interfaceDescriptions[m_activeInterface][DESCRIPTION_LEN-1] = '\0';
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// "interface"
-
-void CrossbarCLISessionContext::OnInterfaceCommand()
-{
-	m_activeInterface = (m_command[1].m_commandID - CMD_G0);
-
-	if(m_activeInterface >= NUM_PORTS)
-		m_activeInterface = NUM_PORTS-1;
-
-	if(m_activeInterface == UPLINK_PORT)
-		m_rootCommands = g_fiberInterfaceRootCommands;
-	else
-		m_rootCommands = g_copperInterfaceRootCommands;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -763,24 +655,34 @@ void CrossbarCLISessionContext::OnIPCommand()
 			break;
 	}
 }
-
+*/
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "no"
+
+void CrossbarCLISessionContext::OnNoSSHKeyCommand()
+{
+	g_keyMgr.RemovePublicKey(atoi(m_command[3].m_text));
+}
+
+void CrossbarCLISessionContext::OnNoSSHCommand()
+{
+	switch(m_command[2].m_commandID)
+	{
+		case CMD_KEY:
+			OnNoSSHKeyCommand();
+			break;
+
+		default:
+			break;
+	}
+}
 
 void CrossbarCLISessionContext::OnNoCommand()
 {
 	switch(m_command[1].m_commandID)
 	{
-		case CMD_AUTONEGOTIATION:
-			OnNoAutonegotiation();
-			break;
-
-		case CMD_SPEED:
-			OnNoSpeed();
-			break;
-
-		case CMD_TESTPATTERN:
-			OnNoTestPattern();
+		case CMD_SSH:
+			OnNoSSHCommand();
 			break;
 
 		default:
@@ -790,7 +692,7 @@ void CrossbarCLISessionContext::OnNoCommand()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "reload"
-*/
+
 void CrossbarCLISessionContext::OnReload()
 {
 	//TODO: do this through the supervisor to do a whole-system reset instead of just rebooting the MCU
@@ -1430,13 +1332,3 @@ void CrossbarCLISessionContext::OnZeroize()
 	g_kvs->WipeAll();
 	OnReload();
 }
-/*
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Miscellaneous helpers
-
-void CrossbarCLISessionContext::RestartNegotiation(int nport)
-{
-	auto base = InterfacePHYRead(nport, REG_BASIC_CONTROL);
-	InterfacePHYWrite(nport, REG_BASIC_CONTROL, base | 0x0200);
-}
-*/

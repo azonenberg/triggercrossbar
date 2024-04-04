@@ -65,6 +65,7 @@ public:
 	void CommitToKVS();
 
 	bool AddPublicKey(const char* keyType, const char* keyBlobBase64, const char* keyDesc);
+	void RemovePublicKey(int slot);
 
 	int FindKey(const uint8_t* search);
 

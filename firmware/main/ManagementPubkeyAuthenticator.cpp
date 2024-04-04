@@ -41,14 +41,19 @@ bool ManagementPubkeyAuthenticator::CanUseKey(
 	if(!SSHTransportServer::StringMatchWithLength("admin", username, username_len))
 		return false;
 
-	//Check if key is authorized
-	auto idx = g_keyMgr.FindKey(keyblob->m_pubKey);
-	if(idx < 0)
-		return false;
-
 	//Null terminate username for debug logging
 	char nuname[SSH_MAX_USERNAME+1] = {0};
 	memcpy(nuname, username, username_len);
+
+	//Check if key is authorized
+	auto idx = g_keyMgr.FindKey(keyblob->m_pubKey);
+	if(idx < 0)
+	{
+		if(actualLoginAttempt)
+			g_log("SSH login rejected from user %s using unrecognized key\n", nuname);
+
+		return false;
+	}
 
 	//It's good, log it if they're trying to log in (don't log soft queries of "is this key acceptable")
 	if(actualLoginAttempt)
