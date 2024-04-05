@@ -41,11 +41,10 @@ public:
 	DeviceCryptoEngine();
 	virtual ~DeviceCryptoEngine();
 
-	virtual void GenerateX25519KeyPair(uint8_t* pub);
-
-	virtual void SharedSecret(uint8_t* sharedSecret, uint8_t* clientPublicKey);
-
-	bool VerifySignature(uint8_t* signedMessage, uint32_t lengthIncludingSignature, uint8_t* publicKey);
+	virtual void GenerateX25519KeyPair(uint8_t* pub) override;
+	virtual void SharedSecret(uint8_t* sharedSecret, uint8_t* clientPublicKey) override;
+	virtual bool VerifySignature(uint8_t* signedMessage, uint32_t lengthIncludingSignature, uint8_t* publicKey) override;
+	virtual void SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash) override;
 };
 
 #endif

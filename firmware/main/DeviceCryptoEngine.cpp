@@ -124,3 +124,55 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 
 	return true;
 }
+
+///@brief Signs an exchange hash with our host key
+void DeviceCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash)
+{
+	g_log("sign exchange hash\n");
+
+	//Hash the private key and massage it to make sure it's a valid curve point
+	uint8_t privkeyHash[64];
+	crypto_hash(privkeyHash, m_hostkeyPriv, 32);
+	privkeyHash[0] &= 248;
+	privkeyHash[31] &= 127;
+	privkeyHash[31] |= 64;
+
+	//Build the actual buffer we're signing
+	uint8_t sm[128];
+	memcpy(sm+64, exchangeHash, SHA256_DIGEST_SIZE);
+	memcpy(sm+32, privkeyHash+32, 32);
+
+	//Hash the buffer and reduce it to make sure it's within our field
+	uint8_t bufferHash[64];
+	crypto_hash(bufferHash, sm + 32, SHA256_DIGEST_SIZE + 32);
+	reduce(bufferHash);
+
+	//Actual signing stuff
+	gf p[4];
+	scalarbase(p,bufferHash);
+	pack(sm,p);
+
+	//Generate the signed message
+	for(int i=0; i<32; i++)
+		sm[i+32] = m_hostkeyPub[i];
+
+	//Hash the public key
+	uint8_t msgHash[64];
+	crypto_hash(msgHash, sm, SHA256_DIGEST_SIZE + 64);
+	reduce(msgHash);
+
+	//Bignum stuff on output
+	int64_t x[64] = {0};
+	for(int i=0; i<32; i++)
+		x[i] = (u64) bufferHash[i];
+	for(int i=0; i<32; i++)
+	{
+		for(int j=0; j<32; j++)
+			x[i+j] += msgHash[i] * (u64) privkeyHash[j];
+	}
+
+	//Final modular reduction
+	modL(sm + 32,x);
+
+	memcpy(sigOut, sm, 64);
+}
