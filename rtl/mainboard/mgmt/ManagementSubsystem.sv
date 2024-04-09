@@ -104,7 +104,12 @@ module ManagementSubsystem(
 	output wire[255:0]				crypt_work_in,
 	output wire[255:0]				crypt_e,
 	input wire						crypt_out_valid,
-	input wire[255:0]				crypt_work_out
+	input wire[255:0]				crypt_work_out,
+	output wire						crypt_dsa_en,
+	output wire						crypt_dsa_load,
+	output wire						crypt_dsa_rd,
+	input wire						crypt_dsa_done,
+	output wire[1:0]				crypt_dsa_addr
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -457,7 +462,12 @@ module ManagementSubsystem(
 		.crypt_work_in(crypt_work_in),
 		.crypt_e(crypt_e),
 		.crypt_out_valid(crypt_out_valid),
-		.crypt_work_out(crypt_work_out)
+		.crypt_work_out(crypt_work_out),
+		.crypt_dsa_en(crypt_dsa_en),
+		.crypt_dsa_load(crypt_dsa_load),
+		.crypt_dsa_rd(crypt_dsa_rd),
+		.crypt_dsa_done(crypt_dsa_done),
+		.crypt_dsa_addr(crypt_dsa_addr)
 	);
 
 endmodule

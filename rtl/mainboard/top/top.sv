@@ -456,11 +456,30 @@ module top(
 	wire		crypt_out_valid;
 	wire[255:0]	crypt_work_out;
 
+	wire		crypt_dsa_en;
+	wire		crypt_dsa_load;
+	wire		crypt_dsa_rd;
+	wire		crypt_dsa_done;
+	wire[1:0]	crypt_dsa_addr;
+
 	X25519_ScalarMult crypt25519(
 		.clk(clk_250mhz),
-		.en(crypt_en),
-		.work_in(crypt_work_in),
+
+		//Common inputs
 		.e(crypt_e),
+		.work_in(crypt_work_in),
+
+		//ECDH signals
+		.dh_en(crypt_en),
+
+		//ECDSA signals
+		.dsa_en(crypt_dsa_en),
+		.dsa_load(crypt_dsa_load),
+		.dsa_rd(crypt_dsa_rd),
+		.dsa_done(crypt_dsa_done),
+		.dsa_addr(crypt_dsa_addr),
+
+		//Common outputs
 		.out_valid(crypt_out_valid),
 		.work_out(crypt_work_out)
 	);
@@ -571,7 +590,12 @@ module top(
 		.crypt_work_in(crypt_work_in),
 		.crypt_work_out(crypt_work_out),
 		.crypt_e(crypt_e),
-		.crypt_out_valid(crypt_out_valid)
+		.crypt_out_valid(crypt_out_valid),
+		.crypt_dsa_en(crypt_dsa_en),
+		.crypt_dsa_load(crypt_dsa_load),
+		.crypt_dsa_rd(crypt_dsa_rd),
+		.crypt_dsa_done(crypt_dsa_done),
+		.crypt_dsa_addr(crypt_dsa_addr)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
