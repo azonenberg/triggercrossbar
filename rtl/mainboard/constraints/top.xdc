@@ -264,7 +264,7 @@ resize_pblock [get_pblocks pblock_crypt25519] -add {CLOCKREGION_X0Y0:CLOCKREGION
 set_property IS_SOFT FALSE [get_pblocks pblock_crypt25519]
 
 create_pblock pblock_port_xg0
-add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/port_xg0]]
+add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/port_xg0/fcs_pending_0_i_1 network/port_xg0/fcs_pending_1_i_1 network/port_xg0/mac {network/port_xg0/rx_bus[drop]_i_1} network/port_xg0/rx_s2_control_i_1 {network/port_xg0/rx_s2_data[31]_i_1} network/port_xg0/tx_pause_inv_i_1 network/port_xg0/xgmii_x64_toggle_i_1 network/port_xg0/xgmii_x64_valid_i_1]]
 resize_pblock [get_pblocks pblock_port_xg0] -add {SLICE_X36Y101:SLICE_X53Y149}
 resize_pblock [get_pblocks pblock_port_xg0] -add {DSP48_X2Y42:DSP48_X2Y59}
 resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB18_X2Y50:RAMB18_X2Y59}
@@ -272,8 +272,10 @@ resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB36_X2Y25:RAMB36_X2Y29}
 
 create_pblock pblock_xg0_pcs
 add_cells_to_pblock [get_pblocks pblock_xg0_pcs] [get_cells -quiet [list network/port_xg0/pcs]]
-resize_pblock [get_pblocks pblock_xg0_pcs] -add {SLICE_X44Y101:SLICE_X53Y124}
-resize_pblock [get_pblocks pblock_xg0_pcs] -add {DSP48_X2Y42:DSP48_X2Y49}
+resize_pblock [get_pblocks pblock_xg0_pcs] -add {SLICE_X44Y90:SLICE_X53Y124}
+resize_pblock [get_pblocks pblock_xg0_pcs] -add {DSP48_X2Y36:DSP48_X2Y49}
+resize_pblock [get_pblocks pblock_xg0_pcs] -add {RAMB18_X2Y36:RAMB18_X3Y39}
+resize_pblock [get_pblocks pblock_xg0_pcs] -add {RAMB36_X2Y18:RAMB36_X3Y19}
 set_property IS_SOFT FALSE [get_pblocks pblock_xg0_pcs]
 
 create_pblock pblock_port_mgmt0
@@ -316,6 +318,7 @@ set_property CONFIG_VOLTAGE 3.3 [current_design]
 
 set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
 set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
+
 
 
 
