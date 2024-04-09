@@ -64,24 +64,6 @@ void DeviceCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clientPubl
 
 	auto delta = g_logTimer->GetCount() - t1;
 	g_log("DeviceCryptoEngine::SharedSecret (FPGA acceleration): %d.%d ms\n", delta/10, delta%10);
-
-	//Dump output states
-	/*
-	g_cliUART->Printf("    clientPublicKey:    ");
-	for(uint32_t i=0; i<ECDH_KEY_SIZE; i++)
-		g_cliUART->Printf("%02x ", clientPublicKey[i]);
-	g_cliUART->Printf("\n");
-
-	g_cliUART->Printf("    m_ephemeralkeyPriv: ");
-	for(uint32_t i=0; i<ECDH_KEY_SIZE; i++)
-		g_cliUART->Printf("%02x ", m_ephemeralkeyPriv[i]);
-	g_cliUART->Printf("\n");
-
-	g_cliUART->Printf("   sharedSecret:        ");
-	for(uint32_t i=0; i<ECDH_KEY_SIZE; i++)
-		g_cliUART->Printf("%02x ", sharedSecret[i]);
-	g_cliUART->Printf("\n");
-	*/
 }
 
 /**
@@ -137,14 +119,12 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 	if (lengthIncludingSignature < ECDSA_SIG_SIZE)
 		return false;
 
-	//Hash the input message
+	//Hash the input message then do a modular reduction to make sure it stays within our field
 	uint8_t hash[SHA512_DIGEST_SIZE];
 	unsigned char tmpbuf[1024];
 	memcpy(tmpbuf, signedMessage, lengthIncludingSignature);
 	memcpy(tmpbuf + ECDSA_KEY_SIZE, publicKey, ECDSA_KEY_SIZE);
 	crypto_hash(hash, tmpbuf, lengthIncludingSignature);
-
-	//Modular reduction on the hash to stay within our field
 	reduce(hash);
 
 	//Unpack the packed public key
@@ -155,22 +135,17 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 
 	auto t2 = g_logTimer->GetCount();
 
-	//TODO: we only actually *need* to send the first two point values
-	//The third is a constant 1 and the fourth is X*Y so we can compute that FPGA side
-
 	//Expanded public key for sending to accelerator
 	//TODO: can we move the expansion to the FPGA to save SPI BW and speed compute?
-	uint8_t qref[128];
+	uint8_t qref[64];
 	pack25519(&qref[0], q[0]);
 	pack25519(&qref[32], q[1]);
-	pack25519(&qref[64], q[2]);
-	pack25519(&qref[96], q[3]);
 
 	//Do the first scalarmult() on the FPGA
 
 	//Calculate the expected signature
 	//scalarmult(p, q, hash);
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_DSA_IN, qref, ECDSA_KEY_SIZE*4);
+	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_DSA_IN, qref, ECDSA_KEY_SIZE*2);
 	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_E, hash, ECDSA_KEY_SIZE);
 	uint8_t status = 1;
 	while(status != 0)
@@ -182,16 +157,10 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 		g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, pfpga + block*32, ECDH_KEY_SIZE);
 	}
 
-	//Unpack the result and save in p
-	unpack25519(p[0], &pfpga[0]);
-	unpack25519(p[1], &pfpga[32]);
-	unpack25519(p[2], &pfpga[64]);
-	unpack25519(p[3], &pfpga[96]);
-
 	auto t3 = g_logTimer->GetCount();
 
 	//scalarbase(q, signedMessage + 32);
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_DSA_BASE, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE*2);
+	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_DSA_BASE, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE);
 	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_E, signedMessage+32, ECDSA_KEY_SIZE);
 	status = 1;
 	while(status != 0)
@@ -203,13 +172,16 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 		g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, qfpga + block*32, ECDH_KEY_SIZE);
 	}
 
-	//Unpack the result and save in q
+	auto t4 = g_logTimer->GetCount();
+	//Unpack results from the FPGA
+	unpack25519(p[0], &pfpga[0]);
+	unpack25519(p[1], &pfpga[32]);
+	unpack25519(p[2], &pfpga[64]);
+	unpack25519(p[3], &pfpga[96]);
 	unpack25519(q[0], &qfpga[0]);
 	unpack25519(q[1], &qfpga[32]);
 	unpack25519(q[2], &qfpga[64]);
 	unpack25519(q[3], &qfpga[96]);
-
-	auto t4 = g_logTimer->GetCount();
 	add(p,q);
 	uint8_t t[32];
 	pack(t,p);
@@ -257,9 +229,8 @@ void DeviceCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash
 	reduce(bufferHash);
 
 	//Actual signing stuff
-	gf p[4];
 	//scalarbase(p,bufferHash);
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_DSA_BASE, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE*2);
+	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_DSA_BASE, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE);
 	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_E, bufferHash, ECDSA_KEY_SIZE);
 	uint8_t status = 1;
 	while(status != 0)
@@ -271,12 +242,21 @@ void DeviceCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash
 		g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, pfpga + block*32, ECDH_KEY_SIZE);
 	}
 
-	//Unpack the result and save in q
+	//Unpack and repack the result and save in q
+	//TODO: we should be able to optimize this?
+	gf p[4];
 	unpack25519(p[0], &pfpga[0]);
 	unpack25519(p[1], &pfpga[32]);
 	unpack25519(p[2], &pfpga[64]);
 	unpack25519(p[3], &pfpga[96]);
-	pack(sm,p);
+
+	//pack(sm,p);
+	gf tx, ty, zi;
+	inv25519(zi, p[2]);
+	M(tx, p[0], zi);
+	M(ty, p[1], zi);
+	pack25519(sm, ty);
+	sm[31] ^= par25519(tx) << 7;
 
 	//Hash the public key
 	uint8_t msgHash[64];

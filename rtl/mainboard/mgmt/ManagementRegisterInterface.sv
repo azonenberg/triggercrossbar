@@ -670,7 +670,7 @@ module ManagementRegisterInterface(
 					//Push the write onto the bus every 32 bytes
 					if(wr_addr[4:0] == 5'h1f) begin
 						crypt_in_updated				<= 1;
-						if(wr_addr[6:5] == 1)
+						//if(wr_addr[6:5] == 1)
 							crypto_active				<= 1;
 					end
 
@@ -685,8 +685,8 @@ module ManagementRegisterInterface(
 					//Push the write onto the bus every 32 bytes
 					if(wr_addr[4:0] == 5'h1f) begin
 						crypt_in_updated				<= 1;
-						if(wr_addr[6:5] == 3)
-							crypto_active				<= 1;
+						if(wr_addr[6:5] == 1)
+							crypto_active					<= 1;
 					end
 
 				end
