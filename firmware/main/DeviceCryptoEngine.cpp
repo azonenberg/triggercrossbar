@@ -53,7 +53,9 @@ DeviceCryptoEngine::~DeviceCryptoEngine()
 
 void DeviceCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clientPublicKey)
 {
+	#ifdef CRYPTO_PROFILE
 	auto t1 = g_logTimer->GetCount();
+	#endif
 
 	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_WORK, clientPublicKey, ECDH_KEY_SIZE);
 	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_E, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
@@ -62,8 +64,10 @@ void DeviceCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clientPubl
 		status = g_fpga->BlockingRead8(REG_CRYPT_BASE + REG_CRYPT_STATUS);
 	g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, sharedSecret, ECDH_KEY_SIZE);
 
+	#ifdef CRYPTO_PROFILE
 	auto delta = g_logTimer->GetCount() - t1;
 	g_log("DeviceCryptoEngine::SharedSecret (FPGA acceleration): %d.%d ms\n", delta/10, delta%10);
+	#endif
 }
 
 /**
@@ -75,7 +79,9 @@ void DeviceCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clientPubl
  */
 void DeviceCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
 {
+	#ifdef CRYPTO_PROFILE
 	auto t1 = g_logTimer->GetCount();
+	#endif
 
 	//To be a valid key, a few bits need well-defined values. The rest are cryptographic randomness.
 	GenerateRandom(m_ephemeralkeyPriv, 32);
@@ -98,8 +104,10 @@ void DeviceCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
 		status = g_fpga->BlockingRead8(REG_CRYPT_BASE + REG_CRYPT_STATUS);
 	g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, pub, ECDH_KEY_SIZE);
 
+	#ifdef CRYPTO_PROFILE
 	auto delta = g_logTimer->GetCount() - t1;
 	g_log("DeviceCryptoEngine::GenerateX25519KeyPair (FPGA acceleration): %d.%d ms\n", delta/10, delta%10);
+	#endif
 }
 
 /**
@@ -109,7 +117,9 @@ void DeviceCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
  */
 bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t lengthIncludingSignature, uint8_t* publicKey)
 {
+	#ifdef CRYPTO_PROFILE
 	auto t1 = g_logTimer->GetCount();
+	#endif
 
 	//fixed length cap
 	if(lengthIncludingSignature > 1024)
@@ -133,7 +143,9 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 	if (unpackneg(q, publicKey))
 		return false;
 
+	#ifdef CRYPTO_PROFILE
 	auto t2 = g_logTimer->GetCount();
+	#endif
 
 	//Expanded public key for sending to accelerator
 	//TODO: can we move the expansion to the FPGA to save SPI BW and speed compute?
@@ -157,7 +169,9 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 		g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, pfpga + block*32, ECDH_KEY_SIZE);
 	}
 
+	#ifdef CRYPTO_PROFILE
 	auto t3 = g_logTimer->GetCount();
+	#endif
 
 	//scalarbase(q, signedMessage + 32);
 	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_DSA_BASE, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE);
@@ -172,7 +186,10 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 		g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, qfpga + block*32, ECDH_KEY_SIZE);
 	}
 
+	#ifdef CRYPTO_PROFILE
 	auto t4 = g_logTimer->GetCount();
+	#endif
+
 	//Unpack results from the FPGA
 	unpack25519(p[0], &pfpga[0]);
 	unpack25519(p[1], &pfpga[32]);
@@ -182,14 +199,18 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 	unpack25519(q[1], &qfpga[32]);
 	unpack25519(q[2], &qfpga[64]);
 	unpack25519(q[3], &qfpga[96]);
+
+	//Final addition... we really should try to keep this on the FPGA if possible
 	add(p,q);
 	uint8_t t[32];
+
 	pack(t,p);
 
 	//Final signature verification
 	if (crypto_verify_32(signedMessage, t))
 		return false;
 
+	#ifdef CRYPTO_PROFILE
 	auto tend = g_logTimer->GetCount();
 	auto delta = tend - t1;
 	g_log("DeviceCryptoEngine::VerifySignature (FPGA acceleration): %d.%d ms\n", delta/10, delta%10);
@@ -202,6 +223,7 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 	g_log("scalarbase (FPGA acceleration): %d.%d ms\n", delta/10, delta%10);
 	delta = tend-t4;
 	g_log("Final (no acceleration): %d.%d ms\n", delta/10, delta%10);
+	#endif
 
 	return true;
 }
@@ -209,7 +231,9 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 ///@brief Signs an exchange hash with our host key
 void DeviceCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash)
 {
+	#ifdef CRYPTO_PROFILE
 	auto t1 = g_logTimer->GetCount();
+	#endif
 
 	//Hash the private key and massage it to make sure it's a valid curve point
 	uint8_t privkeyHash[64];
@@ -278,6 +302,8 @@ void DeviceCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash
 	modL(sm + 32,x);
 	memcpy(sigOut, sm, 64);
 
+	#ifdef CRYPTO_PROFILE
 	auto delta = g_logTimer->GetCount() - t1;
 	g_log("DeviceCryptoEngine::SignExchangeHash (FPGA acceleration): %d.%d ms\n", delta/10, delta%10);
+	#endif
 }
