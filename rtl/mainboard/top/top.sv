@@ -457,6 +457,7 @@ module top(
 	wire[255:0]	crypt_work_out;
 
 	wire		crypt_dsa_en;
+	wire		crypt_dsa_base_en;
 	wire		crypt_dsa_load;
 	wire		crypt_dsa_rd;
 	wire		crypt_dsa_done;
@@ -474,6 +475,7 @@ module top(
 
 		//ECDSA signals
 		.dsa_en(crypt_dsa_en),
+		.dsa_base_en(crypt_dsa_base_en),
 		.dsa_load(crypt_dsa_load),
 		.dsa_rd(crypt_dsa_rd),
 		.dsa_done(crypt_dsa_done),
@@ -592,6 +594,7 @@ module top(
 		.crypt_e(crypt_e),
 		.crypt_out_valid(crypt_out_valid),
 		.crypt_dsa_en(crypt_dsa_en),
+		.crypt_dsa_base_en(crypt_dsa_base_en),
 		.crypt_dsa_load(crypt_dsa_load),
 		.crypt_dsa_rd(crypt_dsa_rd),
 		.crypt_dsa_done(crypt_dsa_done),

@@ -152,7 +152,8 @@ enum cryptreg_t
 	REG_E				= 0x0020,
 	REG_CRYPT_STATUS	= 0x0040,
 	REG_WORK_OUT		= 0x0060,
-	REG_DSA_IN			= 0x0080
+	REG_DSA_IN			= 0x0080,
+	REG_DSA_BASE		= 0x0100
 };
 
 #endif

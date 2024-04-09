@@ -138,6 +138,7 @@ module ManagementRegisterInterface(
 	input wire						crypt_out_valid,
 	input wire[255:0]				crypt_work_out,
 	output logic					crypt_dsa_en = 0,
+	output logic					crypt_dsa_base_en = 0,
 	output logic					crypt_dsa_load = 0,
 	output logic					crypt_dsa_rd = 0,
 	input wire						crypt_dsa_done,
@@ -171,12 +172,14 @@ module ManagementRegisterInterface(
 	logic[255:0]	crypt_e_mgmt		= 0;
 	logic[1:0]		crypt_addr			= 0;
 
-	typedef enum logic[1:0]
+	typedef enum logic[2:0]
 	{
 		CRYPT_DH,			//writing work/e for DH
 		CRYPT_DSA_LOWREG,	//writing dsa_in0-3
 		CRYPT_DSA_FINAL,	//writing e for DSA
-		CRYPT_DSA_RD		//reading output
+		CRYPT_DSA_RD,		//reading output
+		CRYPT_DSA_BASE,		//writing dsa_in0-1 for scalarbase
+		CRYPT_DSA_BASEFIN	//writing e for DSA scalarbase
 	} crypt_mode_t;
 
 	crypt_mode_t crypt_mode = CRYPT_DH;
@@ -188,22 +191,25 @@ module ManagementRegisterInterface(
 	logic[3:0]		rst_count 			= 1;
 	always_ff @(posedge clk_crypt) begin
 
-		crypt_en		<= 0;
-		crypt_dsa_en	<= 0;
-		crypt_dsa_load	<= 0;
-		crypt_dsa_rd	<= 0;
+		crypt_en			<= 0;
+		crypt_dsa_en		<= 0;
+		crypt_dsa_load		<= 0;
+		crypt_dsa_rd		<= 0;
+		crypt_dsa_base_en	<= 0;
 
 		if(rst_count)
-			rst_count	<= rst_count + 1;
+			rst_count		<= rst_count + 1;
 		else begin
 
 			if(crypt_updated_sync) begin
 
 				case(crypt_mode_sync)
-					CRYPT_DH:			crypt_en 		<= 1;
-					CRYPT_DSA_LOWREG:	crypt_dsa_load	<= 1;
-					CRYPT_DSA_FINAL: 	crypt_dsa_en	<= 1;
-					CRYPT_DSA_RD:		crypt_dsa_rd	<= 1;
+					CRYPT_DH:			crypt_en 			<= 1;
+					CRYPT_DSA_LOWREG:	crypt_dsa_load		<= 1;
+					CRYPT_DSA_BASE:		crypt_dsa_load		<= 1;
+					CRYPT_DSA_FINAL: 	crypt_dsa_en		<= 1;
+					CRYPT_DSA_RD:		crypt_dsa_rd		<= 1;
+					CRYPT_DSA_BASEFIN: 	crypt_dsa_base_en	<= 1;
 				endcase
 
 			end
@@ -212,7 +218,7 @@ module ManagementRegisterInterface(
 	end
 
 	RegisterSynchronizer #(
-		.WIDTH(516)
+		.WIDTH(517)
 	) sync_crypt_inputs (
 		.clk_a(clk),
 		.en_a(crypt_in_updated),
@@ -414,7 +420,8 @@ module ManagementRegisterInterface(
 		REG_E				= 16'h0020,
 		REG_CRYPT_STATUS	= 16'h0040,
 		REG_WORK_OUT		= 16'h0060,
-		REG_DSA_IN			= 16'h0080
+		REG_DSA_IN			= 16'h0080,
+		REG_DSA_BASE		= 16'h0100
 	} cryptoff_t;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -655,8 +662,22 @@ module ManagementRegisterInterface(
 			//Crypto accelerator registers are decoded separately
 			if(wr_addr >= REG_CRYPT_BASE) begin
 
+				if(wr_addr[8:0] >= REG_DSA_BASE) begin
+					crypt_mode								<= CRYPT_DSA_BASE;
+					crypt_addr								<= wr_addr[6:5];
+					crypt_work_in_mgmt[wr_addr[4:0]*8 +: 8]	<= wr_data;
+
+					//Push the write onto the bus every 32 bytes
+					if(wr_addr[4:0] == 5'h1f) begin
+						crypt_in_updated				<= 1;
+						if(wr_addr[6:5] == 1)
+							crypto_active				<= 1;
+					end
+
+				end
+
 				//DSA input
-				if(wr_addr[7:0] >= REG_DSA_IN) begin
+				else if(wr_addr[8:0] >= REG_DSA_IN) begin
 					crypt_mode								<= CRYPT_DSA_LOWREG;
 					crypt_addr								<= wr_addr[6:5];
 					crypt_work_in_mgmt[wr_addr[4:0]*8 +: 8]	<= wr_data;
@@ -671,17 +692,19 @@ module ManagementRegisterInterface(
 				end
 
 				//write to status to read from the output buffer
-				else if(wr_addr[7:0] == REG_CRYPT_STATUS) begin
+				else if(wr_addr[8:0] == REG_CRYPT_STATUS) begin
 					crypt_mode			<= CRYPT_DSA_RD;
 					crypt_addr			<= wr_data[1:0];
 					crypt_in_updated	<= 1;
 				end
 
 				//E register
-				else if(wr_addr[7:0] >= REG_E) begin
+				else if(wr_addr[8:0] >= REG_E) begin
 
 					if(crypt_mode == CRYPT_DSA_LOWREG)
 						crypt_mode						<= CRYPT_DSA_FINAL;
+					else if(crypt_mode == CRYPT_DSA_BASE)
+						crypt_mode						<= CRYPT_DSA_BASEFIN;
 
 					crypt_e_mgmt[wr_addr[4:0]*8 +: 8]	<= wr_data;
 
@@ -693,7 +716,7 @@ module ManagementRegisterInterface(
 				end
 
 				//work_in register
-				else if(wr_addr[7:0] >= REG_WORK) begin
+				else if(wr_addr[8:0] >= REG_WORK) begin
 					crypt_mode								<= CRYPT_DH;
 					crypt_work_in_mgmt[wr_addr[4:0]*8 +: 8]	<= wr_data;
 				end
