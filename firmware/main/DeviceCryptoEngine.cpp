@@ -260,19 +260,19 @@ void DeviceCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash
 	while(status != 0)
 		status = g_fpga->BlockingRead8(REG_CRYPT_BASE + REG_CRYPT_STATUS);
 	uint8_t pfpga[128];
-	for(int block=0; block<4; block++)
+	for(int block=0; block<3; block++)
 	{
 		g_fpga->BlockingWrite8(REG_CRYPT_BASE + REG_CRYPT_STATUS, block);
 		g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, pfpga + block*32, ECDH_KEY_SIZE);
 	}
 
 	//Unpack and repack the result and save in q
-	//TODO: we should be able to optimize this?
+	//Optimization: skip processing of the final word since it's not used by pack()
 	gf p[4];
 	unpack25519(p[0], &pfpga[0]);
 	unpack25519(p[1], &pfpga[32]);
 	unpack25519(p[2], &pfpga[64]);
-	unpack25519(p[3], &pfpga[96]);
+	//unpack25519(p[3], &pfpga[96]);
 
 	//pack(sm,p);
 	gf tx, ty, zi;
