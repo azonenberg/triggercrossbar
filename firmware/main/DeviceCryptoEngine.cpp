@@ -31,6 +31,21 @@
 #include "DeviceCryptoEngine.h"
 #include "../../staticnet/contrib/tweetnacl_25519.h"
 
+//curve25519 unpacked base point: {X, Y, gf1, X*Y}
+//TODO: this is a constant, we should be able to store this on the FPGA somewhere and not waste SPI BW
+//pushing it each time we need it
+static const uint8_t g_curve25519BasePointUnpacked[128] =
+{
+	0x1a, 0xd5, 0x25, 0x8f, 0x60, 0x2d, 0x56, 0xc9, 0xb2, 0xa7, 0x25, 0x95, 0x60, 0xc7, 0x2c, 0x69,
+	0x5c, 0xdc, 0xd6, 0xfd, 0x31, 0xe2, 0xa4, 0xc0, 0xfe, 0x53, 0x6e, 0xcd, 0xd3, 0x36, 0x69, 0x21,
+	0x58, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+	0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+	0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0xa3, 0xdd, 0xb7, 0xa5, 0xb3, 0x8a, 0xde, 0x6d, 0xf5, 0x52, 0x51, 0x77, 0x80, 0x9f, 0xf0, 0x20,
+	0x7d, 0xe3, 0xab, 0x64, 0x8e, 0x4e, 0xea, 0x66, 0x65, 0x76, 0x8b, 0xd7, 0x0f, 0x5f, 0x87, 0x67
+};
+
 DeviceCryptoEngine::DeviceCryptoEngine()
 {
 }
@@ -143,6 +158,9 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 
 	auto t2 = g_logTimer->GetCount();
 
+	//TODO: we only actually *need* to send the first two point values
+	//The third is a constant 1 and the fourth is X*Y so we can compute that FPGA side
+
 	//Expanded public key for sending to accelerator
 	//TODO: can we move the expansion to the FPGA to save SPI BW and speed compute?
 	uint8_t qref[128];
@@ -175,23 +193,8 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 
 	auto t3 = g_logTimer->GetCount();
 
-	//curve25519 unpacked base point: {X, Y, gf1, X*Y}
-	//TODO: this is a constant, we should be able to store this on the FPGA somewhere and not waste SPI BW
-	//pushing it each time we need it
-	static const uint8_t basepoint[128] =
-	{
-		0x1a, 0xd5, 0x25, 0x8f, 0x60, 0x2d, 0x56, 0xc9, 0xb2, 0xa7, 0x25, 0x95, 0x60, 0xc7, 0x2c, 0x69,
-		0x5c, 0xdc, 0xd6, 0xfd, 0x31, 0xe2, 0xa4, 0xc0, 0xfe, 0x53, 0x6e, 0xcd, 0xd3, 0x36, 0x69, 0x21,
-		0x58, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
-		0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
-		0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0xa3, 0xdd, 0xb7, 0xa5, 0xb3, 0x8a, 0xde, 0x6d, 0xf5, 0x52, 0x51, 0x77, 0x80, 0x9f, 0xf0, 0x20,
-		0x7d, 0xe3, 0xab, 0x64, 0x8e, 0x4e, 0xea, 0x66, 0x65, 0x76, 0x8b, 0xd7, 0x0f, 0x5f, 0x87, 0x67
-	};
-
 	//scalarbase(q, signedMessage + 32);
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_DSA_IN, basepoint, ECDSA_KEY_SIZE*4);
+	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_DSA_IN, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE*4);
 	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_E, signedMessage+32, ECDSA_KEY_SIZE);
 	status = 1;
 	while(status != 0)
@@ -203,7 +206,7 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 		g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, qfpga + block*32, ECDH_KEY_SIZE);
 	}
 
-	//Unpack the result and save in p
+	//Unpack the result and save in q
 	unpack25519(q[0], &qfpga[0]);
 	unpack25519(q[1], &qfpga[32]);
 	unpack25519(q[2], &qfpga[64]);
@@ -220,7 +223,7 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 
 	auto tend = g_logTimer->GetCount();
 	auto delta = tend - t1;
-	g_log("DeviceCryptoEngine::VerifySignature (partial acceleration): %d.%d ms\n", delta/10, delta%10);
+	g_log("DeviceCryptoEngine::VerifySignature (FPGA acceleration): %d.%d ms\n", delta/10, delta%10);
 	LogIndenter li(g_log);
 	delta = t2-t1;
 	g_log("Setup (no acceleration): %d.%d ms\n", delta/10, delta%10);
@@ -258,7 +261,24 @@ void DeviceCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash
 
 	//Actual signing stuff
 	gf p[4];
-	scalarbase(p,bufferHash);
+	//scalarbase(p,bufferHash);
+	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_DSA_IN, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE*4);
+	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_E, bufferHash, ECDSA_KEY_SIZE);
+	uint8_t status = 1;
+	while(status != 0)
+		status = g_fpga->BlockingRead8(REG_CRYPT_BASE + REG_CRYPT_STATUS);
+	uint8_t pfpga[128];
+	for(int block=0; block<4; block++)
+	{
+		g_fpga->BlockingWrite8(REG_CRYPT_BASE + REG_CRYPT_STATUS, block);
+		g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, pfpga + block*32, ECDH_KEY_SIZE);
+	}
+
+	//Unpack the result and save in q
+	unpack25519(p[0], &pfpga[0]);
+	unpack25519(p[1], &pfpga[32]);
+	unpack25519(p[2], &pfpga[64]);
+	unpack25519(p[3], &pfpga[96]);
 	pack(sm,p);
 
 	//Hash the public key
@@ -282,5 +302,5 @@ void DeviceCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash
 	memcpy(sigOut, sm, 64);
 
 	auto delta = g_logTimer->GetCount() - t1;
-	g_log("DeviceCryptoEngine::SignExchangeHash (no acceleration): %d.%d ms\n", delta/10, delta%10);
+	g_log("DeviceCryptoEngine::SignExchangeHash (FPGA acceleration): %d.%d ms\n", delta/10, delta%10);
 }
