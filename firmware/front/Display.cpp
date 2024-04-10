@@ -422,6 +422,7 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 	, m_width(212)
 	, m_height(104)
 	, m_refreshInProgress(false)
+	, m_firstRefresh(true)
 {
 	//Deassert SPI CS#
 	*m_cs_n = 1;
@@ -444,6 +445,52 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 	//Clear both bitplanes to blank
 	Clear();
 	Clear();
+
+	//Read the OTP data
+	g_log("Reading OTP...\n");
+	LogIndenter li(g_log);
+	SendCommand(0xa2);
+	ReadData();	//dummy cycle before valid data
+	int activeBank = 0;
+	for(int i=0; ; i++)
+	{
+		auto ret = ReadData();
+
+		//After reading the 0th address, we know what addresses the other PSRs are at
+		if(i == 0)
+		{
+			if(ret == 0xa5)
+				activeBank = 0;
+			else
+				activeBank = 1;
+
+			g_log("Active OTP bank = %d\n", activeBank);
+		}
+
+		if(activeBank == 0)
+		{
+			//seems there's an off-by-one where we count bytes since the 0xa5, so a5 isn't zero?
+			if(i == 0xb1c)
+				m_psr0 = ret;
+			if(i == 0xb1d)
+			{
+				m_psr1 = ret;
+				break;
+			}
+		}
+
+		else
+		{
+			if(i == 0x171c)
+				m_psr0 = ret;
+			if(i == 0x171d)
+			{
+				m_psr1 = ret;
+				break;
+			}
+		}
+	}
+	g_log("Done (psr0 = %02x, psr1 = %02x)\n", m_psr0, m_psr1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -454,8 +501,6 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
  */
 void Display::Clear()
 {
-	memcpy(m_oldFramebuffer, m_framebuffer, sizeof(m_framebuffer));
-
 	memset(m_framebuffer, 0, sizeof(m_framebuffer));
 }
 
@@ -693,41 +738,98 @@ void Display::StartRefresh()
 {
 	m_refreshInProgress = true;
 
-	//Full refresh
-	memset(m_oldFramebuffer, 0, sizeof(m_oldFramebuffer));
-
-	//Send temperature
+	//Get temperature and clamp to valid range
 	auto temp = ReadThermalSensor(g_tempI2cAddress);
-	SendCommand(0xe5);
-	SendData(temp >> 8);
+	if(temp > 60)
+		temp = 60;
 
-	//Activate temperature
-	SendCommand(0xe0);
-	SendData(0x02);
+	//Full refresh first frame
+	if(m_firstRefresh)
+	{
+		g_log("Full refresh\n");
 
-	//Send panel settings
-	SendCommand(0x00);
-	SendData(0xcf);
-	SendData(0x89);
+		//Send temperature
+		SendCommand(0xe5);
+		SendData(temp >> 8);
 
-	//First bitplane is active, second is old
-	//TODO: can we DMA/interrupt this?
-	SendCommand(0x10);
-	for(int32_t i=0; i<2756; i++)
-		SendData(m_framebuffer[i]);
-	SendCommand(0x13);
-	for(int32_t i=0; i<2756; i++)
-		SendData(m_oldFramebuffer[i]);
-	while(*m_busy_n == 0)
-	{}
+		//Activate temperature
+		SendCommand(0xe0);
+		SendData(0x02);
+
+		//Send panel settings
+		SendCommand(0x00);
+		SendData(m_psr0);
+		SendData(m_psr1);
+
+		//First bitplane is active, second blank
+		//TODO: can we DMA/interrupt this?
+		SendCommand(0x10);
+		for(int32_t i=0; i<2756; i++)
+			SendData(m_framebuffer[i]);
+		SendCommand(0x13);
+		for(int32_t i=0; i<2756; i++)
+			SendData(0x00);
+
+		m_firstRefresh = false;
+	}
+
+	//Subsequent frames use fast update
+	else
+	{
+		g_log("Fast refresh\n");
+
+		//Soft reset
+		SendCommand(0x00);
+		SendData(0x0e);
+		while(*m_busy_n == 0)
+		{}
+
+		//Send temperature
+		SendCommand(0xe5);
+		SendData( (temp >> 8) + 0x40 );
+
+		//Activate temperature
+		SendCommand(0xe0);
+		SendData(0x02);
+
+		//Send panel settings
+		SendCommand(0x00);
+		SendData(m_psr0 | 0x10);
+		SendData(m_psr1 | 0x02);
+
+		//Vcom and data interval
+		SendCommand(0x50);
+		SendData(0x07);
+
+		//Border setting
+		SendCommand(0x50);
+		SendData(0x27);
+
+		//First bitplane is old, second new
+		//TODO: can we DMA/interrupt this?
+		SendCommand(0x10);
+		for(int32_t i=0; i<2756; i++)
+			SendData(m_oldFramebuffer[i]);
+		SendCommand(0x13);
+		for(int32_t i=0; i<2756; i++)
+			SendData(m_framebuffer[i]);
+
+		//Revert border
+		SendCommand(0x50);
+		SendData(0x07);
+	}
 
 	//Send power-on command
+	while(*m_busy_n == 0)
+	{}
 	SendCommand(0x04);
 	while(*m_busy_n == 0)
 	{}
 
 	//Send display refresh command
 	SendCommand(0x12);
+
+	memcpy(m_oldFramebuffer, m_framebuffer, sizeof(m_framebuffer));
 }
 
 /**
@@ -786,4 +888,16 @@ void Display::SendData(uint8_t data)
 	m_spi->DiscardRxData();
 
 	*m_cs_n = 1;
+}
+
+uint8_t Display::ReadData()
+{
+	*m_dc = 1;
+	*m_cs_n = 0;
+
+	auto ret = m_spi->BlockingRead();
+
+	*m_cs_n = 1;
+
+	return ret;
 }

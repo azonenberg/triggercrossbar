@@ -63,6 +63,7 @@ protected:
 
 	void SendCommand(uint8_t cmd);
 	void SendData(uint8_t data);
+	uint8_t ReadData();
 
 	//Framebuffer active bitplane
 	uint8_t m_framebuffer[2756];
@@ -74,6 +75,10 @@ protected:
 	const uint16_t m_height;
 
 	bool m_refreshInProgress;
+	bool m_firstRefresh;
+
+	uint8_t m_psr0;
+	uint8_t m_psr1;
 };
 
 #endif

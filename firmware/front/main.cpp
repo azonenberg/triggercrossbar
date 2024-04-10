@@ -109,6 +109,9 @@ int main()
 	uint8_t cmd = 0;
 	while(1)
 	{
+		//TODO: blinking of bad values (fan failure etc)
+		//TODO: force full refresh once a day?
+
 		//See if the display is refreshing still
 		if(g_display->IsRefreshInProgress())
 		{
@@ -507,7 +510,7 @@ void InitSPI()
 
 	//Divide by 5 to get 8 MHz SPI
 	//We can run up to 10 MHz for writes but readback Fmax is ~2 MHz
-	static SPI displaySPI(&SPI2, true, 5);
+	static SPI displaySPI(&SPI2, false, 5);
 	g_displaySPI = &displaySPI;
 
 	//Set up GPIOs for FPGA bus

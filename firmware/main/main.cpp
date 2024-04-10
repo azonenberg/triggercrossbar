@@ -153,7 +153,7 @@ int main()
 		if(g_cliUART->HasInput())
 			uartContext.OnKeystroke(g_cliUART->BlockingRead());
 
-		//Refresh of activity LEDs and TCP retransmitsat 10 Hz
+		//Refresh of activity LEDs and TCP retransmits at 10 Hz
 		if(g_logTimer->GetCount() > next10HzTick)
 		{
 			UpdateFrontPanelActivityLEDs();
@@ -176,12 +176,12 @@ int main()
 			else if(g_displayRefreshPending)
 				UpdateFrontPanelDisplay();
 
-			//Refresh front panel display at least once every two hours
+			//Refresh front panel display every 5 seconds
 			else
 			{
 				g_secSinceLastDisplayRefresh ++;
 
-				if(g_secSinceLastDisplayRefresh >= 7200)
+				if(g_secSinceLastDisplayRefresh >= 5)
 					UpdateFrontPanelDisplay();
 			}
 		}
@@ -274,7 +274,9 @@ void UpdateFrontPanelActivityLEDs()
  */
 void UpdateFrontPanelDisplay()
 {
-	g_log("Updating front panel display\n");
+	static bool firstRefresh = true;
+
+	//g_log("Updating front panel display\n");
 	g_displayRefreshPending = false;
 	g_secSinceLastDisplayRefresh = 0;
 
@@ -390,7 +392,13 @@ void UpdateFrontPanelDisplay()
 	//Don't update the display more than once every N seconds (since it might still be busy)
 	//(we have to run this open loop because of the STM32 errata that prevents us from reading
 	//data on the SPI bus going to the front panel)
-	g_displayCooldown = 6;
+	if(firstRefresh)
+	{
+		g_displayCooldown = 35;
+		firstRefresh = false;
+	}
+	else
+		g_displayCooldown = 1;
 }
 
 uint16_t SupervisorRegRead(uint8_t regid)
