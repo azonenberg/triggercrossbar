@@ -45,6 +45,7 @@ enum superregs_t
 	SUPER_REG_IBCTEMP		= 0x12,		//IBC temperature
 	SUPER_REG_IBCVOUT		= 0x13,		//IBC output voltage (nominal 12)
 	SUPER_REG_IBCIOUT		= 0x14,		//IBC output current
+	SUPER_REG_IBCVSENSE		= 0x15		//IBC sense voltage (nominal 12)
 };
 
 #endif

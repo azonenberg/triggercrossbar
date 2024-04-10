@@ -375,9 +375,11 @@ void UpdateFrontPanelDisplay()
 	SendFrontPanelSensor(FRONT_MCU_TEMP, g_dts->GetTemperature());
 
 	//IBC voltages
+	//Report vsense not vout of the IBC because vout seems to be noisier
+	//and vsense is the main logic board 12V rail which is what we really care about anyway
 	SendFrontPanelSensor(FRONT_IBC_VIN, SupervisorRegRead(SUPER_REG_IBCVIN));
 	SendFrontPanelSensor(FRONT_IBC_IIN, SupervisorRegRead(SUPER_REG_IBCIIN));
-	SendFrontPanelSensor(FRONT_IBC_VOUT, SupervisorRegRead(SUPER_REG_IBCVOUT));
+	SendFrontPanelSensor(FRONT_IBC_VOUT, SupervisorRegRead(SUPER_REG_IBCVSENSE));
 	SendFrontPanelSensor(FRONT_IBC_IOUT, SupervisorRegRead(SUPER_REG_IBCIOUT));
 	SendFrontPanelSensor(FRONT_IBC_TEMP, SupervisorRegRead(SUPER_REG_IBCTEMP));
 

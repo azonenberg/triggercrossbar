@@ -228,6 +228,9 @@ int main()
 					case SUPER_REG_IBCIOUT:
 						g_spi->BlockingWriteDevice((uint8_t*)&g_iout, sizeof(g_iout));
 						break;
+					case SUPER_REG_IBCVSENSE:
+						g_spi->BlockingWriteDevice((uint8_t*)&g_voutsense, sizeof(g_voutsense));
+						break;
 				}
 
 				nbyte ++;
