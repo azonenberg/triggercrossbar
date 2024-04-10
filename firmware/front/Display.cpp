@@ -421,8 +421,7 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 	, m_rst_n(rst)
 	, m_width(212)
 	, m_height(104)
-	, m_refreshInProgress(false)
-	, m_firstRefresh(true)
+	, m_refreshState(STATE_IDLE_FIRST)
 {
 	//Deassert SPI CS#
 	*m_cs_n = 1;
@@ -703,6 +702,20 @@ void Display::LineHigh(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool blac
 	}
 }
 
+/**
+	@brief Axially aligned flood fill
+
+	assumes x0 <= x1 and y0 <= y1 for now
+ */
+void Display::FilledRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black)
+{
+	for(int16_t x=x0; x<=x1; x++)
+	{
+		for(int16_t y=y0; y<=y1; y++)
+			SetPixel(x, y, black);
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Mid level interface
 
@@ -732,135 +745,180 @@ void Display::SetPixel(uint8_t x, uint8_t y, bool black)
 }
 
 /**
+	@brief Called each iteration of the main loop
+ */
+void Display::OnTick()
+{
+	if(!IsRefreshInProgress())
+		return;
+
+	//See what needs doing
+	switch(m_refreshState)
+	{
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Fast path
+
+		//Soft reset
+		case STATE_REFRESH_FAST_INIT:
+			SendCommand(0x00);
+			SendData(0x0e);
+
+			m_refreshState = STATE_REFRESH_FAST_INIT2;
+			break;
+
+		//Send initial commands
+		case STATE_REFRESH_FAST_INIT2:
+			if(*m_busy_n)
+			{
+				//Get temperature and clamp to valid range
+				auto temp = ReadThermalSensor(g_tempI2cAddress);
+				if(temp > 60)
+					temp = 60;
+
+
+				//Send temperature
+				SendCommand(0xe5);
+				SendData( (temp >> 8) + 0x40 );
+
+				//Activate temperature
+				SendCommand(0xe0);
+				SendData(0x02);
+
+				//Send panel settings
+				SendCommand(0x00);
+				SendData(m_psr0 | 0x10);
+				SendData(m_psr1 | 0x02);
+
+				//Vcom and data interval
+				SendCommand(0x50);
+				SendData(0x07);
+
+				//Border setting
+				SendCommand(0x50);
+				SendData(0x27);
+
+				m_refreshState = STATE_REFRESH_FAST_DATA0;
+			}
+
+			break;
+
+		//Send old data
+		case STATE_REFRESH_FAST_DATA0:
+			SendCommand(0x10);
+			for(int32_t i=0; i<2756; i++)
+				SendData(m_oldFramebuffer[i]);
+
+			m_refreshState = STATE_REFRESH_FAST_DATA1;
+			break;
+
+		//Send new data
+		case STATE_REFRESH_FAST_DATA1:
+			SendCommand(0x13);
+			for(int32_t i=0; i<2756; i++)
+				SendData(m_framebuffer[i]);
+
+			m_refreshState = STATE_REFRESH_FINAL1;
+			break;
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Slow path
+
+		//Initialization for the slow refresh path
+		case STATE_REFRESH_SLOW_INIT:
+			{
+				//Get temperature and clamp to valid range
+				auto temp = ReadThermalSensor(g_tempI2cAddress);
+				if(temp > 60)
+					temp = 60;
+
+				//Send temperature
+				SendCommand(0xe5);
+				SendData(temp >> 8);
+
+				//Activate temperature
+				SendCommand(0xe0);
+				SendData(0x02);
+
+				//Send panel settings
+				SendCommand(0x00);
+				SendData(m_psr0);
+				SendData(m_psr1);
+
+				m_refreshState = STATE_REFRESH_SLOW_DATA0;
+			}
+			break;
+
+		//Send the first block of data
+		case STATE_REFRESH_SLOW_DATA0:
+			SendCommand(0x10);
+			for(int32_t i=0; i<2756; i++)
+				SendData(m_framebuffer[i]);
+
+			m_refreshState = STATE_REFRESH_SLOW_DATA1;
+			break;
+
+		//Send zeroes
+		case STATE_REFRESH_SLOW_DATA1:
+			SendCommand(0x13);
+			for(int32_t i=0; i<2756; i++)
+				SendData(0x00);
+
+			m_refreshState = STATE_REFRESH_FINAL1;
+			break;
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Finish the refresh
+
+		//Wait for busy state then send power-on command
+		case STATE_REFRESH_FINAL1:
+			if(*m_busy_n)
+			{
+				SendCommand(0x04);
+				m_refreshState = STATE_REFRESH_FINAL2;
+			}
+			break;
+
+		//Wait for busy state then send refresh command
+		case STATE_REFRESH_FINAL2:
+			if(*m_busy_n)
+			{
+				SendCommand(0x12);
+				m_refreshState = STATE_REFRESH_FINAL3;
+			}
+			break;
+
+		//Wait for refresh to complete then turn off DC-DC
+		case STATE_REFRESH_FINAL3:
+			if(*m_busy_n)
+			{
+				SendCommand(0x02);
+				m_refreshState = STATE_REFRESH_FINAL4;
+			}
+			break;
+
+		//Wait for DC-DC to turn off then save the framebuffer
+		case STATE_REFRESH_FINAL4:
+			if(*m_busy_n)
+			{
+				memcpy(m_oldFramebuffer, m_framebuffer, sizeof(m_framebuffer));
+				m_refreshState = STATE_IDLE;
+			}
+			break;
+
+		default:
+			break;
+	}
+}
+
+/**
 	@brief Push the framebuffer to the display
  */
 void Display::StartRefresh()
 {
-	m_refreshInProgress = true;
-
-	//Get temperature and clamp to valid range
-	auto temp = ReadThermalSensor(g_tempI2cAddress);
-	if(temp > 60)
-		temp = 60;
-
-	//Full refresh first frame
-	if(m_firstRefresh)
-	{
-		g_log("Full refresh\n");
-
-		//Send temperature
-		SendCommand(0xe5);
-		SendData(temp >> 8);
-
-		//Activate temperature
-		SendCommand(0xe0);
-		SendData(0x02);
-
-		//Send panel settings
-		SendCommand(0x00);
-		SendData(m_psr0);
-		SendData(m_psr1);
-
-		//First bitplane is active, second blank
-		//TODO: can we DMA/interrupt this?
-		SendCommand(0x10);
-		for(int32_t i=0; i<2756; i++)
-			SendData(m_framebuffer[i]);
-		SendCommand(0x13);
-		for(int32_t i=0; i<2756; i++)
-			SendData(0x00);
-
-		m_firstRefresh = false;
-	}
-
-	//Subsequent frames use fast update
+	if(m_refreshState == STATE_IDLE_FIRST)
+		m_refreshState = STATE_REFRESH_SLOW_INIT;
 	else
-	{
-		g_log("Fast refresh\n");
-
-		//Soft reset
-		SendCommand(0x00);
-		SendData(0x0e);
-		while(*m_busy_n == 0)
-		{}
-
-		//Send temperature
-		SendCommand(0xe5);
-		SendData( (temp >> 8) + 0x40 );
-
-		//Activate temperature
-		SendCommand(0xe0);
-		SendData(0x02);
-
-		//Send panel settings
-		SendCommand(0x00);
-		SendData(m_psr0 | 0x10);
-		SendData(m_psr1 | 0x02);
-
-		//Vcom and data interval
-		SendCommand(0x50);
-		SendData(0x07);
-
-		//Border setting
-		SendCommand(0x50);
-		SendData(0x27);
-
-		//First bitplane is old, second new
-		//TODO: can we DMA/interrupt this?
-		SendCommand(0x10);
-		for(int32_t i=0; i<2756; i++)
-			SendData(m_oldFramebuffer[i]);
-		SendCommand(0x13);
-		for(int32_t i=0; i<2756; i++)
-			SendData(m_framebuffer[i]);
-
-		//Revert border
-		SendCommand(0x50);
-		SendData(0x07);
-	}
-
-	//Send power-on command
-	while(*m_busy_n == 0)
-	{}
-	SendCommand(0x04);
-	while(*m_busy_n == 0)
-	{}
-
-	//Send display refresh command
-	SendCommand(0x12);
-
-	memcpy(m_oldFramebuffer, m_framebuffer, sizeof(m_framebuffer));
-}
-
-/**
-	@brief Check if the refresh cycle is done
- */
-bool Display::PollRefreshComplete()
-{
-	if(!m_refreshInProgress)
-		return true;
-
-	if(*m_busy_n != 0)
-		return true;
-	return false;
-}
-
-/**
-	@brief Completes the refresh cycle
- */
-void Display::FinishRefresh()
-{
-	while(!PollRefreshComplete())
-	{}
-
-	//Turn off DC-DC (TODO is this required?)
-	SendCommand(0x02);
-	while(*m_busy_n == 0)
-	{}
-
-	m_refreshInProgress = false;
-
-	//TODO: we need to refresh every 24 hours to avoid ghosting
+		m_refreshState = STATE_REFRESH_FAST_INIT;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

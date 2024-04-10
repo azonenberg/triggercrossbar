@@ -39,12 +39,6 @@ void SendFrontPanelByte(uint8_t data);
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value);
 void UpdateFrontPanelActivityLEDs();
 
-///@brief Seconds remaining before we can update the display again
-uint32_t g_displayCooldown = 0;
-
-///@brief Seconds since we last refreshed the display
-uint32_t g_secSinceLastDisplayRefresh = 0;
-
 GPIOPin* g_irq = nullptr;
 
 int main()
@@ -168,22 +162,8 @@ int main()
 			g_ethProtocol->OnAgingTick();
 			next1HzTick = g_logTimer->GetCount() + 10000;
 
-			//Don't update the display more than once every 5 sec
-			if(g_displayCooldown)
-				g_displayCooldown --;
-
-			//If a display refresh was requested, do that
-			else if(g_displayRefreshPending)
-				UpdateFrontPanelDisplay();
-
-			//Refresh front panel display every 5 seconds
-			else
-			{
-				g_secSinceLastDisplayRefresh ++;
-
-				if(g_secSinceLastDisplayRefresh >= 5)
-					UpdateFrontPanelDisplay();
-			}
+			//Push new register values to front panel every second (it will refresh the panel whenever it wants to)
+			UpdateFrontPanelDisplay();
 		}
 	}
 	return 0;
@@ -276,10 +256,6 @@ void UpdateFrontPanelDisplay()
 {
 	static bool firstRefresh = true;
 
-	//g_log("Updating front panel display\n");
-	g_displayRefreshPending = false;
-	g_secSinceLastDisplayRefresh = 0;
-
 	char tmp[20] = {0};
 	StringBuffer buf(tmp, sizeof(tmp));
 
@@ -303,72 +279,86 @@ void UpdateFrontPanelDisplay()
 		SendFrontPanelByte(0xff);
 	SetFrontPanelCS(1);
 
-	//Set serial number
-	SetFrontPanelCS(0);
-	SendFrontPanelByte(FRONT_SERIAL);
-	for(size_t i=0; i<8; i++)
-		SendFrontPanelByte(g_fpgaSerial[i]);
-	SetFrontPanelCS(1);
+	/*
+		Only update version number strings once per boot to save SPI bus bandwidth.
 
-	//Our firmware version number
-	static const char* buildtime = __TIME__;
-	buf.Clear();
-	buf.Printf("%s %c%c%c%c%c%c",
-		__DATE__, buildtime[0], buildtime[1], buildtime[3], buildtime[4], buildtime[6], buildtime[7]);
-	buf.Printf("hai");
-	SetFrontPanelCS(0);
-	SendFrontPanelByte(FRONT_MCU_FW);
-	for(size_t i=0; i<sizeof(tmp); i++)
-		SendFrontPanelByte(tmp[i]);
-	SetFrontPanelCS(1);
+		Rationale:
+		* If IBC or supervisor is reflashed, we will lose power and reset
+		* If we are reflashed, we will obviously reset
+		* If FPGA is reprogrammed, we will be reset by the supervisor
 
-	//Supervisor firmware version
-	SetFrontPanelCS(0);
-	SendFrontPanelByte(FRONT_SUPER_FW);
-	for(size_t i=0; i<sizeof(g_superVersion); i++)
-		SendFrontPanelByte(g_superVersion[i]);
-	SetFrontPanelCS(1);
-
-	//IBC firmware version
-	SetFrontPanelCS(0);
-	SendFrontPanelByte(FRONT_IBC_FW);
-	for(size_t i=0; i<sizeof(g_ibcVersion); i++)
-		SendFrontPanelByte(g_ibcVersion[i]);
-	SetFrontPanelCS(1);
-
-	//Format FPGA firmware string based on the usercode (see XAPP1232)
-	buf.Clear();
-	int day = g_usercode >> 27;
-	int mon = (g_usercode >> 23) & 0xf;
-	int yr = 2000 + ((g_usercode >> 17) & 0x3f);
-	int hr = (g_usercode >> 12) & 0x1f;
-	int min = (g_usercode >> 6) & 0x3f;
-	int sec = g_usercode & 0x3f;
-	static const char* months[16] =
+		But if front panel is reflashed, it won't show version strings until we reset the main MCU.
+		This probably isn't a huge deal?
+	 */
+	if(firstRefresh)
 	{
-		"",		//months in usercode use 1-based indexing
-		"Jan",
-		"Feb",
-		"Mar",
-		"Apr",
-		"May",
-		"Jun",
-		"Jul",
-		"Aug",
-		"Sep",
-		"Oct",
-		"Nov",
-		"Dec",
-		"",
-		"",
-		""
-	};
-	buf.Printf("%s %2d %04d %02d%02d%02d", months[mon], day, yr, hr, min, sec);
-	SetFrontPanelCS(0);
-	SendFrontPanelByte(FRONT_FPGA_FW);
-	for(size_t i=0; i<sizeof(tmp); i++)
-		SendFrontPanelByte(tmp[i]);
-	SetFrontPanelCS(1);
+		//Set serial number
+		SetFrontPanelCS(0);
+		SendFrontPanelByte(FRONT_SERIAL);
+		for(size_t i=0; i<8; i++)
+			SendFrontPanelByte(g_fpgaSerial[i]);
+		SetFrontPanelCS(1);
+
+		//Our firmware version number
+		static const char* buildtime = __TIME__;
+		buf.Clear();
+		buf.Printf("%s %c%c%c%c%c%c",
+			__DATE__, buildtime[0], buildtime[1], buildtime[3], buildtime[4], buildtime[6], buildtime[7]);
+		buf.Printf("hai");
+		SetFrontPanelCS(0);
+		SendFrontPanelByte(FRONT_MCU_FW);
+		for(size_t i=0; i<sizeof(tmp); i++)
+			SendFrontPanelByte(tmp[i]);
+		SetFrontPanelCS(1);
+
+		//Supervisor firmware version
+		SetFrontPanelCS(0);
+		SendFrontPanelByte(FRONT_SUPER_FW);
+		for(size_t i=0; i<sizeof(g_superVersion); i++)
+			SendFrontPanelByte(g_superVersion[i]);
+		SetFrontPanelCS(1);
+
+		//IBC firmware version
+		SetFrontPanelCS(0);
+		SendFrontPanelByte(FRONT_IBC_FW);
+		for(size_t i=0; i<sizeof(g_ibcVersion); i++)
+			SendFrontPanelByte(g_ibcVersion[i]);
+		SetFrontPanelCS(1);
+
+		//Format FPGA firmware string based on the usercode (see XAPP1232)
+		buf.Clear();
+		int day = g_usercode >> 27;
+		int mon = (g_usercode >> 23) & 0xf;
+		int yr = 2000 + ((g_usercode >> 17) & 0x3f);
+		int hr = (g_usercode >> 12) & 0x1f;
+		int min = (g_usercode >> 6) & 0x3f;
+		int sec = g_usercode & 0x3f;
+		static const char* months[16] =
+		{
+			"",		//months in usercode use 1-based indexing
+			"Jan",
+			"Feb",
+			"Mar",
+			"Apr",
+			"May",
+			"Jun",
+			"Jul",
+			"Aug",
+			"Sep",
+			"Oct",
+			"Nov",
+			"Dec",
+			"",
+			"",
+			""
+		};
+		buf.Printf("%s %2d %04d %02d%02d%02d", months[mon], day, yr, hr, min, sec);
+		SetFrontPanelCS(0);
+		SendFrontPanelByte(FRONT_FPGA_FW);
+		for(size_t i=0; i<sizeof(tmp); i++)
+			SendFrontPanelByte(tmp[i]);
+		SetFrontPanelCS(1);
+	}
 
 	//Temperatures
 	SendFrontPanelSensor(FRONT_FPGA_TEMP, GetFPGATemperature());
@@ -386,21 +376,7 @@ void UpdateFrontPanelDisplay()
 	//Fan
 	SendFrontPanelSensor(FRONT_FAN_RPM, GetFanRPM(0));
 
-	//Refresh the display
-	SetFrontPanelCS(0);
-	SendFrontPanelByte(FRONT_REFRESH);
-	SetFrontPanelCS(1);
-
-	//Don't update the display more than once every N seconds (since it might still be busy)
-	//(we have to run this open loop because of the STM32 errata that prevents us from reading
-	//data on the SPI bus going to the front panel)
-	if(firstRefresh)
-	{
-		g_displayCooldown = 35;
-		firstRefresh = false;
-	}
-	else
-		g_displayCooldown = 1;
+	firstRefresh = false;
 }
 
 uint16_t SupervisorRegRead(uint8_t regid)

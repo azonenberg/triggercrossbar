@@ -83,6 +83,8 @@ uint16_t g_vout = 0;
 uint16_t g_iout = 0;
 uint16_t g_fanspeed = 0;
 
+bool g_blinkState = true;
+
 int main()
 {
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
@@ -105,6 +107,7 @@ int main()
 
 	//Main event loop
 	const int logTimerMax = 60000;
+	uint32_t next1HzTick = 0;
 	uint8_t nbyte = 0;
 	uint8_t cmd = 0;
 	while(1)
@@ -112,18 +115,33 @@ int main()
 		//TODO: blinking of bad values (fan failure etc)
 		//TODO: force full refresh once a day?
 
-		//See if the display is refreshing still
-		if(g_display->IsRefreshInProgress())
-		{
-			if(g_display->PollRefreshComplete())
-			{
-				g_display->FinishRefresh();
-				g_log("display refresh complete\n");
-			}
-		}
-
 		//Check for overflows on our log message timer
 		g_log.UpdateOffset(logTimerMax);
+
+		//Run the display state machine
+		g_display->OnTick();
+
+		//See if the display is refreshing still, finish up if so
+		/*if(g_display->IsRefreshInProgress())
+		{
+			if(g_display->PollRefreshComplete())
+				g_display->FinishRefresh();
+		}*/
+
+		//1 Hz timer event for display refreshes
+		if(g_logTimer->GetCount() > next1HzTick)
+		{
+			next1HzTick = g_logTimer->GetCount() + 10000;
+			if(next1HzTick > logTimerMax)
+				next1HzTick -= logTimerMax;
+
+			//Update display if it's not already in progress
+			if(!g_display->IsRefreshInProgress())
+			{
+				g_blinkState = !g_blinkState;
+				RefreshDisplay();
+			}
+		}
 
 		//Reset byte counter on CS# high
 		auto cs = *g_fpgaSPICS;
@@ -140,9 +158,7 @@ int main()
 			{
 				cmd = data;
 
-				//Refresh the display immediately
-				if(cmd == FRONT_REFRESH)
-					RefreshDisplay();
+				//TODO: act on any single-byte commands if needed
 			}
 
 			//Then comes data bytes
@@ -786,7 +802,17 @@ void RefreshDisplay()
 	g_display->Line(lineright, ytop, lineright, texty, true);
 	g_display->Line(xright, ytop, xright, texty, true);
 
-	//Done, push the update to the display
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Debug test
+
+	textleft = 5;
+	texty = 12;
+	g_display->FilledRect(textleft, texty, textleft + 50, texty + textheight, g_blinkState);
+
+	g_display->Text6x8(textleft, texty, "hai world", !g_blinkState);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Done, push the update to the display
 	g_display->StartRefresh();
 }
 

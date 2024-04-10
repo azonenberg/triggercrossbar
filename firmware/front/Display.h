@@ -36,11 +36,10 @@ public:
 	Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin* rst);
 
 	void StartRefresh();
-	bool PollRefreshComplete();
-	void FinishRefresh();
+	void OnTick();
 
 	bool IsRefreshInProgress()
-	{ return m_refreshInProgress; }
+	{ return (m_refreshState != STATE_IDLE) && (m_refreshState != STATE_IDLE_FIRST); }
 
 	void Clear();
 
@@ -49,6 +48,7 @@ public:
 	void Text8x16(int16_t x, int16_t y, const char* str, bool black);
 	void Text6x8(int16_t x, int16_t y, const char* str, bool black);
 	void Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black);
+	void FilledRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black);
 
 protected:
 	void LineLow(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black);
@@ -74,8 +74,35 @@ protected:
 	const uint16_t m_width;
 	const uint16_t m_height;
 
-	bool m_refreshInProgress;
-	bool m_firstRefresh;
+	enum
+	{
+		//Idle, awaiting first refresh
+		STATE_IDLE_FIRST,
+
+		//Idle, awaiting a normal refresh
+		STATE_IDLE,
+
+		//Slow refresh path
+		STATE_REFRESH_SLOW_INIT,
+		STATE_REFRESH_SLOW_DATA0,
+		STATE_REFRESH_SLOW_DATA1,
+
+		//Fast refresh path
+		STATE_REFRESH_FAST_INIT,
+		STATE_REFRESH_FAST_INIT2,
+		STATE_REFRESH_FAST_DATA0,
+		STATE_REFRESH_FAST_DATA1,
+
+		//Finish a refresh
+		STATE_REFRESH_FINAL1,
+		STATE_REFRESH_FINAL2,
+		STATE_REFRESH_FINAL3,
+		STATE_REFRESH_FINAL4,
+
+		//DEBUG: do nothing
+		STATE_HANG
+
+	} m_refreshState;
 
 	uint8_t m_psr0;
 	uint8_t m_psr1;

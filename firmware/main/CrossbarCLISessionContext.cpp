@@ -61,7 +61,6 @@ enum cmdid_t
 	CMD_NO,
 	CMD_RELOAD,
 	CMD_REGISTER,
-	CMD_REFRESH,
 	CMD_ROLLBACK,
 	CMD_ROUTE,
 	CMD_SET,
@@ -323,7 +322,6 @@ static const clikeyword_t g_rootCommands[] =
 	{"hostname",	CMD_HOSTNAME,		g_hostnameCommands,		"Change the host name"},
 	//{"ip",			CMD_IP,				g_ipCommands,			"Configure IP addresses"},
 	{"no",			CMD_NO,				g_noCommands,			"Remove or disable features"},
-	{"refresh",		CMD_REFRESH,		nullptr,				"Refresh the front panel display"},
 	{"reload",		CMD_RELOAD,			nullptr,				"Restart the system"},
 	{"rollback",	CMD_ROLLBACK,		nullptr,				"Revert changes made since last commit"},
 	{"set",			CMD_SET,			g_setCommands,			"Set raw hardware registers"},
@@ -423,10 +421,6 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 
 		case CMD_NO:
 			OnNoCommand();
-			break;
-
-		case CMD_REFRESH:
-			UpdateFrontPanelDisplay();
 			break;
 
 		case CMD_RELOAD:
