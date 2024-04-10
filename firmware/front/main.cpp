@@ -599,7 +599,6 @@ void RefreshDisplay()
 	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//Line between IP info and serial
-	texty --;
 	g_display->Line(xleft, texty, lineright, texty, true);
 	texty -= 2;
 
@@ -612,7 +611,6 @@ void RefreshDisplay()
 	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//Line between serial and version
-	texty --;
 	g_display->Line(xleft, texty, lineright, texty, true);
 	texty -= 2;
 
