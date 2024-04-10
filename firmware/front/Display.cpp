@@ -443,18 +443,20 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 
 	//Clear both bitplanes to blank
 	Clear();
+	Clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // High level interface
 
 /**
-	@brief Reset the framebuffer to blank
+	@brief Copy the current framebuffer to the old, and reset it to blank
  */
 void Display::Clear()
 {
-	memset(m_blackFramebuffer, 0, sizeof(m_blackFramebuffer));
-	memset(m_redFramebuffer, 0, sizeof(m_redFramebuffer));
+	memcpy(m_oldFramebuffer, m_framebuffer, sizeof(m_framebuffer));
+
+	memset(m_framebuffer, 0, sizeof(m_framebuffer));
 }
 
 /**
@@ -462,7 +464,7 @@ void Display::Clear()
 
 	With a 6x8 pixel font, we get 13 lines x 35.5 chars wide.
  */
-void Display::Text6x8(int16_t x, int16_t y, const char* str, bool red, bool black)
+void Display::Text6x8(int16_t x, int16_t y, const char* str, bool black)
 {
 	const int fontwidth = 5;
 	const int fontheight = 8;
@@ -493,7 +495,7 @@ void Display::Text6x8(int16_t x, int16_t y, const char* str, bool red, bool blac
 			for(int16_t dy=0; dy<fontheight; dy++)
 			{
 				if(col & (1 << dy) )
-					SetPixel(x + dx, y + fontheight - dy, red, black);
+					SetPixel(x + dx, y + fontheight - dy, black);
 			}
 		}
 
@@ -519,7 +521,7 @@ void Display::Text6x8(int16_t x, int16_t y, const char* str, bool red, bool blac
 
 	With an 8x16 pixel font, we get 6.5 lines x 26.5 chars wide.
  */
-void Display::Text8x16(int16_t x, int16_t y, const char* str, bool red, bool black)
+void Display::Text8x16(int16_t x, int16_t y, const char* str, bool black)
 {
 	const int fontwidth = 8;
 	const int fontheight = 15;
@@ -550,7 +552,7 @@ void Display::Text8x16(int16_t x, int16_t y, const char* str, bool red, bool bla
 			for(int16_t dx=0; dx<fontwidth; dx++)
 			{
 				if(row & (1 << dx) )
-					SetPixel(x + dx, y + fontheight - dy, red, black);
+					SetPixel(x + dx, y + fontheight - dy, black);
 			}
 		}
 
@@ -574,28 +576,28 @@ void Display::Text8x16(int16_t x, int16_t y, const char* str, bool red, bool bla
 /**
 	@brief Bresenham line drawing (based on pseudocode at https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm)
  */
-void Display::Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool red, bool black)
+void Display::Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black)
 {
 	if(abs(y1 - y0) < abs(x1 - x0))
 	{
 		if(x0 > x1)
-			LineLow(x1, y1, x0, y0, red, black);
+			LineLow(x1, y1, x0, y0, black);
 		else
-			LineLow(x0, y0, x1, y1, red, black);
+			LineLow(x0, y0, x1, y1, black);
 	}
 	else
 	{
 		if(y0 > y1)
-			LineHigh(x1, y1, x0, y0, red, black);
+			LineHigh(x1, y1, x0, y0, black);
 		else
-			LineHigh(x0, y0, x1, y1, red, black);
+			LineHigh(x0, y0, x1, y1, black);
 	}
 }
 
 /**
 	@brief Shallow slope implementation
  */
-void Display::LineLow(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool red, bool black)
+void Display::LineLow(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black)
 {
 	int16_t dx = x1 - x0;
 	int16_t dy = y1 - y0;
@@ -612,7 +614,7 @@ void Display::LineLow(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool red, 
 
 	for(int16_t x = x0; x<= x1; x++)
 	{
-		SetPixel(x, y, red, black);
+		SetPixel(x, y, black);
 
 		if(d > 0)
 		{
@@ -627,7 +629,7 @@ void Display::LineLow(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool red, 
 /**
 	@brief Steep slope implementation
  */
-void Display::LineHigh(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool red, bool black)
+void Display::LineHigh(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black)
 {
 	int16_t dx = x1 - x0;
 	int16_t dy = y1 - y0;
@@ -644,7 +646,7 @@ void Display::LineHigh(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool red,
 
 	for(int16_t y = y0; y<= y1; y++)
 	{
-		SetPixel(x, y, red, black);
+		SetPixel(x, y, black);
 
 		if(d > 0)
 		{
@@ -662,7 +664,7 @@ void Display::LineHigh(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool red,
 /**
 	@brief Sets a single pixel in the framebuffer
  */
-void Display::SetPixel(uint8_t x, uint8_t y, bool red, bool black)
+void Display::SetPixel(uint8_t x, uint8_t y, bool black)
 {
 	//Image scan order: bottom left to top left is first scanline
 	//bottom right to top right is last scanline
@@ -678,15 +680,10 @@ void Display::SetPixel(uint8_t x, uint8_t y, bool red, bool black)
 	uint8_t bitmask = (1 << nbit);
 
 	//Do the actual write operations
-	if(red)
-		m_redFramebuffer[coloff + nbyte] |= bitmask;
-	else
-		m_redFramebuffer[coloff + nbyte] &= ~bitmask;
-
 	if(black)
-		m_blackFramebuffer[coloff + nbyte] |= bitmask;
+		m_framebuffer[coloff + nbyte] |= bitmask;
 	else
-		m_blackFramebuffer[coloff + nbyte] &= ~bitmask;
+		m_framebuffer[coloff + nbyte] &= ~bitmask;
 }
 
 /**
@@ -695,6 +692,9 @@ void Display::SetPixel(uint8_t x, uint8_t y, bool red, bool black)
 void Display::StartRefresh()
 {
 	m_refreshInProgress = true;
+
+	//Full refresh
+	memset(m_oldFramebuffer, 0, sizeof(m_oldFramebuffer));
 
 	//Send temperature
 	auto temp = ReadThermalSensor(g_tempI2cAddress);
@@ -710,14 +710,14 @@ void Display::StartRefresh()
 	SendData(0xcf);
 	SendData(0x89);
 
-	//First bitplane is 1=black, second is 1=red. 0 for both means white.
+	//First bitplane is active, second is old
 	//TODO: can we DMA/interrupt this?
 	SendCommand(0x10);
 	for(int32_t i=0; i<2756; i++)
-		SendData(m_blackFramebuffer[i]);
+		SendData(m_framebuffer[i]);
 	SendCommand(0x13);
 	for(int32_t i=0; i<2756; i++)
-		SendData(m_redFramebuffer[i]);
+		SendData(m_oldFramebuffer[i]);
 	while(*m_busy_n == 0)
 	{}
 

@@ -575,29 +575,29 @@ void RefreshDisplay()
 
 	//Line at top of text
 	uint8_t texty = ytop;
-	g_display->Line(xleft, ytop, lineright, ytop, false, true);
+	g_display->Line(xleft, ytop, lineright, ytop, true);
 	texty -= 2;
 
 	//Top row: IPv4 address
 	texty -= textheight;
 	buf.Clear();
 	buf.Printf("IPv4  %d.%d.%d.%d", g_ipv4Addr[0], g_ipv4Addr[1], g_ipv4Addr[2], g_ipv4Addr[3]);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//Next rows: IPv6 address
 	texty -= textheight;
 	buf.Clear();
 	buf.Printf("IPv6  %x:%x:%x:%x:", g_ipv6Addr[0], g_ipv6Addr[1], g_ipv6Addr[2], g_ipv6Addr[3]);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	texty -= textheight;
 	buf.Clear();
 	buf.Printf("      %x:%x:%x:%x", g_ipv6Addr[4], g_ipv6Addr[5], g_ipv6Addr[6], g_ipv6Addr[7]);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//Line between IP info and serial
 	texty --;
-	g_display->Line(xleft, texty, lineright, texty, false, true);
+	g_display->Line(xleft, texty, lineright, texty, true);
 	texty -= 2;
 
 	//Serial number
@@ -606,48 +606,48 @@ void RefreshDisplay()
 	buf.Printf("S/N   %02x%02x%02x%02x%02x%02x%02x%02x",
 		g_serial[0], g_serial[1], g_serial[2], g_serial[3],
 		g_serial[4], g_serial[5], g_serial[6], g_serial[7]);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//Line between serial and version
 	texty --;
-	g_display->Line(xleft, texty, lineright, texty, false, true);
+	g_display->Line(xleft, texty, lineright, texty, true);
 	texty -= 2;
 
 	//Version info
 	texty -= textheight;
 	buf.Clear();
 	buf.Printf("IBC   %s", g_ibcFirmware);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	texty -= textheight;
 	buf.Clear();
 	buf.Printf("Super %s", g_superFirmware);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	texty -= textheight;
 	static const char* buildtime = __TIME__;
 	buf.Clear();
 	buf.Printf("Panel %s %c%c%c%c%c%c",
 		__DATE__, buildtime[0], buildtime[1], buildtime[3], buildtime[4], buildtime[6], buildtime[7]);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	texty -= textheight;
 	buf.Clear();
 	buf.Printf("MCU   %s", g_mcuFirmware);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	texty -= textheight;
 	buf.Clear();
 	buf.Printf("FPGA  %s", g_fpgaFirmware);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//Line below version info
 	texty --;
-	g_display->Line(xleft, texty, lineright, texty, false, true);
+	g_display->Line(xleft, texty, lineright, texty, true);
 
 	//Vertical line at left and right of text
-	g_display->Line(xleft, ytop, xleft, texty, false, true);
-	g_display->Line(lineright, ytop, lineright, texty, false, true);
+	g_display->Line(xleft, ytop, xleft, texty, true);
+	g_display->Line(lineright, ytop, lineright, texty, true);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Top right: Ethernet state
@@ -681,10 +681,10 @@ void RefreshDisplay()
 			linkSpeed = " DOWN";
 			break;
 	}
-	if(g_linkSpeed > 3)
-		g_display->Text6x8(linkx, texty, linkSpeed, true, false);
+	if(g_linkSpeed > 3)	//TODO: link down should be reverse video?
+		g_display->Text6x8(linkx, texty, linkSpeed, true);
 	else
-		g_display->Text6x8(linkx, texty, linkSpeed, false, true);
+		g_display->Text6x8(linkx, texty, linkSpeed, true);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Right area: system health
@@ -692,7 +692,7 @@ void RefreshDisplay()
 	texty = ytop;
 
 	//Horizontal line at top
-	g_display->Line(lineright, texty, xright, texty, false, true);
+	g_display->Line(lineright, texty, xright, texty, true);
 	texty -= 2;
 
 	//IBC input stats
@@ -700,42 +700,42 @@ void RefreshDisplay()
 	texty -= textheight;
 	buf.Clear();
 	buf.Printf("IN %2d.%03dV", g_vin / 1000, g_vin % 1000);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	texty -= textheight;
 	buf.Clear();
 	buf.Printf("   %2d.%03dA", g_iin / 1000, g_iin % 1000);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	texty -= textheight;
 	uint32_t pwr = ( (uint32_t)g_vin * (uint32_t)g_iin ) / 1000;	//gives power in mW
 	buf.Clear();
 	buf.Printf("   %2d.%03dW", pwr / 1000, pwr % 1000);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//horizontal line between input and output stats
-	g_display->Line(lineright, texty, xright, texty, false, true);
+	g_display->Line(lineright, texty, xright, texty, true);
 	texty -= 2;
 
 	//IBC output stats
 	texty -= textheight;
 	buf.Clear();
 	buf.Printf("OP %2d.%03dV", g_vout / 1000, g_vout % 1000);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	texty -= textheight;
 	buf.Clear();
 	buf.Printf("   %2d.%03dA", g_iout / 1000, g_iout % 1000);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	texty -= textheight;
 	pwr = ( (uint32_t)g_vout * (uint32_t)g_iout ) / 1000;
 	buf.Clear();
 	buf.Printf("   %2d.%03dW", pwr / 1000, pwr % 1000);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//Horizontal line before temps
-	g_display->Line(lineright, texty, xright, texty, false, true);
+	g_display->Line(lineright, texty, xright, texty, true);
 	texty -= 2;
 
 	//IBC temperature
@@ -744,21 +744,21 @@ void RefreshDisplay()
 	int degfrac = (g_ibcTemp & 0xff) * 10;
 	buf.Clear();
 	buf.Printf("IBC  %2d.%dC", degreal, degfrac >> 8);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	texty -= textheight;
 	degreal = g_mcuTemp >> 8;
 	degfrac = (g_mcuTemp & 0xff) * 10;
 	buf.Clear();
 	buf.Printf("MCU  %2d.%dC", degreal, degfrac >> 8);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	texty -= textheight;
 	degreal = g_fpgaTemp >> 8;
 	degfrac = (g_fpgaTemp & 0xff) * 10;
 	buf.Clear();
 	buf.Printf("FPGA %2d.%dC", degreal, degfrac >> 8);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	texty -= textheight;
 	auto fronttemp = ReadThermalSensor(g_tempI2cAddress);
@@ -766,23 +766,24 @@ void RefreshDisplay()
 	degfrac = (fronttemp & 0xff) * 10;
 	buf.Clear();
 	buf.Printf("PANL %2d.%dC", degreal, degfrac >> 8);
-	g_display->Text6x8(textleft, texty, tmp, false, true);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//Get the fan speed
 	texty -= textheight;
 	buf.Clear();
+	//TODO: fan fault should be reverse video?
 	buf.Printf("FAN  %5d", g_fanspeed);
 	bool fanSpeedOK = true;
 	if( (g_fanspeed < 7000) || (g_fanspeed > 15000) )
 		fanSpeedOK = false;
-	g_display->Text6x8(textleft, texty, tmp, !fanSpeedOK, fanSpeedOK);
+	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//horizontal line below text
-	g_display->Line(lineright, texty, xright, texty, false, true);
+	g_display->Line(lineright, texty, xright, texty, true);
 
 	//Vertical line at left and right side
-	g_display->Line(lineright, ytop, lineright, texty, false, true);
-	g_display->Line(xright, ytop, xright, texty, false, true);
+	g_display->Line(lineright, ytop, lineright, texty, true);
+	g_display->Line(xright, ytop, xright, texty, true);
 
 	//Done, push the update to the display
 	g_display->StartRefresh();

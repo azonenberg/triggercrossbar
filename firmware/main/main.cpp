@@ -168,7 +168,7 @@ int main()
 			g_ethProtocol->OnAgingTick();
 			next1HzTick = g_logTimer->GetCount() + 10000;
 
-			//Don't update the display more than once every 45 sec
+			//Don't update the display more than once every 5 sec
 			if(g_displayCooldown)
 				g_displayCooldown --;
 
@@ -388,7 +388,9 @@ void UpdateFrontPanelDisplay()
 	SetFrontPanelCS(1);
 
 	//Don't update the display more than once every N seconds (since it might still be busy)
-	g_displayCooldown = 45;
+	//(we have to run this open loop because of the STM32 errata that prevents us from reading
+	//data on the SPI bus going to the front panel)
+	g_displayCooldown = 6;
 }
 
 uint16_t SupervisorRegRead(uint8_t regid)

@@ -44,15 +44,15 @@ public:
 
 	void Clear();
 
-	void SetPixel(uint8_t x, uint8_t y, bool red, bool black);
+	void SetPixel(uint8_t x, uint8_t y, bool black);
 
-	void Text8x16(int16_t x, int16_t y, const char* str, bool red, bool black);
-	void Text6x8(int16_t x, int16_t y, const char* str, bool red, bool black);
-	void Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool red, bool black);
+	void Text8x16(int16_t x, int16_t y, const char* str, bool black);
+	void Text6x8(int16_t x, int16_t y, const char* str, bool black);
+	void Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black);
 
 protected:
-	void LineLow(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool red, bool black);
-	void LineHigh(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool red, bool black);
+	void LineLow(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black);
+	void LineHigh(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black);
 
 protected:
 	SPI* m_spi;
@@ -64,11 +64,11 @@ protected:
 	void SendCommand(uint8_t cmd);
 	void SendData(uint8_t data);
 
-	//Framebuffer black bitplane
-	uint8_t m_blackFramebuffer[2756];
+	//Framebuffer active bitplane
+	uint8_t m_framebuffer[2756];
 
-	//Framebuffer red bitplane
-	uint8_t m_redFramebuffer[2756];
+	//Framebuffer old bitplane (used for partial updates)
+	uint8_t m_oldFramebuffer[2756];
 
 	const uint16_t m_width;
 	const uint16_t m_height;
