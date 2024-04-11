@@ -273,6 +273,9 @@ void UpdateFrontPanelDisplay()
 		SendFrontPanelByte(g_ipConfig.m_address.m_octets[i]);
 	SetFrontPanelCS(1);
 
+	//IPv4 prefix length
+	SendFrontPanelSensor(FRONT_IP4_SUBNET, __builtin_popcount(g_ipConfig.m_netmask.m_word));
+
 	//TODO: set IPv6 address
 
 	//Set Ethernet link state

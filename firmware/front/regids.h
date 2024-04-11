@@ -44,6 +44,8 @@ enum front_regid_t
 	FRONT_IBC_FW		= 0x05,	//IBC firmware revision
 	FRONT_SUPER_FW		= 0x06,	//Supervisor firmware revision
 	FRONT_FPGA_FW		= 0x07,	//FPGA firmware revision
+	FRONT_IP4_SUBNET	= 0x08,	//Subnet mask
+	FRONT_IP6_SUBNET	= 0x09,	//Subnet mask
 
 	FRONT_FPGA_TEMP		= 0x10,	//FPGA die temperature
 	FRONT_MCU_TEMP		= 0x11,	//MCU die temperature

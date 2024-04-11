@@ -82,6 +82,10 @@ uint16_t g_iin = 0;
 uint16_t g_vout = 0;
 uint16_t g_iout = 0;
 uint16_t g_fanspeed = 0;
+uint16_t g_ipv4SubnetSize = 0;
+uint16_t g_ipv6SubnetSize = 0;
+
+bool RxSPIString(uint8_t nbyte, char* buf, uint8_t size, uint8_t data);
 
 int main()
 {
@@ -212,26 +216,26 @@ int main()
 
 					//Main MCU firmware
 					case FRONT_MCU_FW:
-						if(nbyte < sizeof(g_mcuFirmware)-1)
-							g_mcuFirmware[nbyte-1] = data;
+						if(RxSPIString(nbyte, g_mcuFirmware, sizeof(g_mcuFirmware), data))
+							nextDisplayRefresh = 0;
 						break;
 
 					//IBC MCU firmware
 					case FRONT_IBC_FW:
-						if(nbyte < sizeof(g_ibcFirmware)-1)
-							g_ibcFirmware[nbyte-1] = data;
+						if(RxSPIString(nbyte, g_ibcFirmware, sizeof(g_ibcFirmware), data))
+							nextDisplayRefresh = 0;
 						break;
 
 					//Supervisor MCU firmware
 					case FRONT_SUPER_FW:
-						if(nbyte < sizeof(g_superFirmware)-1)
-							g_superFirmware[nbyte-1] = data;
+						if(RxSPIString(nbyte, g_superFirmware, sizeof(g_superFirmware), data))
+							nextDisplayRefresh = 0;
 						break;
 
 					//FPGA firmware
 					case FRONT_FPGA_FW:
-						if(nbyte < sizeof(g_fpgaFirmware)-1)
-							g_fpgaFirmware[nbyte-1] = data;
+						if(RxSPIString(nbyte, g_fpgaFirmware, sizeof(g_fpgaFirmware), data))
+							nextDisplayRefresh = 0;
 						break;
 
 					//FPGA die temperature
@@ -294,6 +298,20 @@ int main()
 							g_fanspeed |= data << 8;
 						break;
 
+					//Subnet mask
+					case FRONT_IP4_SUBNET:
+						if(nbyte == 1)
+							g_ipv4SubnetSize = data;
+						else if(nbyte == 2)
+							g_ipv4SubnetSize |= data << 8;
+						break;
+					case FRONT_IP6_SUBNET:
+						if(nbyte == 1)
+							g_ipv6SubnetSize = data;
+						else if(nbyte == 2)
+							g_ipv6SubnetSize |= data << 8;
+						break;
+
 					//Port direction indicator LEDs
 					case FRONT_DIR_LEDS:
 						*g_outmodeLED[0] = (data & 1) == 1;
@@ -326,6 +344,23 @@ int main()
 	}
 
 	return 0;
+}
+
+/**
+	@brief Receive a string, return true if value has changed
+ */
+bool RxSPIString(uint8_t nbyte, char* buf, uint8_t size, uint8_t data)
+{
+	bool changed = false;
+	if(nbyte < size-1)
+	{
+		//If value changed, trigger a display refresh
+		if(g_mcuFirmware[nbyte-1] != data)
+			changed = true;
+
+		buf[nbyte-1] = data;
+	}
+	return changed;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -612,10 +647,45 @@ void RefreshDisplay(bool forceFull)
 	g_display->Line(xleft, ytop, lineright, ytop, true);
 	texty -= 2;
 
-	//Top row: IPv4 address
+	//Top row: link speed
+	texty -= textheight;
+	const char* linkSpeed = "";
+	switch(g_linkSpeed)
+	{
+		case 0:
+			linkSpeed = "10M";
+			break;
+
+		case 1:
+			linkSpeed = "100M";
+			break;
+
+		case 2:
+			linkSpeed = "1000M";
+			break;
+
+		case 3:
+			linkSpeed = "10G";
+			break;
+
+		default:
+			linkSpeed = "DOWN";
+			break;
+	}
+	g_display->Text6x8(textleft, texty, "Link", true);
+	uint8_t vleft = 6*textwidth + textleft;
+	if(g_linkSpeed > 3)
+	{
+		g_display->FilledRect(vleft - 1, texty, vleft + 4*textwidth + 1, texty + textheight+1, true);
+		g_display->Text6x8(vleft, texty, linkSpeed, false);
+	}
+	else
+		g_display->Text6x8(vleft, texty, linkSpeed, true);
+
+	//IPv4 address and subnet mask
 	texty -= textheight;
 	buf.Clear();
-	buf.Printf("IPv4  %d.%d.%d.%d", g_ipv4Addr[0], g_ipv4Addr[1], g_ipv4Addr[2], g_ipv4Addr[3]);
+	buf.Printf("IPv4  %d.%d.%d.%d/%d", g_ipv4Addr[0], g_ipv4Addr[1], g_ipv4Addr[2], g_ipv4Addr[3], g_ipv4SubnetSize);
 	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//Next rows: IPv6 address
@@ -626,7 +696,7 @@ void RefreshDisplay(bool forceFull)
 
 	texty -= textheight;
 	buf.Clear();
-	buf.Printf("      %x:%x:%x:%x", g_ipv6Addr[4], g_ipv6Addr[5], g_ipv6Addr[6], g_ipv6Addr[7]);
+	buf.Printf("      %x:%x:%x:%x/%d", g_ipv6Addr[4], g_ipv6Addr[5], g_ipv6Addr[6], g_ipv6Addr[7], g_ipv6SubnetSize);
 	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//Line between IP info and serial
@@ -680,46 +750,6 @@ void RefreshDisplay(bool forceFull)
 	//Vertical line at left and right of text
 	g_display->Line(xleft, ytop, xleft, texty, true);
 	g_display->Line(lineright, ytop, lineright, texty, true);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Top right: Ethernet state
-
-	texty = ytop;
-	texty -= 2;
-
-	//Top right corner: SFP+ or baseT indicator
-	uint8_t linkx = textright - textwidth*5;
-	texty -= textheight;
-	const char* linkSpeed = "";
-	switch(g_linkSpeed)
-	{
-		case 0:
-			linkSpeed = "  10M";
-			break;
-
-		case 1:
-			linkSpeed = " 100M";
-			break;
-
-		case 2:
-			linkSpeed = "1000M";
-			break;
-
-		case 3:
-			linkSpeed = "  10G";
-			break;
-
-		default:
-			linkSpeed = " DOWN";
-			break;
-	}
-	if(g_linkSpeed > 3)
-	{
-		g_display->FilledRect(linkx - 1, texty, lineright, texty + textheight+1, true);
-		g_display->Text6x8(linkx, texty, linkSpeed, false);
-	}
-	else
-		g_display->Text6x8(linkx, texty, linkSpeed, true);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Right area: system health
