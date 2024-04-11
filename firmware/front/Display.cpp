@@ -421,12 +421,13 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 	, m_rst_n(rst)
 	, m_width(212)
 	, m_height(104)
-	, m_refreshState(STATE_IDLE_FIRST)
+	, m_refreshState(STATE_IDLE)
 {
 	//Deassert SPI CS#
 	*m_cs_n = 1;
 
 	g_log("Resetting display\n");
+	g_logTimer->Sleep(1000);
 
 	//Reset the display, need 5ms between each cycle
 	*m_rst_n = 1;
@@ -435,6 +436,8 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 	g_logTimer->Sleep(500);
 	*m_rst_n = 1;
 	g_logTimer->Sleep(500);
+
+	//wait for busy to clear
 
 	//Soft reset
 	SendCommand(0x00);
@@ -466,6 +469,18 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 			g_log("Active OTP bank = %d\n", activeBank);
 		}
 
+		if(i == 0xc00)
+		{
+			if( (activeBank == 1) && (ret != 0xa5) )
+			{
+				g_log("Not seeing good data on OTP bank 1 either (ret = %02x), using defaults\n", ret);
+				m_psr0 = 0xcf;
+				m_psr1 = 0x02;
+				activeBank = 2;
+				break;
+			}
+		}
+
 		if(activeBank == 0)
 		{
 			//seems there's an off-by-one where we count bytes since the 0xa5, so a5 isn't zero?
@@ -478,7 +493,7 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 			}
 		}
 
-		else
+		else if(activeBank == 1)
 		{
 			if(i == 0x171c)
 				m_psr0 = ret;
@@ -489,6 +504,7 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 			}
 		}
 	}
+
 	g_log("Done (psr0 = %02x, psr1 = %02x)\n", m_psr0, m_psr1);
 }
 
@@ -760,6 +776,8 @@ void Display::OnTick()
 
 		//Soft reset
 		case STATE_REFRESH_FAST_INIT:
+			g_log("fast refresh\n");
+
 			SendCommand(0x00);
 			SendData(0x0e);
 
@@ -774,7 +792,6 @@ void Display::OnTick()
 				auto temp = ReadThermalSensor(g_tempI2cAddress);
 				if(temp > 60)
 					temp = 60;
-
 
 				//Send temperature
 				SendCommand(0xe5);
@@ -825,6 +842,7 @@ void Display::OnTick()
 
 		//Initialization for the slow refresh path
 		case STATE_REFRESH_SLOW_INIT:
+			g_log("slow refresh\n");
 			{
 				//Get temperature and clamp to valid range
 				auto temp = ReadThermalSensor(g_tempI2cAddress);
@@ -871,6 +889,7 @@ void Display::OnTick()
 
 		//Wait for busy state then send power-on command
 		case STATE_REFRESH_FINAL1:
+
 			if(*m_busy_n)
 			{
 				SendCommand(0x04);
@@ -901,6 +920,10 @@ void Display::OnTick()
 			if(*m_busy_n)
 			{
 				memcpy(m_oldFramebuffer, m_framebuffer, sizeof(m_framebuffer));
+
+				SendCommand(0x00);
+				SendData(0x0e);
+
 				m_refreshState = STATE_IDLE;
 			}
 			break;
@@ -913,9 +936,9 @@ void Display::OnTick()
 /**
 	@brief Push the framebuffer to the display
  */
-void Display::StartRefresh()
+void Display::StartRefresh(bool forceFullScreenUpdate)
 {
-	if(m_refreshState == STATE_IDLE_FIRST)
+	if(forceFullScreenUpdate)
 		m_refreshState = STATE_REFRESH_SLOW_INIT;
 	else
 		m_refreshState = STATE_REFRESH_FAST_INIT;

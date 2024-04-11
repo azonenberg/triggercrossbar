@@ -49,7 +49,7 @@ void InitSensors();
 void InitExpander();
 void InitSPI();
 void InitDisplay();
-void RefreshDisplay();
+void RefreshDisplay(bool full);
 
 const uint8_t g_tempI2cAddress = 0x90;
 
@@ -83,8 +83,6 @@ uint16_t g_vout = 0;
 uint16_t g_iout = 0;
 uint16_t g_fanspeed = 0;
 
-bool g_blinkState = true;
-
 int main()
 {
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
@@ -105,6 +103,10 @@ int main()
 
 	g_log("Ready\n");
 
+	uint32_t nextDisplayRefresh = 30;
+	uint32_t nextFullRefresh = 5;		//Wait 5 sec after power up to do the first full refresh,
+										//so main FPGA and MCU have a chance to come up
+
 	//Main event loop
 	const int logTimerMax = 60000;
 	uint32_t next1HzTick = 0;
@@ -112,34 +114,40 @@ int main()
 	uint8_t cmd = 0;
 	while(1)
 	{
-		//TODO: blinking of bad values (fan failure etc)
-		//TODO: force full refresh once a day?
-
 		//Check for overflows on our log message timer
-		g_log.UpdateOffset(logTimerMax);
+		if(g_log.UpdateOffset(logTimerMax))
+			next1HzTick -= logTimerMax;
 
 		//Run the display state machine
 		g_display->OnTick();
-
-		//See if the display is refreshing still, finish up if so
-		/*if(g_display->IsRefreshInProgress())
-		{
-			if(g_display->PollRefreshComplete())
-				g_display->FinishRefresh();
-		}*/
 
 		//1 Hz timer event for display refreshes
 		if(g_logTimer->GetCount() > next1HzTick)
 		{
 			next1HzTick = g_logTimer->GetCount() + 10000;
-			if(next1HzTick > logTimerMax)
-				next1HzTick -= logTimerMax;
 
-			//Update display if it's not already in progress
+			//Force full (non-delta) update once a day to minimize ghosting
+
+			//Update display if needed
 			if(!g_display->IsRefreshInProgress())
 			{
-				g_blinkState = !g_blinkState;
-				RefreshDisplay();
+				//Full refresh once a day
+				if(nextFullRefresh == 0)
+				{
+					RefreshDisplay(true);
+					nextFullRefresh = 86400;
+				}
+
+				//Default to refreshing the display once an hour
+				else if(nextDisplayRefresh == 0)
+				{
+					RefreshDisplay(false);
+					nextDisplayRefresh = 3600;
+				}
+
+				//Bump timer counts
+				nextDisplayRefresh --;
+				nextFullRefresh --;
 			}
 		}
 
@@ -158,7 +166,7 @@ int main()
 			{
 				cmd = data;
 
-				//TODO: act on any single-byte commands if needed
+				//Act on any single-byte commands if needed
 			}
 
 			//Then comes data bytes
@@ -168,6 +176,11 @@ int main()
 				{
 					//Link speed
 					case FRONT_ETH_LINK:
+
+						//If speed changed, trigger a display refresh
+						if(g_linkSpeed != data)
+							nextDisplayRefresh = 0;
+
 						g_linkSpeed = data;
 						break;
 
@@ -504,12 +517,10 @@ void InitExpander()
 	static TCA6424A expander(g_i2c, 0x44);
 	g_expander = &expander;
 
-	//Set all the IOs as output
+	//Set all the IOs as output and turn them all on until the FPGA configures us
 	for(int i=0; i<24; i++)
 	{
 		expander.SetDirection(i, false);
-
-		//DEBUG: also turn all the LEDs on
 		expander.SetOutputValue(i, true);
 	}
 }
@@ -524,9 +535,9 @@ void InitSPI()
 	static GPIOPin display_mosi(&GPIOD, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
 	//MISO not used, bus is bidirectional
 
-	//Divide by 5 to get 8 MHz SPI
+	//Divide by 64 to get 625Hz SPI
 	//We can run up to 10 MHz for writes but readback Fmax is ~2 MHz
-	static SPI displaySPI(&SPI2, false, 5);
+	static SPI displaySPI(&SPI2, false, 64);
 	g_displaySPI = &displaySPI;
 
 	//Set up GPIOs for FPGA bus
@@ -565,12 +576,16 @@ void InitDisplay()
 	g_display = &display;
 
 	//Do not do an initial display refresh, the main MCU will do that when it's ready
+
+	//Change the SPI baud rate once the display has read the ROM
+	//div 16 = 2.5 MHz, should be fine
+	g_displaySPI->SetBaudDiv(32);
 }
 
 /**
 	@brief Draw stuff on the screen
  */
-void RefreshDisplay()
+void RefreshDisplay(bool forceFull)
 {
 	char tmp[128];
 	StringBuffer buf(tmp, sizeof(tmp));
@@ -698,8 +713,11 @@ void RefreshDisplay()
 			linkSpeed = " DOWN";
 			break;
 	}
-	if(g_linkSpeed > 3)	//TODO: link down should be reverse video?
-		g_display->Text6x8(linkx, texty, linkSpeed, true);
+	if(g_linkSpeed > 3)
+	{
+		g_display->FilledRect(linkx - 1, texty, lineright, texty + textheight+1, true);
+		g_display->Text6x8(linkx, texty, linkSpeed, false);
+	}
 	else
 		g_display->Text6x8(linkx, texty, linkSpeed, true);
 
@@ -803,17 +821,9 @@ void RefreshDisplay()
 	g_display->Line(xright, ytop, xright, texty, true);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Debug test
-
-	textleft = 5;
-	texty = 12;
-	g_display->FilledRect(textleft, texty, textleft + 50, texty + textheight, g_blinkState);
-
-	g_display->Text6x8(textleft, texty, "hai world", !g_blinkState);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Done, push the update to the display
-	g_display->StartRefresh();
+
+	g_display->StartRefresh(forceFull);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

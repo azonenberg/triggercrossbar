@@ -124,6 +124,7 @@ int main()
 	uint32_t next1HzTick = 0;
 	uint32_t next10HzTick = 0;
 	uint32_t nextPhyPoll = 0;
+	const uint32_t logTimerMax = 0xf0000000;
 	while(1)
 	{
 		//Wait for an interrupt
@@ -146,6 +147,12 @@ int main()
 		//Poll for UART input
 		if(g_cliUART->HasInput())
 			uartContext.OnKeystroke(g_cliUART->BlockingRead());
+
+		if(g_log.UpdateOffset(logTimerMax))
+		{
+			next1HzTick -= logTimerMax;
+			next10HzTick -= logTimerMax;
+		}
 
 		//Refresh of activity LEDs and TCP retransmits at 10 Hz
 		if(g_logTimer->GetCount() > next10HzTick)
@@ -292,6 +299,8 @@ void UpdateFrontPanelDisplay()
 	 */
 	if(firstRefresh)
 	{
+		g_log("Initial front panel refresh\n");
+
 		//Set serial number
 		SetFrontPanelCS(0);
 		SendFrontPanelByte(FRONT_SERIAL);

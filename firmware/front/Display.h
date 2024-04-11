@@ -35,11 +35,11 @@ class Display
 public:
 	Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin* rst);
 
-	void StartRefresh();
+	void StartRefresh(bool forceFullScreenUpdate);
 	void OnTick();
 
 	bool IsRefreshInProgress()
-	{ return (m_refreshState != STATE_IDLE) && (m_refreshState != STATE_IDLE_FIRST); }
+	{ return (m_refreshState != STATE_IDLE); }
 
 	void Clear();
 
@@ -49,6 +49,9 @@ public:
 	void Text6x8(int16_t x, int16_t y, const char* str, bool black);
 	void Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black);
 	void FilledRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black);
+
+	void Shutdown()
+	{ SendCommand(0x02); }
 
 protected:
 	void LineLow(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black);
@@ -76,9 +79,6 @@ protected:
 
 	enum
 	{
-		//Idle, awaiting first refresh
-		STATE_IDLE_FIRST,
-
 		//Idle, awaiting a normal refresh
 		STATE_IDLE,
 
