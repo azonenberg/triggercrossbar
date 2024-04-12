@@ -191,7 +191,13 @@ int main()
 					//IPv4 address
 					case FRONT_IP4_ADDR:
 						if(nbyte <= 4)
+						{
+							//If IP changed, trigger a display refresh
+							if(g_ipv4Addr[nbyte-1] != data)
+								nextDisplayRefresh = 0;
+
 							g_ipv4Addr[nbyte-1] = data;
+						}
 						break;
 
 					//IPv6 address
@@ -301,9 +307,13 @@ int main()
 					//Subnet mask
 					case FRONT_IP4_SUBNET:
 						if(nbyte == 1)
+						{
+							//If prefix changed, trigger a display refresh
+							if(g_ipv4SubnetSize != data)
+								nextDisplayRefresh = 0;
+
 							g_ipv4SubnetSize = data;
-						else if(nbyte == 2)
-							g_ipv4SubnetSize |= data << 8;
+						}
 						break;
 					case FRONT_IP6_SUBNET:
 						if(nbyte == 1)
@@ -836,12 +846,17 @@ void RefreshDisplay(bool forceFull)
 	//Get the fan speed
 	texty -= textheight;
 	buf.Clear();
-	//TODO: fan fault should be reverse video?
 	buf.Printf("FAN  %5d", g_fanspeed);
 	bool fanSpeedOK = true;
 	if( (g_fanspeed < 7000) || (g_fanspeed > 15000) )
 		fanSpeedOK = false;
-	g_display->Text6x8(textleft, texty, tmp, true);
+	if(fanSpeedOK)
+		g_display->Text6x8(textleft, texty, tmp, true);
+	else
+	{
+		g_display->FilledRect(lineright, texty, xright, texty + textheight + 1, true);
+		g_display->Text6x8(textleft, texty, tmp, false);
+	}
 
 	//horizontal line below text
 	g_display->Line(lineright, texty, xright, texty, true);
