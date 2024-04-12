@@ -85,6 +85,9 @@ uint16_t g_fanspeed = 0;
 uint16_t g_ipv4SubnetSize = 0;
 uint16_t g_ipv6SubnetSize = 0;
 
+//Indicates the main MCU is alive
+bool	g_mainMCUDown = true;
+
 bool RxSPIString(uint8_t nbyte, char* buf, uint8_t size, uint8_t data);
 
 int main()
@@ -116,6 +119,7 @@ int main()
 	uint32_t next1HzTick = 0;
 	uint8_t nbyte = 0;
 	uint8_t cmd = 0;
+	uint32_t secSinceLastMcuUpdate = 0;
 	while(1)
 	{
 		//Check for overflows on our log message timer
@@ -130,7 +134,16 @@ int main()
 		{
 			next1HzTick = g_logTimer->GetCount() + 10000;
 
-			//Force full (non-delta) update once a day to minimize ghosting
+			//Watchdog timer to detect main MCU acting up
+			secSinceLastMcuUpdate ++;
+			if(secSinceLastMcuUpdate > 5)
+			{
+				if(!g_mainMCUDown)
+				{
+					g_mainMCUDown = true;
+					nextDisplayRefresh = 1;
+				}
+			}
 
 			//Update display if needed
 			if(!g_display->IsRefreshInProgress())
@@ -164,6 +177,14 @@ int main()
 		if(g_fpgaSPI->PollReadDataReady())
 		{
 			uint8_t data = g_fpgaSPI->BlockingReadDevice();
+
+			//If main MCU was down, it's now up again
+			secSinceLastMcuUpdate = 0;
+			if(g_mainMCUDown)
+			{
+				g_mainMCUDown = false;
+				nextDisplayRefresh = 1;
+			}
 
 			//First byte is command
 			if(nbyte == 0)
@@ -864,6 +885,16 @@ void RefreshDisplay(bool forceFull)
 	//Vertical line at left and right side
 	g_display->Line(lineright, ytop, lineright, texty, true);
 	g_display->Line(xright, ytop, xright, texty, true);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Update the display if the main MCU goes down
+
+	if(g_mainMCUDown)
+	{
+		static const char* err= "MCU or FPGA down";
+		g_display->FilledRect(0, 0, strlen(err)*8 + 2, textheight+1, true);
+		g_display->Text6x8(1, 0, err, false);
+	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Done, push the update to the display
