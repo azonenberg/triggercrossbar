@@ -34,8 +34,6 @@
 #include "../super/superregs.h"
 
 void LogTemperatures();
-void SetFrontPanelCS(bool b);
-void SendFrontPanelByte(uint8_t data);
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value);
 void UpdateFrontPanelActivityLEDs();
 

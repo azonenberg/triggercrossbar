@@ -31,6 +31,7 @@
 #include <algorithm>
 #include "CrossbarCLISessionContext.h"
 #include <ctype.h>
+#include "../front/regids.h"
 
 static const char* hostname_objid = "hostname";
 
@@ -50,8 +51,9 @@ enum cmdid_t
 	//CMD_DEBUG,
 	CMD_EXIT,
 	CMD_FINGERPRINT,
+	CMD_FULL,
 	CMD_FLASH,
-	//CMD_GATEWAY,
+	CMD_GATEWAY,
 	CMD_HARDWARE,
 	CMD_HOSTNAME,
 	CMD_IP,
@@ -59,6 +61,7 @@ enum cmdid_t
 	CMD_KEYS,
 	CMD_MMD,
 	CMD_NO,
+	CMD_REFRESH,
 	CMD_RELOAD,
 	CMD_REGISTER,
 	CMD_ROLLBACK,
@@ -107,7 +110,7 @@ static const clikeyword_t g_hostnameCommands[] =
 	{"<string>",	FREEFORM_TOKEN,		nullptr,	"New host name"},
 	{nullptr,		INVALID_COMMAND,	nullptr,	nullptr}
 };
-/*
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "ip"
 
@@ -130,7 +133,6 @@ static const clikeyword_t g_ipCommands[] =
 
 	{nullptr,		INVALID_COMMAND,	nullptr,				nullptr}
 };
-*/
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "no"
@@ -154,6 +156,16 @@ static const clikeyword_t g_noCommands[] =
 	{"ssh",				CMD_SSH,				g_noSshCommands,			"Remove authorized SSH keys"},
 
 	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// "refresh"
+
+static const clikeyword_t g_refreshCommands[] =
+{
+	{"<cr>",			OPTIONAL_TOKEN,		nullptr,						"With no arguments, perform a fast refresh"},
+	{"full",			CMD_FULL,			nullptr,						"Perform a full refresh"},
+	{nullptr,			INVALID_COMMAND,	nullptr,						nullptr}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -320,8 +332,9 @@ static const clikeyword_t g_rootCommands[] =
 	//{"debug",		CMD_DEBUG,			g_debugCommands,		"Enable debug output"},
 	{"exit",		CMD_EXIT,			nullptr,				"Log out"},
 	{"hostname",	CMD_HOSTNAME,		g_hostnameCommands,		"Change the host name"},
-	//{"ip",			CMD_IP,				g_ipCommands,			"Configure IP addresses"},
+	{"ip",			CMD_IP,				g_ipCommands,			"Configure IP addresses"},
 	{"no",			CMD_NO,				g_noCommands,			"Remove or disable features"},
+	{"refresh",		CMD_REFRESH,		g_refreshCommands,		"Refresh front panel display"},
 	{"reload",		CMD_RELOAD,			nullptr,				"Restart the system"},
 	{"rollback",	CMD_ROLLBACK,		nullptr,				"Revert changes made since last commit"},
 	{"set",			CMD_SET,			g_setCommands,			"Set raw hardware registers"},
@@ -413,11 +426,10 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 			memcpy(m_hostname, m_command[1].m_text, sizeof(m_hostname)-1);
 			m_hostname[sizeof(m_hostname)-1] = '\0';
 			break;
-		/*
+
 		case CMD_IP:
 			OnIPCommand();
 			break;
-		*/
 
 		case CMD_NO:
 			OnNoCommand();
@@ -425,6 +437,15 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 
 		case CMD_RELOAD:
 			OnReload();
+			break;
+
+		case CMD_REFRESH:
+			SetFrontPanelCS(0);
+			if(m_command[1].m_commandID == CMD_FULL)
+				SendFrontPanelByte(FRONT_REFRESH_FULL);
+			else
+				SendFrontPanelByte(FRONT_REFRESH_FAST);
+			SetFrontPanelCS(1);
 			break;
 
 		case CMD_ROLLBACK:
@@ -489,7 +510,6 @@ void CrossbarCLISessionContext::OnCommit()
 	//Save SSH authorized key list
 	g_keyMgr.CommitToKVS();
 
-	/*
 	//Save IP configuration
 	if(!g_kvs->StoreObjectIfNecessary<IPv4Address>(g_ipConfig.m_address, g_defaultIP, "ip.address"))
 		m_stream->Printf("KVS write error\n");
@@ -499,7 +519,6 @@ void CrossbarCLISessionContext::OnCommit()
 		m_stream->Printf("KVS write error\n");
 	if(!g_kvs->StoreObjectIfNecessary<IPv4Address>(g_ipConfig.m_gateway, g_defaultGateway, "ip.gateway"))
 		m_stream->Printf("KVS write error\n");
-	*/
 }
 
 /*
@@ -519,7 +538,7 @@ void CrossbarCLISessionContext::OnDebug()
 			break;
 	}
 }
-
+*/
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "ip"
 
@@ -629,7 +648,7 @@ void CrossbarCLISessionContext::OnIPAddress(const char* addr)
 void CrossbarCLISessionContext::OnIPGateway(const char* gw)
 {
 	if(!ParseIPAddress(gw, g_ipConfig.m_gateway))
-		m_stream->Printf("Usage: ip default-gateway x.x.x.x\n");
+		m_stream->Printf("Usage: ip gateway x.x.x.x\n");
 }
 
 void CrossbarCLISessionContext::OnIPCommand()
@@ -649,7 +668,7 @@ void CrossbarCLISessionContext::OnIPCommand()
 			break;
 	}
 }
-*/
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "no"
 
@@ -707,7 +726,6 @@ void CrossbarCLISessionContext::OnRollback()
 {
 	g_keyMgr.LoadFromKVS();
 
-	//ConfigureInterfaces();
 	ConfigureIP();
 	LoadHostname();
 }
@@ -885,7 +903,20 @@ void CrossbarCLISessionContext::OnShowFlash()
 		int size = 0;
 		for(uint32_t i=0; i<nfound; i++)
 		{
-			m_stream->Printf("        %-32s %5d  %d\n", list[i].key, list[i].size, list[i].revs);
+			//Is this a group?
+			auto dotpos = strchr(list[i].key, ".");
+			if(dotpos != nullptr)
+			{
+				//Is this the first key within that group?
+				char groupname[KVS_NAMELEN+1] = {0};
+				memcpy(groupname, list[i].key, dotpos - list[i].key);
+				m_stream->Printf("Group: %s\n", groupname);
+			}
+
+			//No, normal
+				m_stream->Printf("        %-32s %5d  %d\n", list[i].key, list[i].size, list[i].revs);
+
+			//Record total data size
 			size += list[i].size;
 		}
 		m_stream->Printf("    %d objects total (%d.%02d kB)\n",

@@ -66,6 +66,8 @@ public:
 	virtual void PrintPrompt();
 
 protected:
+	bool ParseIPAddress(const char* addr, IPv4Address& ip);
+	bool ParseIPAddressWithSubnet(const char* addr, IPv4Address& ip, uint32_t& mask);
 
 	void LoadHostname();
 
@@ -78,11 +80,11 @@ protected:
 
 	void OnDescription();
 	void OnDebug();
-
+	*/
 	void OnIPCommand();
 	void OnIPAddress(const char* addr);
 	void OnIPGateway(const char* gw);
-	*/
+
 	void OnNoCommand();
 	void OnNoSSHCommand();
 	void OnNoSSHKeyCommand();

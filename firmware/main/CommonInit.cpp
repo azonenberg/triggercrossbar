@@ -34,15 +34,11 @@
  */
 
 #include "triggercrossbar.h"
-//#include "net/ManagementTCPProtocol.h"
 
-//const IPv4Address g_defaultIP			= { .m_octets{192, 168,   1,   2} };
-const IPv4Address g_defaultIP			= { .m_octets{10, 2,   6,   20} };
+const IPv4Address g_defaultIP			= { .m_octets{192, 168,   1,   2} };
 const IPv4Address g_defaultNetmask		= { .m_octets{255, 255, 255,   0} };
-//const IPv4Address g_defaultBroadcast	= { .m_octets{192, 168,   1, 255} };
-const IPv4Address g_defaultBroadcast	= { .m_octets{10, 2,   6, 255} };
-//const IPv4Address g_defaultGateway		= { .m_octets{192, 168,   1,   1} };
-const IPv4Address g_defaultGateway		= { .m_octets{10, 2,   6,   252} };
+const IPv4Address g_defaultBroadcast	= { .m_octets{192, 168,   1, 255} };
+const IPv4Address g_defaultGateway		= { .m_octets{192, 168,   1,   1} };
 
 /**
 	@brief Initialize the logging library
