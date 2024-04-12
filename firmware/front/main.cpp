@@ -192,6 +192,19 @@ int main()
 				cmd = data;
 
 				//Act on any single-byte commands if needed
+				switch(cmd)
+				{
+					case FRONT_REFRESH_FAST:
+						nextDisplayRefresh = 0;
+						break;
+
+					case FRONT_REFRESH_FULL:
+						nextFullRefresh = 0;
+						break;
+
+					default:
+						break;
+				}
 			}
 
 			//Then comes data bytes

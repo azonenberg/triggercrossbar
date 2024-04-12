@@ -60,7 +60,10 @@ enum front_regid_t
 	FRONT_DIR_LEDS		= 0x30,	//Direction LEDS
 								//High nibble = IN11:8
 								//Low nibble = OUT11:8
-	FRONT_PORT_LEDS		= 0x31	//All port LED states
+	FRONT_PORT_LEDS		= 0x31,	//All port LED states
+
+	FRONT_REFRESH_FAST	= 0x40,	//force fast refresh
+	FRONT_REFRESH_FULL	= 0x41,	//force full refresh
 };
 
 #endif
