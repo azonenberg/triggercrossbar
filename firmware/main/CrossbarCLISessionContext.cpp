@@ -904,16 +904,56 @@ void CrossbarCLISessionContext::OnShowFlash()
 		for(uint32_t i=0; i<nfound; i++)
 		{
 			//Is this a group?
-			auto dotpos = strchr(list[i].key, ".");
+			auto dotpos = strchr(list[i].key, '.');
 			if(dotpos != nullptr)
 			{
-				//Is this the first key within that group?
+				//Get the name of the group
 				char groupname[KVS_NAMELEN+1] = {0};
-				memcpy(groupname, list[i].key, dotpos - list[i].key);
-				m_stream->Printf("Group: %s\n", groupname);
+				auto grouplen = dotpos + 1 - list[i].key;
+				memcpy(groupname, list[i].key, grouplen);
+
+				//If we have a previous key with the same group, we're not the first
+				bool first = true;
+				if(i > 0)
+				{
+					if(memcmp(list[i-1].key, groupname, grouplen) == 0)
+						first = false;
+				}
+
+				//Do we have a subsequent key with the same group?
+				bool next = true;
+				if(i+1 < nfound)
+				{
+					if(memcmp(list[i+1].key, groupname, grouplen) != 0)
+						next = false;
+				}
+				else
+					next = false;
+
+				//Trim off the leading dot in the group
+				groupname[grouplen-1] = '\0';
+
+				//Beginning of a group (with more than one key)? Add the heading
+				if(first && next)
+					m_stream->Printf("        %-32s\n", groupname);
+
+				//If in a group with >1 item, print the actual entry
+				if(next || !first)
+				{
+					//Print the tree node
+					if(next)
+						m_stream->Printf("        ├── %-28s %5d  %d\n", list[i].key + grouplen, list[i].size, list[i].revs);
+					else
+						m_stream->Printf("        └── %-28s %5d  %d\n", list[i].key + grouplen, list[i].size, list[i].revs);
+				}
+
+				//Single entry group, normal print
+				else
+					m_stream->Printf("        %-32s %5d  %d\n", list[i].key, list[i].size, list[i].revs);
 			}
 
-			//No, normal
+			//No, not in a group
+			else
 				m_stream->Printf("        %-32s %5d  %d\n", list[i].key, list[i].size, list[i].revs);
 
 			//Record total data size
