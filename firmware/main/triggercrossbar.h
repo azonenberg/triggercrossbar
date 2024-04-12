@@ -186,4 +186,9 @@ bool CheckForFPGAEvents();
 
 extern CrossbarSSHKeyManager g_keyMgr;
 
+extern const char* g_usernameObjectID;
+extern char g_sshUsername[CLI_USERNAME_MAX];
+extern ManagementSSHTransportServer* g_sshd;
+extern const char* g_defaultSshUsername;
+
 #endif

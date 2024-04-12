@@ -37,8 +37,7 @@ bool ManagementPubkeyAuthenticator::CanUseKey(
 	bool actualLoginAttempt
 	)
 {
-	//TODO: make username configurable
-	if(!SSHTransportServer::StringMatchWithLength("admin", username, username_len))
+	if(!SSHTransportServer::StringMatchWithLength(g_sshUsername, username, username_len))
 		return false;
 
 	//Null terminate username for debug logging

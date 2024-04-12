@@ -48,6 +48,8 @@ public:
 	ManagementSSHTransportServer(TCPProtocol& tcp);
 	virtual ~ManagementSSHTransportServer();
 
+	void LoadUsername();
+
 protected:
 	virtual void InitializeShell(int id, TCPTableEntry* socket);
 	virtual void GracefulDisconnect(int id, TCPTableEntry* socket);

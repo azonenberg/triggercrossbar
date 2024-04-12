@@ -100,7 +100,7 @@ int main()
 
 	//Initialize the CLI for the UART
 	CrossbarCLISessionContext uartContext;
-	uartContext.Initialize(&uartStream, "user");
+	uartContext.Initialize(&uartStream, "localadmin");
 
 	//Update the display and set the direction LEDs to all-input (default state on new FPGA bitstream load)
 	SetFrontPanelDirectionLEDs(0xf0);

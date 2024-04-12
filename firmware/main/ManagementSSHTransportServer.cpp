@@ -29,6 +29,7 @@
 
 #include "triggercrossbar.h"
 #include "ManagementSSHTransportServer.h"
+#include <algorithm>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
@@ -38,6 +39,8 @@ ManagementSSHTransportServer::ManagementSSHTransportServer(TCPProtocol& tcp)
 {
 	g_log("Initializing SSH server\n");
 	LogIndenter li(g_log);
+
+	g_sshd = this;
 
 	//Initialize crypto engines
 	for(size_t i=0; i<SSH_TABLE_SIZE; i++)
@@ -74,6 +77,9 @@ ManagementSSHTransportServer::ManagementSSHTransportServer(TCPProtocol& tcp)
 	m_state[0].m_crypto->GetHostKeyFingerprint(buf, sizeof(buf));
 	g_log("ED25519 key fingerprint is SHA256:%s.\n", buf);
 
+	//Load the SSH username
+	LoadUsername();
+
 	//Load authorized keys
 	g_keyMgr.LoadFromKVS();
 
@@ -90,6 +96,18 @@ ManagementSSHTransportServer::~ManagementSSHTransportServer()
 		delete m_state[i].m_crypto;
 		m_state[i].m_crypto = NULL;
 	}
+}
+
+void ManagementSSHTransportServer::LoadUsername()
+{
+	memset(g_sshUsername, 0, sizeof(g_sshUsername));
+
+	//Read hostname, set to default value if not found
+	auto hlog = g_kvs->FindObject(g_usernameObjectID);
+	if(hlog)
+		strncpy(g_sshUsername, (const char*)g_kvs->MapObject(hlog), std::min((size_t)hlog->m_len, sizeof(g_sshUsername)-1));
+	else
+		strncpy(g_sshUsername, g_defaultSshUsername, sizeof(g_sshUsername)-1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

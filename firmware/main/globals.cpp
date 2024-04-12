@@ -153,3 +153,15 @@ bool g_sfpLinkUp;
 
 ///@brief Key manager
 CrossbarSSHKeyManager g_keyMgr;
+
+///@brief The single supported SSH username
+char g_sshUsername[CLI_USERNAME_MAX] = "";
+
+///@brief KVS key for the SSH username
+const char* g_usernameObjectID = "ssh.username";
+
+///@brief The SSH server
+ManagementSSHTransportServer* g_sshd = nullptr;
+
+///@brief Default SSH username if not configured
+const char* g_defaultSshUsername = "admin";

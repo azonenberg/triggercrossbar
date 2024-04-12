@@ -73,6 +73,7 @@ enum cmdid_t
 	//CMD_STATUS,
 	//CMD_TEMPERATURE,
 	//CMD_TEST,
+	CMD_USERNAME,
 	CMD_VERSION,
 	CMD_ZEROIZE
 };
@@ -306,9 +307,16 @@ static const clikeyword_t g_sshCommandsType[] =
 	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
 };
 
+static const clikeyword_t g_sshCommandsUsername[] =
+{
+	{"<username>",		FREEFORM_TOKEN,			nullptr,					"SSH username"},
+	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
+};
+
 static const clikeyword_t g_sshCommands[] =
 {
 	{"key",				CMD_KEY,				g_sshCommandsType,			"Authorize a new SSH public key"},
+	{"username",		CMD_USERNAME,			g_sshCommandsUsername,		"Sets the SSH username"},
 	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
 };
 
@@ -489,6 +497,12 @@ void CrossbarCLISessionContext::OnClearCounters(uint8_t interface)
 */
 void CrossbarCLISessionContext::OnCommit()
 {
+	//Save hostname and SSH username
+	if(!g_kvs->StoreStringObjectIfNecessary(hostname_objid, m_hostname, "crossbar"))
+		m_stream->Printf("KVS write error\n");
+	if(!g_kvs->StoreStringObjectIfNecessary(g_usernameObjectID, g_sshUsername, g_defaultSshUsername))
+		m_stream->Printf("KVS write error\n");
+
 	//Check if we already have the same hostname stored
 	auto hlog = g_kvs->FindObject(hostname_objid);
 	bool needToStoreHostname = true;
@@ -724,10 +738,11 @@ void CrossbarCLISessionContext::OnReload()
  */
 void CrossbarCLISessionContext::OnRollback()
 {
-	g_keyMgr.LoadFromKVS();
+	g_keyMgr.LoadFromKVS(false);
 
 	ConfigureIP();
 	LoadHostname();
+	g_sshd->LoadUsername();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1376,6 +1391,14 @@ void CrossbarCLISessionContext::OnSSHCommand()
 	{
 		case CMD_KEY:
 			OnSSHKey();
+			break;
+
+		case CMD_USERNAME:
+			//yes this can truncate, we accept that
+			#pragma GCC diagnostic push
+			#pragma GCC diagnostic ignored "-Wstringop-truncation"
+			strncpy(g_sshUsername, m_command[2].m_text, sizeof(g_sshUsername)-1);
+			#pragma GCC diagnostic pop
 			break;
 
 		default:

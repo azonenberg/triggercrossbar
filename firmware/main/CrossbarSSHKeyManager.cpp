@@ -40,9 +40,10 @@ CrossbarSSHKeyManager::CrossbarSSHKeyManager()
 
 }
 
-void CrossbarSSHKeyManager::LoadFromKVS()
+void CrossbarSSHKeyManager::LoadFromKVS(bool log)
 {
-	g_log("Loading authorized SSH keys\n");
+	if(log)
+		g_log("Loading authorized SSH keys\n");
 	LogIndenter li(g_log);
 
 	//Clear out our in-memory key database
@@ -67,10 +68,13 @@ void CrossbarSSHKeyManager::LoadFromKVS()
 		if(m_authorizedKeys[i].m_nickname[0] != '\0')
 		{
 			tmp.GetKeyFingerprint(fingerprint, sizeof(fingerprint), m_authorizedKeys[i].m_pubkey);
-			g_log("%2d    %-30s  SHA256:%s\n",
-				i,
-				m_authorizedKeys[i].m_nickname,
-				fingerprint);
+			if(log)
+			{
+				g_log("%2d    %-30s  SHA256:%s\n",
+					i,
+					m_authorizedKeys[i].m_nickname,
+					fingerprint);
+			}
 		}
 	}
 }

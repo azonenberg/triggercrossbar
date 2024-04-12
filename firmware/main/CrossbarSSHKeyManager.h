@@ -61,7 +61,7 @@ class CrossbarSSHKeyManager
 public:
 	CrossbarSSHKeyManager();
 
-	void LoadFromKVS();
+	void LoadFromKVS(bool log = true);
 	void CommitToKVS();
 
 	bool AddPublicKey(const char* keyType, const char* keyBlobBase64, const char* keyDesc);
