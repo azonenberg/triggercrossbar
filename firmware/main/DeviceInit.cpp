@@ -45,14 +45,14 @@ void InitClocks()
 {
 	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
 	//A bit of extra latency is fine, the CPU being faster than flash is not.
-	Flash::SetConfiguration(275, RANGE_VOS0);
+	Flash::SetConfiguration(512, RANGE_VOS0);
 
 	//By default out of reset, we're clocked by the HSI clock at 64 MHz
 
 	//Set up PLL1
 	RCCHelper::InitializePLL(
 		1,		//PLL1
-		64,		//input is 64 MHz from the HSE
+		64,		//input is 64 MHz from the HSI
 		4,		//64/4 = 16 MHz at the PFD
 		32,		//16 * 32 = 512 MHz at the VCO
 		1,		//div P (primary output 512 MHz)
@@ -82,9 +82,9 @@ void InitClocks()
 
 void InitTimer()
 {
-	//APB1 is 64 MHz
+	//APB1 is 64 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
 	//Divide down to get 10 kHz ticks
-	static Timer logtim(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 6400);
+	static Timer logtim(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 12800);
 	g_logTimer = &logtim;
 }
 

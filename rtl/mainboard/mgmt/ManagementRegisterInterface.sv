@@ -438,6 +438,11 @@ module ManagementRegisterInterface(
 	logic[1:0]				drp_busy	= 0;
 	logic					front_busy	= 0;
 
+
+	logic[8:0]				packetWordsRead = 0;
+	logic[8:0]				packetWordLength = 0;
+	logic					rxheader_rd_en_ff = 0;
+
 	//Front panel LED indicator state
 	logic[3:0]				relay_state = 0;
 	logic[23:0]				front_led_state;
@@ -514,6 +519,19 @@ module ManagementRegisterInterface(
 		if(front_shift_done)
 			front_busy			<= 0;
 
+		//Track expected length of a packet being read
+		rxheader_rd_en_ff	<= rxheader_rd_en;
+		if(rxheader_rd_en_ff) begin
+			if(rxheader_rd_data[1:0])
+				packetWordLength	<= rxheader_rd_data[10:2] + 1;
+			else
+				packetWordLength	<= rxheader_rd_data[10:2];
+		end
+		if(rxheader_rd_en)
+			packetWordsRead 		<= 0;
+		if(rxfifo_rd_pop_single)
+			packetWordsRead 		<= packetWordsRead + 1;
+
 		//Continue a read
 		if(rd_en || reading) begin
 
@@ -550,19 +568,16 @@ module ManagementRegisterInterface(
 			else if(rd_addr >= REG_EMAC_BUFFER_LO) begin
 
 				case(rd_addr[1:0])
-					0: begin
-
+					0: rd_data					<= rxfifo_rd_data[31:24];
+					1: begin
+						rd_data					<= rxfifo_rd_data[23:16];
 						//pop the buffer since we've got the read data in the working register
+						//if(packetWordsRead < packetWordLength)
 						rxfifo_rd_pop_single	<= 1;
-
-						rd_data					<= rxfifo_rd_data[31:24];
 					end
-					1:	rd_data					<= rxfifo_rd_data[23:16];
 					2:	rd_data					<= rxfifo_rd_data[15:8];
 					3: begin
-						//prepare to read the next
 						rxfifo_rd_en			<= 1;
-
 						rd_data					<= rxfifo_rd_data[7:0];
 					end
 				endcase
@@ -622,7 +637,8 @@ module ManagementRegisterInterface(
 
 						//read (but don't pop) first data word
 						//so it's ready by the time we need it
-						rxfifo_rd_en	<= 1;
+						if(rxheader_rd_data != 0)
+							rxfifo_rd_en	<= 1;
 					end
 
 					REG_MGMT0_MDIO: begin

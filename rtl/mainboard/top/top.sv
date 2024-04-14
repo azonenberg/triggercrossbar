@@ -112,7 +112,10 @@ module top(
 	output wire			tx1_n,
 
 	input wire			rx1_p,
-	input wire			rx1_n
+	input wire			rx1_n,
+
+	//PMOD connector
+	inout wire[7:0]		pmod_dq
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -605,11 +608,9 @@ module top(
 	// Debug LEDs etc
 
 	always_comb begin
-		//led[0]		= xg0_link_up;
-		//led[1]		= mgmt0_link_up;
-		led[0]		= 0;
-		led[1]		= qpll_lock;
-		led[3:2]	= cpll_lock;
+		led[3:0] = 0;
 	end
+
+	assign pmod_dq[7:0] = 8'd0;
 
 endmodule

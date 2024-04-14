@@ -71,6 +71,7 @@ module ManagementRxFifo(
 	);
 
 	wire[12:0]	rxfifo_wr_size;
+	wire[12:0]	rxfifo_rd_size;
 	logic		rxfifo_wr_drop;
 
 	CrossClockPacketFifo #(
@@ -92,7 +93,7 @@ module ManagementRxFifo(
 		.rd_pop_packet(1'b0),
 		.rd_packet_size(10'h0),
 		.rd_data(rxfifo_rd_data),
-		.rd_size(),
+		.rd_size(rxfifo_rd_size),
 		.rd_reset(rd_reset)
 	);
 
@@ -101,7 +102,8 @@ module ManagementRxFifo(
 	logic[10:0] framelen = 0;
 
 	wire		header_wfull;
-
+	wire[5:0]	rxheader_rd_size;
+	wire[5:0]	rxheader_wr_size;
 	CrossClockFifo #(
 		.WIDTH(11),
 		.DEPTH(32),
@@ -109,9 +111,9 @@ module ManagementRxFifo(
 		.OUT_REG(0)
 	) rx_framelen_fifo (
 		.wr_clk(eth_rx_clk),
-		.wr_en(eth_rx_bus.commit && !dropping),
+		.wr_en(eth_rx_bus.commit && !dropping && (framelen != 0) ),
 		.wr_data(framelen),
-		.wr_size(),
+		.wr_size(rxheader_wr_size),
 		.wr_full(header_wfull),
 		.wr_overflow(),
 		.wr_reset(wr_reset),
@@ -119,7 +121,7 @@ module ManagementRxFifo(
 		.rd_clk(sys_clk),
 		.rd_en(rxheader_rd_en),
 		.rd_data(rxheader_rd_data),
-		.rd_size(),
+		.rd_size(rxheader_rd_size),
 		.rd_empty(rxheader_rd_empty),
 		.rd_underflow(),
 		.rd_reset(rd_reset)
