@@ -45,6 +45,9 @@ void NMI_Handler();
 
 //void UART4_Handler();
 
+void SPI_CSHandler();
+void SPI1_Handler();
+
 void defaultISR();
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -75,7 +78,7 @@ fnptr __attribute__((section(".vector"))) vectorTable[] =
 	defaultISR,				//irq4 RCC_CRS
 	defaultISR,				//irq5 EXTI[1:0]
 	defaultISR,				//irq6 EXTI[3:2]
-	defaultISR,				//irq7 EXTI[15:4]
+	SPI_CSHandler,			//irq7 EXTI[15:4]
 	defaultISR,				//irq8 reserved
 	defaultISR,				//irq9 DMA1_Channel1
 	defaultISR,				//irq10 DMA1_Channel[3:2]
@@ -93,7 +96,7 @@ fnptr __attribute__((section(".vector"))) vectorTable[] =
 	defaultISR,				//irq22 TIM22
 	defaultISR,				//irq23 I2C1
 	defaultISR,				//irq24 I2C2
-	defaultISR,				//irq25 SPI1
+	SPI1_Handler,			//irq25 SPI1
 	defaultISR,				//irq26 SPI2
 	defaultISR,				//irq27 USART1
 	defaultISR,				//irq28 USART2
@@ -192,3 +195,33 @@ void __attribute__((isr)) UART4_Handler()
 	g_uart->OnIRQRxData(UART4.RDR);
 }
 */
+
+/**
+	@brief GPIO interrupt used for SPI chip select on PA4
+ */
+void __attribute__((isr)) SPI_CSHandler()
+{
+	//for now only trigger on falling edge so no need to check
+	g_spi->OnIRQCSEdge(false);
+
+	//Acknowledge the interrupt
+	EXTI.PR |= 0x10;
+}
+
+/**
+	@brief SPI data interrupt
+ */
+void __attribute__((isr)) SPI1_Handler()
+{
+	if(SPI1.SR & SPI_RX_NOT_EMPTY)
+		g_spi->OnIRQRxData(SPI1.DR);
+	if(SPI1.SR & SPI_TX_EMPTY)
+	{
+		if(g_spi->HasNextTxByte())
+			SPI1.DR = g_spi->GetNextTxByte();
+
+		//if no data to send, disable the interrupt
+		else
+			SPI1.CR2 &= ~SPI_TXEIE;
+	}
+}

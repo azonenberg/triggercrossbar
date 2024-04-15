@@ -265,10 +265,11 @@ set_property IS_SOFT FALSE [get_pblocks pblock_crypt25519]
 
 create_pblock pblock_port_xg0
 add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/port_xg0/fcs_pending_0_i_1 network/port_xg0/fcs_pending_1_i_1 network/port_xg0/mac {network/port_xg0/rx_bus[drop]_i_1} network/port_xg0/rx_s2_control_i_1 {network/port_xg0/rx_s2_data[31]_i_1} network/port_xg0/tx_pause_inv_i_1 network/port_xg0/xgmii_x64_toggle_i_1 network/port_xg0/xgmii_x64_valid_i_1]]
-resize_pblock [get_pblocks pblock_port_xg0] -add {SLICE_X36Y101:SLICE_X53Y149}
-resize_pblock [get_pblocks pblock_port_xg0] -add {DSP48_X2Y42:DSP48_X2Y59}
-resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB18_X2Y50:RAMB18_X2Y59}
-resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB36_X2Y25:RAMB36_X2Y29}
+resize_pblock [get_pblocks pblock_port_xg0] -add {SLICE_X36Y75:SLICE_X53Y99}
+resize_pblock [get_pblocks pblock_port_xg0] -add {DSP48_X2Y30:DSP48_X2Y39}
+resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB18_X2Y30:RAMB18_X2Y39}
+resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB36_X2Y15:RAMB36_X2Y19}
+set_property IS_SOFT FALSE [get_pblocks pblock_port_xg0]
 
 create_pblock pblock_xg0_pcs
 add_cells_to_pblock [get_pblocks pblock_xg0_pcs] [get_cells -quiet [list network/port_xg0/pcs]]
@@ -304,10 +305,9 @@ set_property IS_SOFT FALSE [get_pblocks pblock_rgmii_cdc]
 
 create_pblock pblock_rx_mux
 add_cells_to_pblock [get_pblocks pblock_rx_mux] [get_cells -quiet [list rx_mux/baser_rx_cdc]]
-resize_pblock [get_pblocks pblock_rx_mux] -add {SLICE_X12Y100:SLICE_X23Y149}
-resize_pblock [get_pblocks pblock_rx_mux] -add {DSP48_X1Y40:DSP48_X1Y59}
-resize_pblock [get_pblocks pblock_rx_mux] -add {RAMB18_X1Y40:RAMB18_X1Y59}
-resize_pblock [get_pblocks pblock_rx_mux] -add {RAMB36_X1Y20:RAMB36_X1Y29}
+resize_pblock [get_pblocks pblock_rx_mux] -add {SLICE_X36Y75:SLICE_X47Y99}
+resize_pblock [get_pblocks pblock_rx_mux] -add {RAMB18_X2Y30:RAMB18_X2Y39}
+resize_pblock [get_pblocks pblock_rx_mux] -add {RAMB36_X2Y15:RAMB36_X2Y19}
 set_property IS_SOFT FALSE [get_pblocks pblock_rx_mux]
 
 ########################################################################################################################
@@ -346,7 +346,4 @@ set_property PACKAGE_PIN M16 [get_ports {pmod_dq[3]}]
 set_property PACKAGE_PIN P16 [get_ports {pmod_dq[2]}]
 set_property PACKAGE_PIN R17 [get_ports {pmod_dq[1]}]
 set_property PACKAGE_PIN R19 [get_ports {pmod_dq[0]}]
-set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
-set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
-set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]
-connect_debug_port dbg_hub/clk [get_nets clk_250mhz]
+

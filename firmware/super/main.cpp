@@ -145,7 +145,7 @@ int main()
 	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
 
 	//Enable SYSCFG before changing any settings on it
-	//RCCHelper::EnableSyscfg();
+	RCCHelper::EnableSyscfg();
 
 	//Hardware setup
 	InitPower();
@@ -181,56 +181,58 @@ int main()
 	const uint16_t timerMax = 60000;
 	while(1)
 	{
-		//Reset count when CS goes high
-		auto cs = *g_spiCS;
-		if(cs == 1)
-			nbyte = 0;
-
-		//If CS# is low, disable other processing
-		//TODO: interrupt based flow here or something?
-		if(!cs)
+		//Read and process SPI events
+		if(g_spi->HasEvents())
 		{
-			//Process SPI data bytes
-			if(g_spi->PollReadDataReady())
+			auto event = g_spi->GetEvent();
+
+			//Reset byte count on CS# rising or falling edge
+			if(event.type == SPIEvent::TYPE_CS)
+				nbyte = 0;
+
+			//Process data byte
+			else
 			{
-				uint8_t data = g_spi->BlockingReadDevice();
+				auto data = event.data;
 
 				//First byte is command
 				if(nbyte == 0)
+				{
 					cmd = data;
 
-				//Send reply data
-				switch(cmd)
-				{
-					//Read our fimware version
-					case SUPER_REG_VERSION:
-						g_spi->BlockingWriteDevice((uint8_t*)g_version, sizeof(g_version));
-						break;
+					//Send reply data
+					switch(cmd)
+					{
+						//Read our fimware version
+						case SUPER_REG_VERSION:
+							g_spi->NonblockingWriteFifo((uint8_t*)g_version, sizeof(g_version));
+							break;
 
-					//Read IBC firmware version
-					case SUPER_REG_IBCVERSION:
-						g_spi->BlockingWriteDevice((uint8_t*)g_ibcVersion, sizeof(g_ibcVersion));
-						break;
+						//Read IBC firmware version
+						case SUPER_REG_IBCVERSION:
+							g_spi->NonblockingWriteFifo((uint8_t*)g_ibcVersion, sizeof(g_ibcVersion));
+							break;
 
-					//IBC sensors
-					case SUPER_REG_IBCVIN:
-						g_spi->BlockingWriteDevice((uint8_t*)&g_vin48, sizeof(g_vin48));
-						break;
-					case SUPER_REG_IBCIIN:
-						g_spi->BlockingWriteDevice((uint8_t*)&g_iin, sizeof(g_iin));
-						break;
-					case SUPER_REG_IBCTEMP:
-						g_spi->BlockingWriteDevice((uint8_t*)&g_ibcTemp, sizeof(g_ibcTemp));
-						break;
-					case SUPER_REG_IBCVOUT:
-						g_spi->BlockingWriteDevice((uint8_t*)&g_vout12, sizeof(g_vout12));
-						break;
-					case SUPER_REG_IBCIOUT:
-						g_spi->BlockingWriteDevice((uint8_t*)&g_iout, sizeof(g_iout));
-						break;
-					case SUPER_REG_IBCVSENSE:
-						g_spi->BlockingWriteDevice((uint8_t*)&g_voutsense, sizeof(g_voutsense));
-						break;
+						//IBC sensors
+						case SUPER_REG_IBCVIN:
+							g_spi->NonblockingWriteFifo((uint8_t*)&g_vin48, sizeof(g_vin48));
+							break;
+						case SUPER_REG_IBCIIN:
+							g_spi->NonblockingWriteFifo((uint8_t*)&g_iin, sizeof(g_iin));
+							break;
+						case SUPER_REG_IBCTEMP:
+							g_spi->NonblockingWriteFifo((uint8_t*)&g_ibcTemp, sizeof(g_ibcTemp));
+							break;
+						case SUPER_REG_IBCVOUT:
+							g_spi->NonblockingWriteFifo((uint8_t*)&g_vout12, sizeof(g_vout12));
+							break;
+						case SUPER_REG_IBCIOUT:
+							g_spi->NonblockingWriteFifo((uint8_t*)&g_iout, sizeof(g_iout));
+							break;
+						case SUPER_REG_IBCVSENSE:
+							g_spi->NonblockingWriteFifo((uint8_t*)&g_voutsense, sizeof(g_voutsense));
+							break;
+					}
 				}
 
 				nbyte ++;
@@ -968,5 +970,18 @@ void InitSPI()
 
 	//Save the CS# pin
 	g_spiCS = &spi_cs_n;
+
+	//Set up IRQ7 for SPI CS# (PA4) change
+	//Use EXTI4 as PA4 interrupt on falling edge
+	//TODO: make a wrapper for this?
+	volatile uint32_t* NVIC_ISER = (volatile uint32_t*)(0xe000e100);
+	NVIC_ISER[0] |= 0x80;
+	SYSCFG.EXTICR2 = (SYSCFG.EXTICR2 & 0xfffffff8) | 0x0;
+	EXTI.IMR |= 0x10;
+	EXTI.FTSR |= 0x10;
+
+	//Set up IRQ25 as SPI1 interrupt
+	NVIC_ISER[0] |= 0x2000000;
+	SPI1.CR2 |= SPI_RXNEIE;
 }
 
