@@ -1,6 +1,6 @@
 SRCDIR=$(CURDIR)
 ROOTDIR=$(CURDIR)/../../
-CXXFLAGS=-g -O0 --std=c++17 -mcpu=cortex-m4 -DSTM32L431 -fno-exceptions -fno-rtti -g --specs=nano.specs -Wall -Wextra \
+CXXFLAGS=-g -O3 --std=c++17 -mcpu=cortex-m4 -DSTM32L431 -fno-exceptions -fno-rtti -g --specs=nano.specs -Wall -Wextra \
 	-I$(ROOTDIR) \
 	-I$(SRCDIR) \
 	-I$(ROOTDIR)/stm32-cpp/devices/inc \

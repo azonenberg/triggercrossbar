@@ -208,8 +208,7 @@ void SetFrontPanelCS(bool b)
 	g_fpga->BlockingWrite8(REG_FRONT_CTRL, b);
 
 	//workaround for slow firmware
-	if(b)
-		g_logTimer->Sleep(10);
+	g_logTimer->Sleep(10);
 }
 
 void SendFrontPanelByte(uint8_t data)

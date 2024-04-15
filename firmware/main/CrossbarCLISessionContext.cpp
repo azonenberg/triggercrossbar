@@ -453,6 +453,7 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 				SendFrontPanelByte(FRONT_REFRESH_FULL);
 			else
 				SendFrontPanelByte(FRONT_REFRESH_FAST);
+			SendFrontPanelByte(0x00);	//dummy byte
 			SetFrontPanelCS(1);
 			break;
 

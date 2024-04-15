@@ -51,6 +51,7 @@
 extern UART* g_uart;
 extern Logger g_log;
 extern Timer* g_logTimer;
+extern SPI* g_fpgaSPI;
 
 uint16_t ReadThermalSensor(uint8_t addr);
 extern const uint8_t g_tempI2cAddress;

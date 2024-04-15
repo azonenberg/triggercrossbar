@@ -978,7 +978,7 @@ uint8_t Display::ReadData()
 
 	auto ret = m_spi->BlockingRead();
 
-	*m_cs_n = 1;
 
+	*m_cs_n = 1;
 	return ret;
 }

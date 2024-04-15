@@ -46,6 +46,10 @@ void NMI_Handler();
 //void UART4_Handler();
 
 void defaultISR();
+void SPI_CSHandler();
+void SPI1_Handler();
+
+extern GPIOPin* g_inmodeLED[4];
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Interrupt vector table
@@ -74,7 +78,7 @@ fnptr __attribute__((section(".vector"))) vectorTable[] =
 	defaultISR,				//irq3 RTC_WKUP
 	defaultISR,				//irq4 FLASH
 	defaultISR,				//irq5 RCC
-	defaultISR,				//irq6 EXTI0
+	SPI_CSHandler,			//irq6 EXTI0
 	defaultISR,				//irq7 EXTI1
 	defaultISR,				//irq8 EXTI1
 	defaultISR,				//irq9 EXTI3
@@ -103,7 +107,7 @@ fnptr __attribute__((section(".vector"))) vectorTable[] =
 	defaultISR,				//irq32 I2C1_ER
 	defaultISR,				//irq33 I2C2_EV
 	defaultISR,				//irq34 I2C2_ER
-	defaultISR,				//irq35 SPI1
+	SPI1_Handler,			//irq35 SPI1
 	defaultISR,				//irq36 SPI2
 	defaultISR,				//irq37 USART1
 	defaultISR,				//irq38 USART2
@@ -247,3 +251,23 @@ void __attribute__((isr)) UART4_Handler()
 	g_uart->OnIRQRxData(UART4.RDR);
 }
 */
+
+/**
+	@brief GPIO interrupt used for SPI chip select
+ */
+void __attribute__((isr)) SPI_CSHandler()
+{
+	//for now only trigger on falling edge so no need to check
+	g_fpgaSPI->OnIRQCSEdge(false);
+
+	//Acknowledge the interrupt
+	EXTI.PR1 |= 1;
+}
+
+/**
+	@brief SPI data interrupt
+ */
+void __attribute__((isr)) SPI1_Handler()
+{
+	g_fpgaSPI->OnIRQRxData(SPI1.DR);
+}
