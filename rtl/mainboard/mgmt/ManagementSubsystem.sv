@@ -364,7 +364,7 @@ module ManagementSubsystem(
 
 	SPIHostInterface spi(
 		.clk(sys_clk),
-		.clkdiv(250),		//1 MHz
+		.clkdiv(25),		//10 MHz
 
 		.spi_sck(frontpanel_sck),
 		.spi_mosi(frontpanel_mosi),
