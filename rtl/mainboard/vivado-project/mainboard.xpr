@@ -66,13 +66,13 @@
     <Option Name="WTVcsLaunchSim" Val="0"/>
     <Option Name="WTRivieraLaunchSim" Val="0"/>
     <Option Name="WTActivehdlLaunchSim" Val="0"/>
-    <Option Name="WTXSimExportSim" Val="108"/>
-    <Option Name="WTModelSimExportSim" Val="108"/>
-    <Option Name="WTQuestaExportSim" Val="108"/>
+    <Option Name="WTXSimExportSim" Val="120"/>
+    <Option Name="WTModelSimExportSim" Val="120"/>
+    <Option Name="WTQuestaExportSim" Val="120"/>
     <Option Name="WTIesExportSim" Val="0"/>
-    <Option Name="WTVcsExportSim" Val="108"/>
-    <Option Name="WTRivieraExportSim" Val="108"/>
-    <Option Name="WTActivehdlExportSim" Val="108"/>
+    <Option Name="WTVcsExportSim" Val="120"/>
+    <Option Name="WTRivieraExportSim" Val="120"/>
+    <Option Name="WTActivehdlExportSim" Val="120"/>
     <Option Name="GenerateIPUpgradeLog" Val="TRUE"/>
     <Option Name="XSimRadix" Val="hex"/>
     <Option Name="XSimTimeUnit" Val="ns"/>
@@ -529,6 +529,27 @@
           <Attr Name="UsedIn" Val="synthesis"/>
           <Attr Name="UsedIn" Val="simulation"/>
           <Attr Name="IsVisible" Val="1"/>
+        </FileInfo>
+      </File>
+      <File Path="$PPRDIR/../../../antikernel-ipcores/serdes/linecode/Decode8b10b.sv">
+        <FileInfo>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
+      <File Path="$PPRDIR/../cdrtrig/Gearbox32To40.sv">
+        <FileInfo>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
+          <Attr Name="UsedIn" Val="simulation"/>
+        </FileInfo>
+      </File>
+      <File Path="$PPRDIR/../../../antikernel-ipcores/serdes/linecode/SymbolAligner8b10b.sv">
+        <FileInfo>
+          <Attr Name="UsedIn" Val="synthesis"/>
+          <Attr Name="UsedIn" Val="implementation"/>
+          <Attr Name="UsedIn" Val="simulation"/>
         </FileInfo>
       </File>
       <Config>

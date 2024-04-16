@@ -469,4 +469,97 @@ module BERTSubsystem(
 		.drp_rdy(lane1_drp_rdy)
 		);
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// CDR trigger subsystem
+
+	logic		lane0_8b10b_bitslip;
+
+	wire[39:0]	lane0_8b10b_gearbox_dout;
+	wire		lane0_8b10b_gearbox_dvalid;
+
+	Gearbox32To40 lane0_gearbox40(
+		.clk(lane0_rxclk),
+		.data_in(lane0_rx_data),
+		.valid_in(1'b1),
+		.bitslip(lane0_8b10b_bitslip),
+
+		.data_out(lane0_8b10b_gearbox_dout),
+		.valid_out(lane0_8b10b_gearbox_dvalid)
+	);
+
+	//Per word decode output
+	wire[3:0]	lane0_8b10b_data_valid;
+	wire[7:0]	lane0_8b10b_data[3:0];
+	wire[3:0]	lane0_8b10b_data_is_ctl;
+	wire[3:0]	lane0_8b10b_disparity_err;
+	wire[3:0]	lane0_8b10b_symbol_err;
+
+	//Look for commas in each pair of adjacent lanes
+	wire[3:0]	lane0_8b10b_locked;
+	wire[3:0]	lane0_8b10b_no_commas;
+	wire[3:0]	lane0_8b10b_lane_bitslip;
+
+	//Sliding window of last 50 bits
+	logic[9:0]	old_lsb_ff = 0;
+	always_ff @(posedge lane0_rxclk) begin
+		if(lane0_8b10b_gearbox_dvalid)
+			old_lsb_ff	<= lane0_8b10b_gearbox_dout[9:0];
+	end
+	wire[49:0]	rx_window = {old_lsb_ff, lane0_8b10b_gearbox_dout};
+
+	for(genvar g=0; g<4; g=g+1) begin : decoders
+
+		//The acutal line decoder block
+		Decode8b10b lane0_8b10b_decode(
+			.clk(lane0_rxclk),
+			.codeword_valid(lane0_8b10b_gearbox_dvalid),
+			.codeword_in(lane0_8b10b_gearbox_dout[10*g +: 10]),
+
+			.data_valid(lane0_8b10b_data_valid[g]),
+			.data(lane0_8b10b_data[g]),
+			.data_is_ctl(lane0_8b10b_data_is_ctl[g]),
+			.disparity_err(lane0_8b10b_disparity_err[g]),
+			.symbol_err(lane0_8b10b_symbol_err[g]),
+			.locked(),
+			.bitslip()
+		);
+
+		//Symbol aligner looking at a 20-bit sliding window around our symbol
+		SymbolAligner8b10b lane0_aligner(
+			.clk(lane0_rxclk),
+			.codeword_valid(lane0_8b10b_gearbox_dvalid),
+			.comma_window(rx_window[g*10 +: 20]),
+
+			.locked(lane0_8b10b_locked[g]),
+			.no_commas(lane0_8b10b_no_commas[g]),
+			.bitslip(lane0_8b10b_lane_bitslip[g])
+			);
+
+	end
+
+	logic		lane0_8b10b_locked_all;
+	logic[3:0]	lane0_8b10b_locked_or_no_commas;
+	always_comb begin
+		lane0_8b10b_bitslip 			= |lane0_8b10b_lane_bitslip;
+		lane0_8b10b_locked_or_no_commas	= lane0_8b10b_locked | lane0_8b10b_no_commas;
+		lane0_8b10b_locked_all			= &lane0_8b10b_locked_or_no_commas;
+	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Debug ILA
+
+	ila_0 ila(
+		.clk(lane0_rxclk),
+		.probe0(lane0_8b10b_locked),
+		.probe1(lane0_8b10b_symbol_err),
+		.probe2(lane0_8b10b_disparity_err),
+		.probe3(lane0_8b10b_data[0]),
+		.probe4(lane0_8b10b_data[1]),
+		.probe5(lane0_8b10b_data[2]),
+		.probe6(lane0_8b10b_data[3]),
+		.probe7(lane0_8b10b_data_is_ctl),
+		.probe8(lane0_8b10b_locked_all),
+		.probe9(lane0_8b10b_no_commas)
+		);
+
 endmodule

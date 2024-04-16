@@ -608,7 +608,8 @@ module top(
 	// Debug LEDs etc
 
 	always_comb begin
-		led[3:0] = 0;
+		led[3:1] = 0;
+		led[0] = bert.lane0_8b10b_locked_all;
 	end
 
 	assign pmod_dq[7:0] = 8'd0;

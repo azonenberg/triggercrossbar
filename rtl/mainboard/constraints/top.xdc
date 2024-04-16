@@ -185,6 +185,24 @@ set_property SLEW SLOW [get_ports frontpanel_sck]
 set_property PULLUP true [get_ports {fan_tach[1]}]
 set_property PULLUP true [get_ports {fan_tach[0]}]
 
+set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[7]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[6]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[5]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[4]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[3]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[2]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[1]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[0]}]
+set_property PACKAGE_PIN N17 [get_ports {pmod_dq[7]}]
+
+set_property PACKAGE_PIN P17 [get_ports {pmod_dq[6]}]
+set_property PACKAGE_PIN R18 [get_ports {pmod_dq[5]}]
+set_property PACKAGE_PIN P19 [get_ports {pmod_dq[4]}]
+set_property PACKAGE_PIN M16 [get_ports {pmod_dq[3]}]
+set_property PACKAGE_PIN P16 [get_ports {pmod_dq[2]}]
+set_property PACKAGE_PIN R17 [get_ports {pmod_dq[1]}]
+set_property PACKAGE_PIN R19 [get_ports {pmod_dq[0]}]
+
 ########################################################################################################################
 # Clock inputs
 
@@ -260,11 +278,14 @@ set_clock_groups -asynchronous -group [get_clocks network/xg_transceiver/inst/sf
 
 create_pblock pblock_crypt25519
 add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519]]
-resize_pblock [get_pblocks pblock_crypt25519] -add {CLOCKREGION_X0Y0:CLOCKREGION_X1Y0}
+resize_pblock [get_pblocks pblock_crypt25519] -add {SLICE_X0Y0:SLICE_X53Y49}
+resize_pblock [get_pblocks pblock_crypt25519] -add {DSP48_X0Y0:DSP48_X2Y19}
+resize_pblock [get_pblocks pblock_crypt25519] -add {RAMB18_X0Y0:RAMB18_X2Y19}
+resize_pblock [get_pblocks pblock_crypt25519] -add {RAMB36_X0Y0:RAMB36_X2Y9}
 set_property IS_SOFT FALSE [get_pblocks pblock_crypt25519]
 
 create_pblock pblock_port_xg0
-add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/port_xg0/fcs_pending_0_i_1 network/port_xg0/fcs_pending_1_i_1 network/port_xg0/mac {network/port_xg0/rx_bus[drop]_i_1} network/port_xg0/rx_s2_control_i_1 {network/port_xg0/rx_s2_data[31]_i_1} network/port_xg0/tx_pause_inv_i_1 network/port_xg0/xgmii_x64_toggle_i_1 network/port_xg0/xgmii_x64_valid_i_1]]
+add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/port_xg0/fcs_pending_0_i_1 network/port_xg0/fcs_pending_1_i_1 network/port_xg0/mac {network/port_xg0/rx_bus[drop]_i_1} network/port_xg0/rx_s2_control_i_1 {network/port_xg0/rx_s2_data[31]_i_1} network/port_xg0/tx_pause_inv_i_1]]
 resize_pblock [get_pblocks pblock_port_xg0] -add {SLICE_X36Y75:SLICE_X53Y99}
 resize_pblock [get_pblocks pblock_port_xg0] -add {DSP48_X2Y30:DSP48_X2Y39}
 resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB18_X2Y30:RAMB18_X2Y39}
@@ -311,7 +332,7 @@ resize_pblock [get_pblocks pblock_rx_mux] -add {RAMB36_X2Y15:RAMB36_X2Y19}
 set_property IS_SOFT FALSE [get_pblocks pblock_rx_mux]
 
 ########################################################################################################################
-# JTAG
+# Boot / configuration
 
 set_property CFGBVS VCCO [current_design]
 set_property CONFIG_VOLTAGE 3.3 [current_design]
@@ -319,31 +340,15 @@ set_property CONFIG_VOLTAGE 3.3 [current_design]
 set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
 set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 
+########################################################################################################################
+# JTAG
 
 
-
-
-
-
-
-
-
-
-set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[7]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[6]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[5]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[4]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[3]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[2]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[1]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[0]}]
-set_property PACKAGE_PIN N17 [get_ports {pmod_dq[7]}]
-
-set_property PACKAGE_PIN P17 [get_ports {pmod_dq[6]}]
-set_property PACKAGE_PIN R18 [get_ports {pmod_dq[5]}]
-set_property PACKAGE_PIN P19 [get_ports {pmod_dq[4]}]
-set_property PACKAGE_PIN M16 [get_ports {pmod_dq[3]}]
-set_property PACKAGE_PIN P16 [get_ports {pmod_dq[2]}]
-set_property PACKAGE_PIN R17 [get_ports {pmod_dq[1]}]
-set_property PACKAGE_PIN R19 [get_ports {pmod_dq[0]}]
-
+create_pblock pblock_cdrtrig_linecode
+add_cells_to_pblock [get_pblocks pblock_cdrtrig_linecode] [get_cells -quiet [list {bert/decoders[0].lane0_8b10b_decode} {bert/decoders[0].lane0_aligner} {bert/decoders[1].lane0_8b10b_decode} {bert/decoders[1].lane0_aligner} {bert/decoders[2].lane0_8b10b_decode} {bert/decoders[2].lane0_aligner} {bert/decoders[3].lane0_8b10b_decode} {bert/decoders[3].lane0_aligner} bert/lane0_gearbox40]]
+resize_pblock [get_pblocks pblock_cdrtrig_linecode] -add {CLOCKREGION_X1Y3:CLOCKREGION_X1Y3}
+set_property IS_SOFT FALSE [get_pblocks pblock_cdrtrig_linecode]
+set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
+set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
+set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]
+connect_debug_port dbg_hub/clk [get_nets clk_250mhz]
