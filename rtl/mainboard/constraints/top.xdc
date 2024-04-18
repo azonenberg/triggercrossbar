@@ -345,9 +345,17 @@ set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 
 
 create_pblock pblock_cdrtrig_linecode
-add_cells_to_pblock [get_pblocks pblock_cdrtrig_linecode] [get_cells -quiet [list {bert/decoders[0].lane0_8b10b_decode} {bert/decoders[0].lane0_aligner} {bert/decoders[1].lane0_8b10b_decode} {bert/decoders[1].lane0_aligner} {bert/decoders[2].lane0_8b10b_decode} {bert/decoders[2].lane0_aligner} {bert/decoders[3].lane0_8b10b_decode} {bert/decoders[3].lane0_aligner} bert/lane0_gearbox40]]
+add_cells_to_pblock [get_pblocks pblock_cdrtrig_linecode] [get_cells -quiet [list {bert/decoders[0].lane0_8b10b_decode} {bert/decoders[0].lane0_aligner} {bert/decoders[1].lane0_8b10b_decode} {bert/decoders[1].lane0_aligner} {bert/decoders[2].lane0_8b10b_decode} {bert/decoders[2].lane0_aligner} {bert/decoders[3].lane0_8b10b_decode} {bert/decoders[3].lane0_aligner}]]
 resize_pblock [get_pblocks pblock_cdrtrig_linecode] -add {CLOCKREGION_X1Y3:CLOCKREGION_X1Y3}
 set_property IS_SOFT FALSE [get_pblocks pblock_cdrtrig_linecode]
+
+create_pblock pblock_cdtrtrig_gearboxes
+add_cells_to_pblock [get_pblocks pblock_cdtrtrig_gearboxes] [get_cells -quiet [list bert/lane0_gearbox40 bert/lane0_gearbox66]]
+resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {SLICE_X44Y150:SLICE_X53Y188}
+resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {DSP48_X2Y60:DSP48_X2Y73}
+resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB18_X2Y60:RAMB18_X2Y73}
+resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB36_X2Y30:RAMB36_X2Y36}
+set_property IS_SOFT FALSE [get_pblocks pblock_cdtrtrig_gearboxes]
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
 set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
 set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]

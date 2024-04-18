@@ -30,38 +30,43 @@
 ***********************************************************************************************************************/
 
 /**
-	@brief Gearboxes a 32-bit data stream from the transceiver to a 40-bit data stream suitable for 8b/10b decoding
+	@brief Gearboxes a 32-bit data stream from the transceiver to a N-bit (N > 32) data stream
  */
-module Gearbox32To40(
-	input wire			clk,
-	input wire[31:0]	data_in,
-	input wire			valid_in,
-	input wire			bitslip,
+module Gearbox32ToN #(
+	parameter			IN_WIDTH	= 32,
+	parameter			OUT_WIDTH 	= 40
+)(
+	input wire					clk,
+	input wire[IN_WIDTH-1:0]	data_in,
+	input wire					valid_in,
+	input wire					bitslip,
 
-	output logic[39:0]	data_out	= 0,
-	output logic		valid_out	= 0
+	output logic[OUT_WIDTH-1:0]	data_out	= 0,
+	output logic				valid_out	= 0
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Rearrange the data to MSB-first bit ordering because serdes IPs are dumb, and pipeline to improve latency
 
-	logic[31:0] data_in_flip		= 0;
-	logic		data_in_flip_valid	= 0;
+	logic[IN_WIDTH-1:0] data_in_flip		= 0;
+	logic				data_in_flip_valid	= 0;
 
 	always_ff @(posedge clk) begin
-		for(integer i=0; i<32; i=i+1)
-			data_in_flip[i] 	<= data_in[31-i];
+		for(integer i=0; i<IN_WIDTH; i=i+1)
+			data_in_flip[i] 	<= data_in[(IN_WIDTH-1) - i];
 		data_in_flip_valid		<= valid_in;
 	end
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// The gearbox
 
+	localparam COMBINED_WIDTH = OUT_WIDTH + IN_WIDTH;
+
 	//Append new data to the existing buffer
-	logic[5:0]	work_valid	= 0;
-	logic[38:0]	workbuf		= 0;
-	logic[71:0] combined;
-	logic[6:0]	combined_valid;
+	logic[$clog2(OUT_WIDTH-1):0]		work_valid	= 0;
+	logic[COMBINED_WIDTH-1:0] 			combined;
+	logic[OUT_WIDTH-2:0]				workbuf		= 0;
+	logic[$clog2(COMBINED_WIDTH)-1:0]	combined_valid;
 
 	always_comb begin
 
@@ -69,13 +74,13 @@ module Gearbox32To40(
 		combined		= 0;
 
 		//Copy working buffer
-		combined[71:33]	= workbuf;
+		combined[COMBINED_WIDTH-1 : IN_WIDTH+1]	= workbuf;
 		combined_valid	= work_valid;
 
 		//Add new data (left justified)
 		if(data_in_flip_valid) begin
-			combined[(40-work_valid) +: 32]	= data_in_flip;
-			combined_valid					= work_valid + 32;
+			combined[(OUT_WIDTH-work_valid) +: IN_WIDTH]	= data_in_flip;
+			combined_valid									= work_valid + IN_WIDTH;
 		end
 
 		//Drop a bit if we're bitslipping
@@ -92,16 +97,16 @@ module Gearbox32To40(
 		if(data_in_flip_valid) begin
 
 			//If we have a full output word, push it out and save the remaining data
-			if(combined_valid >= 40) begin
-				data_out	<= combined[71:32];
+			if(combined_valid >= OUT_WIDTH) begin
+				data_out	<= combined[COMBINED_WIDTH-1:IN_WIDTH];
 				valid_out	<= 1;
-				workbuf		<= { combined[31:0], 7'h0 };
-				work_valid	<= combined_valid - 40;
+				workbuf		<= { combined[IN_WIDTH-1:0], {(OUT_WIDTH-IN_WIDTH-1){1'h0}} };
+				work_valid	<= combined_valid - OUT_WIDTH;
 			end
 
 			//No, just register it as-is
 			else begin
-				workbuf		<= combined[71:33];
+				workbuf		<= combined[COMBINED_WIDTH-1:IN_WIDTH+1];
 				work_valid	<= combined_valid;
 			end
 

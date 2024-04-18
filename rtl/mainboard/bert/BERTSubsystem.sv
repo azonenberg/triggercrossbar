@@ -470,14 +470,17 @@ module BERTSubsystem(
 		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// CDR trigger subsystem
+	// 8b0b gearboxing for CDR triggers
 
 	logic		lane0_8b10b_bitslip;
 
 	wire[39:0]	lane0_8b10b_gearbox_dout;
 	wire		lane0_8b10b_gearbox_dvalid;
 
-	Gearbox32To40 lane0_gearbox40(
+	Gearbox32ToN #(
+		.IN_WIDTH(32),
+		.OUT_WIDTH(40)
+	) lane0_gearbox40(
 		.clk(lane0_rxclk),
 		.data_in(lane0_rx_data),
 		.valid_in(1'b1),
@@ -486,6 +489,60 @@ module BERTSubsystem(
 		.data_out(lane0_8b10b_gearbox_dout),
 		.valid_out(lane0_8b10b_gearbox_dvalid)
 	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// 64b66b gearboxing for CDR triggers
+
+	//32-to-66 is a really annoying path with a lot of muxes! Difficult to do in one clock cycle
+	//To get better performance, do 32-to-33 then 33-to-66 (simple 1:2 demux) which adds latency but is much cleaner
+
+	logic		lane0_64b66b_bitslip;
+
+	logic[65:0]	lane0_64b66b_gearbox_dout		= 0;
+	logic		lane0_64b66b_gearbox_dvalid		= 0;
+
+	wire[32:0]	lane0_64b66b_gearbox_dout_internal;
+	wire		lane0_64b66b_gearbox_dvalid_internal;
+
+	Gearbox32ToN #(
+		.IN_WIDTH(32),
+		.OUT_WIDTH(33)
+	) lane0_gearbox66(
+		.clk(lane0_rxclk),
+		.data_in(lane0_rx_data),
+		.valid_in(1'b1),
+		.bitslip(lane0_64b66b_bitslip),
+
+		.data_out(lane0_64b66b_gearbox_dout_internal),
+		.valid_out(lane0_64b66b_gearbox_dvalid_internal)
+	);
+
+	//Demux logic
+	logic	lane0_66b_phase = 0;
+	always_ff @(posedge lane0_rxclk) begin
+		lane0_64b66b_gearbox_dvalid	<= 0;
+
+		if(lane0_64b66b_gearbox_dvalid_internal) begin
+
+			lane0_66b_phase	<= !lane0_66b_phase;
+
+			//Second half
+			if(lane0_66b_phase) begin
+				lane0_64b66b_gearbox_dout[32:0]	<= lane0_64b66b_gearbox_dout_internal;
+				lane0_64b66b_gearbox_dvalid	<= 1;
+			end
+
+			else
+				lane0_64b66b_gearbox_dout[65:33]	<= lane0_64b66b_gearbox_dout_internal;
+
+		end
+
+	end
+
+	assign lane0_64b66b_bitslip = 0;	//for now, no sync
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// CDR trigger subsystem
 
 	//Per word decode output
 	wire[3:0]	lane0_8b10b_data_valid;
@@ -559,7 +616,13 @@ module BERTSubsystem(
 		.probe6(lane0_8b10b_data[3]),
 		.probe7(lane0_8b10b_data_is_ctl),
 		.probe8(lane0_8b10b_locked_all),
-		.probe9(lane0_8b10b_no_commas)
+		.probe9(lane0_8b10b_no_commas),
+		.probe10(lane0_64b66b_gearbox_dvalid),
+		.probe11(lane0_64b66b_gearbox_dout),
+
+		.probe12(lane0_64b66b_gearbox_dvalid_internal),
+		.probe13(lane0_64b66b_gearbox_dout_internal),
+		.probe14(lane0_66b_phase)
 		);
 
 endmodule
