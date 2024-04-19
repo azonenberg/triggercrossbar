@@ -133,7 +133,7 @@ int main()
 
 		//Check if we had a PHY link state change at 20 Hz
 		//TODO: add irq bit for this so we don't have to poll nonstop
-		if(g_logTimer->GetCount() > nextPhyPoll)
+		if(g_logTimer->GetCount() >= nextPhyPoll)
 		{
 			PollPHYs();
 			nextPhyPoll = g_logTimer->GetCount() + 500;
@@ -153,7 +153,7 @@ int main()
 		}
 
 		//Refresh of activity LEDs and TCP retransmits at 10 Hz
-		if(g_logTimer->GetCount() > next10HzTick)
+		if(g_logTimer->GetCount() >= next10HzTick)
 		{
 			UpdateFrontPanelActivityLEDs();
 			g_ethProtocol->OnAgingTick10x();
@@ -162,7 +162,7 @@ int main()
 		}
 
 		//1 Hz timer for various aging processes
-		if(g_logTimer->GetCount() > next1HzTick)
+		if(g_logTimer->GetCount() >= next1HzTick)
 		{
 			g_ethProtocol->OnAgingTick();
 			next1HzTick = g_logTimer->GetCount() + 10000;

@@ -124,6 +124,18 @@ bool g_bertTxClkSelIsQpll[2] = {false, false};
 ///@brief Clock selectors for BERT RX channels
 bool g_bertRxClkSelIsQpll[2] = {false, false};
 
+///@brief Input thresholds for trigger RX channels, in mV
+int g_triggerRxThresholds[12] =
+{
+	850, 850, 850, 850, 850, 850, 850, 850, 850, 850, 850, 850
+};
+
+///@brief Drive levels for trigger TX channels, in mV
+int g_triggerTxLevels[12] =
+{
+	2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000
+};
+
 ///Names of PRBS patterns
 static const char* g_patternNames[8] =
 {
@@ -327,6 +339,8 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		static const int channels[12] = {7, 6, 1, 0, 5, 4, 3, 2, 4, 5, 3, 6};
 		static const int dacs[12] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 };
 		g_rxDacs[dacs[chan]]->SetChannelMillivolts(channels[chan], mv);
+
+		g_triggerRxThresholds[chan] = mv;
 	}
 
 	//Level for output ports
@@ -343,6 +357,8 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		//No rhyme or reason here, depends on PCB layout
 		static const int channels[12] = {0, 0, 0, 0, 7, 6, 5, 4, 3, 1, 2, 0};
 		g_txDac->SetChannelMillivolts(channels[chan], mv);
+
+		g_triggerTxLevels[chan] = mv;
 	}
 
 	//Mux selector
@@ -912,6 +928,38 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 			buf.Printf("OUT\n");
 		else
 			buf.Printf("IN\n");
+	}
+
+	//Input threshold
+	else if(!strcmp(command, "THRESH"))
+	{
+		//need valid channel ID
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan >= 12) )
+			return;
+		if(subject[0] != 'I')
+			return;
+
+		SocketReplyBuffer buf(m_tcp, socket);
+		buf.Printf("%d\n", g_triggerRxThresholds[chan]);
+	}
+
+	//Output drive levels
+	else if(!strcmp(command, "LEV"))
+	{
+		//need valid channel ID
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan >= 12) )
+			return;
+		if(subject[0] != 'O')
+			return;
+
+		SocketReplyBuffer buf(m_tcp, socket);
+		buf.Printf("%d\n", g_triggerTxLevels[chan]);
 	}
 
 	//Clock sources
