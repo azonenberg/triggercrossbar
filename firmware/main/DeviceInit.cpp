@@ -45,35 +45,37 @@ void InitClocks()
 {
 	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
 	//A bit of extra latency is fine, the CPU being faster than flash is not.
-	Flash::SetConfiguration(512, RANGE_VOS0);
+	Flash::SetConfiguration(550, RANGE_VOS0);
 
 	//By default out of reset, we're clocked by the HSI clock at 64 MHz
+	//Initialize the external clock source at 25 MHz
+	RCCHelper::EnableHighSpeedExternalClock();
 
-	//Set up PLL1
+	//Set up PLL1 to run off the external oscillator
 	RCCHelper::InitializePLL(
 		1,		//PLL1
-		64,		//input is 64 MHz from the HSI
-		4,		//64/4 = 16 MHz at the PFD
-		32,		//16 * 32 = 512 MHz at the VCO
-		1,		//div P (primary output 512 MHz)
-		8,		//div Q (64 MHz kernel clock)
+		25,		//input is 25 MHz from the HSE
+		2,		//25/2 = 12.5 MHz at the PFD
+		44,		//12.5 * 44 = 550 MHz at the VCO
+		1,		//div P (primary output 550 MHz)
+		10,		//div Q (55 MHz kernel clock)
 		32,		//div R (not used for now),
-		RCCHelper::CLOCK_SOURCE_HSI
+		RCCHelper::CLOCK_SOURCE_HSE
 	);
 
 	//Set up main system clock tree
 	RCCHelper::InitializeSystemClocks(
-		1,		//sysclk = 512 MHz
-		2,		//AHB = 256 MHz
-		4,		//APB1 = 64 MHz
-		4,		//APB2 = 64 MHz
-		4,		//APB3 = 64 MHz
-		4		//APB4 = 64 MHz
+		1,		//sysclk = 550 MHz
+		2,		//AHB = 275 MHz
+		4,		//APB1 = 68.75 MHz
+		4,		//APB2 = 68.75 MHz
+		4,		//APB3 = 68.75 MHz
+		4		//APB4 = 68.75 MHz
 	);
 
 	//RNG clock should be >= HCLK/32
-	//AHB2 HCLK is 256 MHz so min 8 MHz
-	//Select PLL1 Q clock (64 MHz)
+	//AHB2 HCLK is 275 MHz so min 8.57 MHz
+	//Select PLL1 Q clock (55 MHz)
 	RCC.D2CCIP2R = (RCC.D2CCIP2R & ~0x300) | (0x100);
 
 	//Select PLL1 as system clock source
@@ -82,9 +84,9 @@ void InitClocks()
 
 void InitTimer()
 {
-	//APB1 is 64 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
+	//APB1 is 68.75 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
 	//Divide down to get 10 kHz ticks
-	static Timer logtim(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 12800);
+	static Timer logtim(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 13750);
 	g_logTimer = &logtim;
 }
 
@@ -95,9 +97,9 @@ void InitUART()
 	GPIOPin uart_tx(&GPIOA, 12, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6);
 	GPIOPin uart_rx(&GPIOA, 11, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6);
 
-	//Default after reset is for UART4 to be clocked by PCLK1 (APB1 clock) which is 64 MHz
-	//So we need a divisor of 555.55
-	static UART uart(&UART4, 556);
+	//Default after reset is for UART4 to be clocked by PCLK1 (APB1 clock) which is 68.75 MHz
+	//So we need a divisor of 596.78
+	static UART uart(&UART4, 597);
 	g_cliUART = &uart;
 
 	//Enable the UART RX interrupt
@@ -255,7 +257,7 @@ void InitDACs()
 	static GPIOPin dac_spi_mosi(&GPIOA, 7, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
 
 	//SPI1 runs on spi 1/2/3 kernel clock domain
-	//default after reset is PLL1 Q which is 64 MHz, divide by 8 to get 8 MHz
+	//default after reset is PLL1 Q which is 68.75 MHz, divide by 8 to get 8.59 MHz
 	//DACx0508 is weird and wants to work on falling edge of clock
 	static SPI dac_spi(&SPI1, true, 8);
 	dac_spi.SetClockInvert(true);
@@ -309,7 +311,7 @@ void InitSupervisor()
 	static GPIOPin spi_mosi(&GPIOE, 6, GPIOPin::MODE_PERIPHERAL, slew, 5);
 
 	//SPI4 runs on spi 4/5 kernel clock domain
-	//default after reset is APB2 clock which is 64 MHz, divide by 128 to get 500 kHz
+	//default after reset is APB2 clock which is 68.75 MHz, divide by 128 to get 537 kHz
 	static SPI super_spi(&SPI4, true, 128);
 	g_superSPI = &super_spi;
 
@@ -366,11 +368,11 @@ void InitQSPI()
 	static GPIOPin qspi_dq3(&GPIOA, 1, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_VERYFAST, 9);
 
 	//Clock divider value
-	//Default is for AHB3 bus clock to be used as kernel clock (256 MHz for us)
+	//Default is for AHB3 bus clock to be used as kernel clock (275 MHz for us)
 	//With 3.3V Vdd, we can go up to 140 MHz.
-	//Dividing by 4 gives 64 MHz and a transfer rate of 256 Mbps.
+	//Dividing by 4 gives 68.75 MHz and a transfer rate of 275 Mbps.
 	//FPGA currently requires <= 62.5 MHz due to the RX oversampling used (4x in 250 MHz clock domain)
-	//Dividing by 5 gives 51.2 MHz and a transfer rate of 204.8 Mbps
+	//Dividing by 5 gives 55 MHz and a transfer rate of 220 Mbps
 	uint8_t prescale = 5;
 
 	//Configure the OCTOSPI itself
@@ -398,27 +400,18 @@ void InitI2C()
 	static GPIOPin mac_i2c_scl(&GPIOB, 8, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6, true);
 	static GPIOPin mac_i2c_sda(&GPIOB, 9, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6, true);
 
-	//Default kernel clock for I2C4 is pclk4 (64 MHz for our current config)
-	//Prescale by 16 to get 4 MHz
-	//Divide by 40 after that to get 100 kHz
+	//Default kernel clock for I2C4 is pclk4 (68.75 MHz for our current config)
+	//Prescale by 16 to get 4.29 MHz
+	//Divide by 40 after that to get 107 kHz
 	static I2C mac_i2c(&I2C4, 16, 40);
 	g_macI2C = &mac_i2c;
-	/*
-	static GPIOPin temp_i2c_scl(&GPIOB, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
-	static GPIOPin temp_i2c_sda(&GPIOB, 7, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
 
-	//Default kernel clock for I2C1 is APB1 clock (64 MHz for our current config)
-	//Prescale by 16 to get 4 MHz
-	//Divide by 40 after that to get 100 kHz
-	static I2C temp_i2c(&I2C1, 16, 40);
-	g_tempI2C = &temp_i2c;
-	*/
 	static GPIOPin sfp_i2c_scl(&GPIOF, 1, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
 	static GPIOPin sfp_i2c_sda(&GPIOF, 0, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
 
-	//Default kernel clock for I2C2 is APB1 clock (64 MHz for our current config)
-	//Prescale by 16 to get 4 MHz
-	//Divide by 40 after that to get 100 kHz
+	//Default kernel clock for I2C2 is is APB1 clock (68.75 MHz for our current config)
+	//Prescale by 16 to get 4.29 MHz
+	//Divide by 40 after that to get 107 kHz
 	static I2C sfp_i2c(&I2C2, 16, 40);
 	g_sfpI2C = &sfp_i2c;
 }
@@ -751,7 +744,7 @@ void InitEthernet()
  */
 void InitDTS()
 {
-	//APB4 clock is 64 MHz, so divide by 80 to get 800 kHz ticks
+	//APB4 clock is 68.75 MHz, so divide by 80 to get 859 kHz ticks
 	//(must be <1 MHz)
 	//15 cycles integration time = 18.75 us
 	static DigitalTempSensor dts(&DTS, 80, 15, 64000000);
