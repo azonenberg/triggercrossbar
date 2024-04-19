@@ -608,7 +608,8 @@ module top(
 	// Debug LEDs etc
 
 	always_comb begin
-		led[3:1] = 0;
+		led[3:2] = 0;
+		led[1] = bert.lane0_64b66b_locked;
 		led[0] = bert.lane0_8b10b_locked_all;
 	end
 

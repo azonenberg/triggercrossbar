@@ -1,13 +1,18 @@
 SRCDIR=$(CURDIR)
 ROOTDIR=$(CURDIR)/../../
-CXXFLAGS=-g -O3 --std=c++17 -Wall -Wextra \
+CXXFLAGS=-g -O0 --std=c++17 -Wall -Wextra \
 	-I$(ROOTDIR) \
 	-I$(SRCDIR) \
 	-I$(ROOTDIR)/stm32-cpp/devices/inc \
 	-I$(ROOTDIR)/stm32-cpp/src \
 	-DMICROKVS_WRITE_BLOCK_SIZE=32 \
 	-DTEST_BANK_SIZE=131072 \
-	-DMAX_TOKEN_LEN=96
+	-DMAX_TOKEN_LEN=96 \
+	-Wl,--wrap=malloc \
+	-Wl,--wrap=calloc \
+	-Wl,--wrap=realloc \
+	-Wl,--wrap=alloca \
+	-Wl,--wrap=sbrk_aligned
 
 .ONESHELL:
 .SILENT: all

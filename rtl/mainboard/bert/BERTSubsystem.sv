@@ -470,27 +470,6 @@ module BERTSubsystem(
 		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// 8b0b gearboxing for CDR triggers
-
-	logic		lane0_8b10b_bitslip;
-
-	wire[39:0]	lane0_8b10b_gearbox_dout;
-	wire		lane0_8b10b_gearbox_dvalid;
-
-	Gearbox32ToN #(
-		.IN_WIDTH(32),
-		.OUT_WIDTH(40)
-	) lane0_gearbox40(
-		.clk(lane0_rxclk),
-		.data_in(lane0_rx_data),
-		.valid_in(1'b1),
-		.bitslip(lane0_8b10b_bitslip),
-
-		.data_out(lane0_8b10b_gearbox_dout),
-		.valid_out(lane0_8b10b_gearbox_dvalid)
-	);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// 64b66b gearboxing for CDR triggers
 
 	//32-to-66 is a really annoying path with a lot of muxes! Difficult to do in one clock cycle
@@ -539,10 +518,55 @@ module BERTSubsystem(
 
 	end
 
-	assign lane0_64b66b_bitslip = 0;	//for now, no sync
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// 64/66b decode subsystem
+
+	wire		lane0_64b66b_locked;
+
+	SymbolAligner64b66b lane0_64b66b_aligner(
+		.clk(lane0_rxclk),
+		.header_valid(lane0_64b66b_gearbox_dvalid),
+		.header(lane0_64b66b_gearbox_dout[65:64]),
+		.bitslip(lane0_64b66b_bitslip),
+		.block_sync_good(lane0_64b66b_locked));
+
+	wire		lane0_64b66b_symbol_valid;
+	wire[1:0]	lane0_64b66b_header;
+	wire[63:0]	lane0_64b66b_symbol;
+
+	Descrambler64b66b lane0_64b66b_descrambler(
+		.clk(lane0_rxclk),
+		.valid_in(lane0_64b66b_gearbox_dvalid),
+		.header_in(lane0_64b66b_gearbox_dout[65:64]),
+		.data_in(lane0_64b66b_gearbox_dout[63:0]),
+
+		.valid_out(lane0_64b66b_symbol_valid),
+		.header_out(lane0_64b66b_header),
+		.data_out(lane0_64b66b_symbol));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// CDR trigger subsystem
+	// 8b0b gearboxing for CDR triggers
+
+	logic		lane0_8b10b_bitslip;
+
+	wire[39:0]	lane0_8b10b_gearbox_dout;
+	wire		lane0_8b10b_gearbox_dvalid;
+
+	Gearbox32ToN #(
+		.IN_WIDTH(32),
+		.OUT_WIDTH(40)
+	) lane0_gearbox40(
+		.clk(lane0_rxclk),
+		.data_in(lane0_rx_data),
+		.valid_in(1'b1),
+		.bitslip(lane0_8b10b_bitslip),
+
+		.data_out(lane0_8b10b_gearbox_dout),
+		.valid_out(lane0_8b10b_gearbox_dvalid)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// 8B/10B decode subsystem
 
 	//Per word decode output
 	wire[3:0]	lane0_8b10b_data_valid;
@@ -566,7 +590,7 @@ module BERTSubsystem(
 
 	for(genvar g=0; g<4; g=g+1) begin : decoders
 
-		//The acutal line decoder block
+		//The actual line decoder block
 		Decode8b10b lane0_8b10b_decode(
 			.clk(lane0_rxclk),
 			.codeword_valid(lane0_8b10b_gearbox_dvalid),
@@ -619,10 +643,10 @@ module BERTSubsystem(
 		.probe9(lane0_8b10b_no_commas),
 		.probe10(lane0_64b66b_gearbox_dvalid),
 		.probe11(lane0_64b66b_gearbox_dout),
-
-		.probe12(lane0_64b66b_gearbox_dvalid_internal),
-		.probe13(lane0_64b66b_gearbox_dout_internal),
-		.probe14(lane0_66b_phase)
+		.probe12(lane0_64b66b_locked),
+		.probe13(lane0_64b66b_symbol_valid),
+		.probe14(lane0_64b66b_symbol),
+		.probe15(lane0_64b66b_header)
 		);
 
 endmodule
