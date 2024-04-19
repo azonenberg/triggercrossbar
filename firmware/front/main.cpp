@@ -125,14 +125,14 @@ int main()
 	while(1)
 	{
 		//Check for overflows on our log message timer
-		if(g_log.UpdateOffset(logTimerMax))
+		if(g_log.UpdateOffset(logTimerMax) && (next1HzTick >= logTimerMax) )
 			next1HzTick -= logTimerMax;
 
 		//Run the display state machine
 		g_display->OnTick();
 
 		//1 Hz timer event for display refreshes
-		if(g_logTimer->GetCount() > next1HzTick)
+		if(g_logTimer->GetCount() >= next1HzTick)
 		{
 			//g_log("1 Hz tick nextFull = %d nextDisplay = %d refreshing=%d\n",
 			//	nextFullRefresh, nextDisplayRefresh, g_display->IsRefreshInProgress());
