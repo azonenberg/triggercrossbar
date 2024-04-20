@@ -48,6 +48,9 @@
 #include <util/FIFO.h>
 #include <util/StringBuffer.h>
 
+#include "TCA6424A.h"
+#include "Display.h"
+
 void InitPower();
 void InitClocks();
 void InitUART();
@@ -64,8 +67,17 @@ extern UART<16, 256> g_uart;
 extern Logger g_log;
 extern Timer g_logTimer;
 extern SPI* g_fpgaSPI;
+extern I2C g_i2c;
+extern TCA6424A* g_expander;
+extern SPI* g_displaySPI;
+extern SPI* g_fpgaSPI;
+extern GPIOPin* g_fpgaSPICS;
+extern Display* g_display;
 
 uint16_t ReadThermalSensor(uint8_t addr);
 extern const uint8_t g_tempI2cAddress;
+
+extern GPIOPin* g_inmodeLED[4];
+extern GPIOPin* g_outmodeLED[4];
 
 #endif
