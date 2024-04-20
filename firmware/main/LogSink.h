@@ -47,6 +47,10 @@ public:
 			m_sinks[i] = nullptr;
 	}
 
+	///@brief unimplemented but the base class doesn't know that
+	virtual char BlockingRead() override
+	{ return 0; }
+
 	/**
 		@brief Adds a new log sink
 	 */

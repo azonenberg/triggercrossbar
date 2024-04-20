@@ -134,7 +134,7 @@ bool CrossbarSSHKeyManager::AddPublicKey(
 	const char* keyDesc
 	)
 {
-	g_cliUART->Printf("\n");
+	g_cliUART.Printf("\n");
 	g_log("Adding SSH public key with type=%s, blob=%s, desc=%s\n",
 		keyType, keyBlobBase64, keyDesc);
 
@@ -147,7 +147,7 @@ bool CrossbarSSHKeyManager::AddPublicKey(
 	auto bloblen = strlen(keyBlobBase64);
 	if(bloblen > 84)
 	{
-		g_cliUART->Printf("Public key blob is too long (invalid)\n");
+		g_cliUART.Printf("Public key blob is too long (invalid)\n");
 		return false;
 	}
 	base64_decodestate ctx;
@@ -157,24 +157,24 @@ bool CrossbarSSHKeyManager::AddPublicKey(
 	//Validate the key blob
 	if(binlen != 51)
 	{
-		g_cliUART->Printf("Public key blob decoded to invalid length (expected 51 bytes got %d)\n", binlen);
+		g_cliUART.Printf("Public key blob decoded to invalid length (expected 51 bytes got %d)\n", binlen);
 		return false;
 	}
 	auto blob = reinterpret_cast<SSHCurve25519KeyBlob*>(keyblob);
 	blob->ByteSwap();
 	if(blob->m_keyTypeLength != 11)
 	{
-		g_cliUART->Printf("Public key blob type has invalid length (expected 11 bytes got %d)\n", blob->m_keyTypeLength);
+		g_cliUART.Printf("Public key blob type has invalid length (expected 11 bytes got %d)\n", blob->m_keyTypeLength);
 		return false;
 	}
 	if(memcmp(blob->m_keyType, "ssh-ed25519", 11) != 0)
 	{
-		g_cliUART->Printf("Public key blob type has invalid type (expected ssh-ed25519)\n");
+		g_cliUART.Printf("Public key blob type has invalid type (expected ssh-ed25519)\n");
 		return false;
 	}
 	if(blob->m_pubKeyLength != ECDSA_KEY_SIZE)
 	{
-		g_cliUART->Printf("Public key blob type has invalid  key length (expected %d bytes got %d)\n", ECDSA_KEY_SIZE, blob->m_pubKeyLength);
+		g_cliUART.Printf("Public key blob type has invalid  key length (expected %d bytes got %d)\n", ECDSA_KEY_SIZE, blob->m_pubKeyLength);
 		return false;
 	}
 
@@ -213,7 +213,7 @@ bool CrossbarSSHKeyManager::AddPublicKey(
 	//No space to save it
 	else
 	{
-		g_cliUART->Printf("Could not add SSH key (all %d slots in use)\n", MAX_SSH_KEYS);
+		g_cliUART.Printf("Could not add SSH key (all %d slots in use)\n", MAX_SSH_KEYS);
 		return false;
 	}
 }

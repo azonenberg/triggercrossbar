@@ -81,8 +81,11 @@ OctoSPI* g_qspi = nullptr;
 
 /**
 	@brief UART console
+
+	Default after reset is for UART4 to be clocked by PCLK1 (APB1 clock) which is 68.75 MHz
+	So we need a divisor of 596.78
  */
-UART* g_cliUART = nullptr;
+UART<32, 256> g_cliUART(&UART4, 597);
 
 /**
 	@brief Digital temperature sensor

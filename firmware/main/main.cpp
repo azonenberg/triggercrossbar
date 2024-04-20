@@ -55,7 +55,7 @@ int main()
 	InitLEDs();
 	InitTimer();
 	InitUART();
-	InitLog(g_cliUART, g_logTimer);
+	InitLog(&g_cliUART, g_logTimer);
 	DetectHardware();
 
 	/*
@@ -96,7 +96,7 @@ int main()
 
 	//Create a CLI stream for the UART
 	UARTOutputStream uartStream;
-	uartStream.Initialize(g_cliUART);
+	uartStream.Initialize(&g_cliUART);
 
 	//Initialize the CLI for the UART
 	CrossbarCLISessionContext uartContext;
@@ -143,8 +143,8 @@ int main()
 		PollSFP();
 
 		//Poll for UART input
-		if(g_cliUART->HasInput())
-			uartContext.OnKeystroke(g_cliUART->BlockingRead());
+		if(g_cliUART.HasInput())
+			uartContext.OnKeystroke(g_cliUART.BlockingRead());
 
 		if(g_log.UpdateOffset(logTimerMax))
 		{
@@ -422,9 +422,9 @@ void LogTemperatures()
 		g_dts->GetTemperature()
 	};
 
-	g_cliUART->Printf("CSV-NAME,Fan0,Fan1,3V3Reg,1V2Reg,SGMIIPhys,QDR,SFP,VSC8512,FPGA,MCU\n");
-	g_cliUART->Printf("CSV-UNIT,RPM,RPM,°C,°C,°C,°C,°C,°C,°C,°C\n");
-	g_cliUART->Printf("CSV-DATA,%d,%d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d\n",
+	g_cliUART.Printf("CSV-NAME,Fan0,Fan1,3V3Reg,1V2Reg,SGMIIPhys,QDR,SFP,VSC8512,FPGA,MCU\n");
+	g_cliUART.Printf("CSV-UNIT,RPM,RPM,°C,°C,°C,°C,°C,°C,°C,°C\n");
+	g_cliUART.Printf("CSV-DATA,%d,%d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d\n",
 		GetFanRPM(0),
 		GetFanRPM(1),
 		(temps[0] >> 8),

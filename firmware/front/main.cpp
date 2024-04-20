@@ -57,7 +57,7 @@ Display* g_display = nullptr;
 GPIOPin* g_inmodeLED[4] = {nullptr};
 GPIOPin* g_outmodeLED[4] = {nullptr};
 
-SPI* g_fpgaSPI = nullptr;
+SPI g_fpgaSPI(&SPI1, true, 2, false);
 GPIOPin* g_fpgaSPICS = nullptr;
 
 //Display state
@@ -170,9 +170,9 @@ int main()
 		}
 
 		//Read and process SPI events
-		if(g_fpgaSPI->HasEvents())
+		if(g_fpgaSPI.HasEvents())
 		{
-			auto event = g_fpgaSPI->GetEvent();
+			auto event = g_fpgaSPI.GetEvent();
 
 			//Reset byte count on CS# rising or falling edge
 			if(event.type == SPIEvent::TYPE_CS)

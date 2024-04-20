@@ -257,7 +257,7 @@ void __attribute__((isr)) UART4_Handler()
 void __attribute__((isr)) SPI_CSHandler()
 {
 	//for now only trigger on falling edge so no need to check
-	g_fpgaSPI->OnIRQCSEdge(false);
+	g_fpgaSPI.OnIRQCSEdge(false);
 
 	//Acknowledge the interrupt
 	EXTI.PR1 |= 1;
@@ -268,9 +268,8 @@ void __attribute__((isr)) SPI_CSHandler()
  */
 void __attribute__((isr)) SPI1_Handler()
 {
-	g_fpgaSPI->OnIRQRxData(SPI1.DR);
+	g_fpgaSPI.OnIRQRxData(SPI1.DR);
 }
-
 
 /**
 	@brief UART1 interrupt

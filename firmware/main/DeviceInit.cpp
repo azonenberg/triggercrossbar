@@ -97,20 +97,13 @@ void InitUART()
 	GPIOPin uart_tx(&GPIOA, 12, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6);
 	GPIOPin uart_rx(&GPIOA, 11, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6);
 
-	//Default after reset is for UART4 to be clocked by PCLK1 (APB1 clock) which is 68.75 MHz
-	//So we need a divisor of 596.78
-	static UART uart(&UART4, 597);
-	g_cliUART = &uart;
-
-	//Enable the UART RX interrupt
-	//TODO: Make an RCC method for this
-	volatile uint32_t* NVIC_ISER1 = (volatile uint32_t*)(0xe000e104);
-	*NVIC_ISER1 = 0x100000;
+	//Enable the UART interrupt
+	NVIC_EnableIRQ(52);
 
 	g_logTimer->Sleep(10);	//wait for UART pins to be high long enough to remove any glitches during powerup
 
 	//Clear screen and move cursor to X0Y0
-	uart.Printf("\x1b[2J\x1b[0;0H");
+	g_cliUART.Printf("\x1b[2J\x1b[0;0H");
 }
 
 void DetectHardware()

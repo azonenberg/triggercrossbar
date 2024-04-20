@@ -67,7 +67,7 @@ void QSPIEthernetInterface::SendTxFrame(EthernetFrame* frame, bool markFree)
 	if(frame == nullptr)
 	{
 		//can't use logger to avoid infinite recursion
-		g_cliUART->Printf("tried to send a null frame\n");
+		g_cliUART.Printf("tried to send a null frame\n");
 		return;
 	}
 

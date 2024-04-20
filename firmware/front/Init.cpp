@@ -70,9 +70,7 @@ void InitUART()
 	GPIOPin uart_rx(&GPIOD, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 7);
 
 	//Enable the UART interrupt
-	//TODO: Make an RCC method for this or something
-	volatile uint32_t* NVIC_ISER0 = (volatile uint32_t*)(0xe000e100);
-	NVIC_ISER0[1] |= 0x40;
+	NVIC_EnableIRQ(38);
 }
 
 void InitLog()
@@ -242,10 +240,6 @@ void InitSPI()
 	//If we enable it, JTAG will stop working!
 	static GPIOPin fpga_cs_n(&GPIOB, 0, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
 
-	//Set up the SPI bus
-	static SPI fpgaSPI(&SPI1, true, 2, false);
-	g_fpgaSPI = &fpgaSPI;
-
 	//Save the CS# pin
 	g_fpgaSPICS = &fpga_cs_n;
 
@@ -253,15 +247,14 @@ void InitSPI()
 	//Use EXTI0 as PB0 interrupt on falling edge
 	//TODO: make a wrapper for this?
 	RCCHelper::EnableSyscfg();
-	volatile uint32_t* NVIC_ISER = (volatile uint32_t*)(0xe000e100);
-	NVIC_ISER[0] |= 0x40;
+	NVIC_EnableIRQ(6);
 	SYSCFG.EXTICR1 = (SYSCFG.EXTICR1 & 0xfffffff8) | 0x1;
 	EXTI.IMR1 |= 1;
 	EXTI.FTSR1 |= 1;
 
 	//Set up IRQ35 as SPI1 interrupt
-	NVIC_ISER[1] |= 0x8;
-	SPI1.CR2 |= SPI_RXNEIE;
+	NVIC_EnableIRQ(35);
+	g_fpgaSPI.EnableRxInterrupt();
 }
 
 void InitDisplay()

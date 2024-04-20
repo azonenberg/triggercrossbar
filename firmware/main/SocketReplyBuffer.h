@@ -71,6 +71,10 @@ public:
 			Flush();
 	}
 
+	///@brief unimplemented but the base class doesn't know that
+	virtual char BlockingRead() override
+	{ return 0; }
+
 	void Flush()
 	{
 		if(m_buf.length() == 0)

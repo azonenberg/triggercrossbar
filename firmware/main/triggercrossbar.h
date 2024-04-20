@@ -75,7 +75,7 @@ extern EthernetProtocol* g_ethProtocol;
 extern I2C* g_macI2C;
 extern I2C* g_sfpI2C;
 
-extern UART* g_cliUART;
+extern UART<32, 256> g_cliUART;
 extern OctoSPI* g_qspi;
 
 extern DigitalTempSensor* g_dts;
