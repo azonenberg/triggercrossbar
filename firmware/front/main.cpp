@@ -33,7 +33,9 @@
 #include "regids.h"
 
 //UART console
-UART* g_uart = nullptr;
+//USART2 is on APB1 (40 MHz), so we need a divisor of 347.22, round to 347
+UART<16, 256> g_uart(&USART2, 347);
+
 Logger g_log;
 
 Timer* g_logTimer = nullptr;
@@ -445,10 +447,6 @@ void InitUART()
 	GPIOPin uart_tx(&GPIOD, 5, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 7);
 	GPIOPin uart_rx(&GPIOD, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 7);
 
-	//USART2 is on APB1 (40 MHz), so we need a divisor of 347.22, round to 347
-	static UART uart(&USART2, 347);
-	g_uart = &uart;
-
 	//Enable the UART RX interrupt
 	//TODO: Make an RCC method for this
 	//volatile uint32_t* NVIC_ISER1 = (volatile uint32_t*)(0xe000e104);
@@ -466,10 +464,10 @@ void InitLog()
 	g_logTimer->Sleep(100);
 
 	//Clear screen and move cursor to X0Y0
-	g_uart->Printf("\x1b[2J\x1b[0;0H");
+	g_uart.Printf("\x1b[2J\x1b[0;0H");
 
 	//Start the logger
-	g_log.Initialize(g_uart, &logtim);
+	g_log.Initialize(&g_uart, &logtim);
 	g_log("UART logging ready\n");
 }
 

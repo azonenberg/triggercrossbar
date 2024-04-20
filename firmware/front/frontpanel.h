@@ -48,7 +48,7 @@
 #include <util/FIFO.h>
 #include <util/StringBuffer.h>
 
-extern UART* g_uart;
+extern UART<16, 256> g_uart;
 extern Logger g_log;
 extern Timer* g_logTimer;
 extern SPI* g_fpgaSPI;
