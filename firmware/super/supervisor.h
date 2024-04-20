@@ -47,7 +47,7 @@
 #include <util/Logger.h>
 #include <util/FIFO.h>
 
-extern UART* g_uart;
+extern UART<32, 256> g_uart;
 extern Logger g_log;
 
 extern I2C* g_i2c;

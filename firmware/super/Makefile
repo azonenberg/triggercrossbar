@@ -15,7 +15,7 @@ CXX=arm-none-eabi-g++
 all:
 	mkdir -p build
 	cd build
-	$(CXX) $(ROOTDIR)/stm32-cpp/src/cpu/*.S -c $(CXXFLAGS) || exit 1
+	$(CXX) $(ROOTDIR)/stm32-cpp/src/cpu/*.* -c $(CXXFLAGS) || exit 1
 	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/*.cpp || exit 1
 	$(CXX) $(ROOTDIR)/stm32-cpp/src/newlib-stubs/*.cpp -c $(CXXFLAGS) || exit 1
 	$(CXX) $(ROOTDIR)/stm32-cpp/src/peripheral/*.cpp -c $(CXXFLAGS) || exit 1

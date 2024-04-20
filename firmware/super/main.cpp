@@ -34,8 +34,8 @@
 #include "TempSensorReader.h"
 #include <util/StringBuffer.h>
 
-//UART console
-UART* g_uart = nullptr;
+//USART2 is on APB1 (32MHz), so we need a divisor of 277.77, round to 278
+UART<32, 256> g_uart(&USART2, 278);
 Logger g_log;
 
 Timer* g_logTimer;
@@ -730,14 +730,8 @@ void InitUART()
 	GPIOPin uart_tx(&GPIOB, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 0);
 	GPIOPin uart_rx(&GPIOB, 7, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 0);
 
-	//USART2 is on APB1 (32MHz), so we need a divisor of 277.77, round to 278
-	static UART uart(&USART2, 278);
-	g_uart = &uart;
-
-	//Enable the UART RX interrupt
-	//TODO: Make an RCC method for this
-	//volatile uint32_t* NVIC_ISER1 = (volatile uint32_t*)(0xe000e104);
-	// *NVIC_ISER1 = 0x100000;
+	//Enable UART interrupts
+	NVIC_EnableIRQ(28);
 }
 
 void InitLog()
@@ -751,10 +745,10 @@ void InitLog()
 	g_logTimer->Sleep(100);
 
 	//Clear screen and move cursor to X0Y0
-	g_uart->Printf("\x1b[2J\x1b[0;0H");
+	g_uart.Printf("\x1b[2J\x1b[0;0H");
 
 	//Start the logger
-	g_log.Initialize(g_uart, &logtim);
+	g_log.Initialize(&g_uart, &logtim);
 	g_log("UART logging ready\n");
 	g_log("Firmware version %s\n", g_version);
 }
@@ -834,6 +828,8 @@ void InitSensors()
 {
 	g_log("Initializing sensors\n");
 	LogIndenter li(g_log);
+
+	g_logTimer->Sleep(50);
 
 	//Set temperature sensor to max resolution
 	uint8_t cmd[3] = {0x01, 0x60, 0x00};
