@@ -1,8 +1,8 @@
 /***********************************************************************************************************************
 *                                                                                                                      *
-* LATENTPACKET v0.1                                                                                                    *
+* trigger-crossbar                                                                                                     *
 *                                                                                                                      *
-* Copyright (c) 2023 Andrew D. Zonenberg and contributors                                                              *
+* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -45,7 +45,7 @@
 #include <util/Logger.h>
 #include <util/FIFO.h>
 
-extern UART* g_uart;
+extern UART<32, 256> g_uart;
 extern Logger g_log;
 
 #endif

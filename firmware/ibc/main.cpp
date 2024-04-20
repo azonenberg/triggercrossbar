@@ -31,8 +31,9 @@
 #include "i2cregs.h"
 #include <util/StringBuffer.h>
 
-//UART console
-UART* g_uart = NULL;
+//USART2 is on APB1 (16MHz), so we need a divisor of 138.88, round to 139
+UART<32, 256> g_uart(&USART2, 139);
+
 Logger g_log;
 
 Timer* g_logTimer;
@@ -209,23 +210,14 @@ void InitClocks()
 void InitUART()
 {
 	//Initialize the UART for local console: 115.2 Kbps using PB6 for USART2 transmit and PA15 for USART2 receive
-	//TODO: nice interface for enabling UART interrupts
 	GPIOPin uart_tx(&GPIOB, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 0);
 	GPIOPin uart_rx(&GPIOA, 15, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 0);
 
-	//USART2 is on APB1 (16MHz), so we need a divisor of 138.88, round to 139
-	static UART uart(&USART2, 139);
-	g_uart = &uart;
-
-	/*
-	//Enable the UART RX interrupt
-	//TODO: Make an RCC method for this
-	volatile uint32_t* NVIC_ISER1 = (volatile uint32_t*)(0xe000e104);
-	*NVIC_ISER1 = 0x100000;
-	*/
+	//Turn on the interrupts for it
+	NVIC_EnableIRQ(28);
 
 	//Clear screen and move cursor to X0Y0
-	uart.Printf("\x1b[2J\x1b[0;0H");
+	g_uart.Printf("\x1b[2J\x1b[0;0H");
 }
 
 void InitLog()
@@ -235,7 +227,7 @@ void InitLog()
 	static Timer logtim(&TIMER2, Timer::FEATURE_GENERAL_PURPOSE_16BIT, 3200);
 	g_logTimer = &logtim;
 
-	g_log.Initialize(g_uart, &logtim);
+	g_log.Initialize(&g_uart, &logtim);
 	g_log("UART logging ready\n");
 }
 
