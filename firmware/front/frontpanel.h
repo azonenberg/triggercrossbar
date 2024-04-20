@@ -48,9 +48,21 @@
 #include <util/FIFO.h>
 #include <util/StringBuffer.h>
 
+void InitPower();
+void InitClocks();
+void InitUART();
+void InitLog();
+void DetectHardware();
+void InitGPIOs();
+void InitI2C();
+void InitSensors();
+void InitExpander();
+void InitSPI();
+void InitDisplay();
+
 extern UART<16, 256> g_uart;
 extern Logger g_log;
-extern Timer* g_logTimer;
+extern Timer g_logTimer;
 extern SPI* g_fpgaSPI;
 
 uint16_t ReadThermalSensor(uint8_t addr);

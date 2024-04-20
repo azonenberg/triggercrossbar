@@ -38,19 +38,10 @@ UART<16, 256> g_uart(&USART2, 347);
 
 Logger g_log;
 
-Timer* g_logTimer = nullptr;
+//APB1 is 40 MHz
+//Divide down to get 10 kHz ticks
+Timer g_logTimer(&TIM15, Timer::FEATURE_GENERAL_PURPOSE_16BIT, 4000);
 
-void InitPower();
-void InitClocks();
-void InitUART();
-void InitLog();
-void DetectHardware();
-void InitGPIOs();
-void InitI2C();
-void InitSensors();
-void InitExpander();
-void InitSPI();
-void InitDisplay();
 void RefreshDisplay(bool full);
 
 const uint8_t g_tempI2cAddress = 0x90;
@@ -134,12 +125,12 @@ int main()
 		g_display->OnTick();
 
 		//1 Hz timer event for display refreshes
-		if(g_logTimer->GetCount() >= next1HzTick)
+		if(g_logTimer.GetCount() >= next1HzTick)
 		{
 			//g_log("1 Hz tick nextFull = %d nextDisplay = %d refreshing=%d\n",
 			//	nextFullRefresh, nextDisplayRefresh, g_display->IsRefreshInProgress());
 
-			next1HzTick = g_logTimer->GetCount() + 10000;
+			next1HzTick = g_logTimer.GetCount() + 10000;
 
 			//Watchdog timer to detect main MCU acting up
 			secSinceLastMcuUpdate ++;
@@ -455,19 +446,14 @@ void InitUART()
 
 void InitLog()
 {
-	//APB1 is 40 MHz
-	//Divide down to get 10 kHz ticks
-	static Timer logtim(&TIM15, Timer::FEATURE_GENERAL_PURPOSE_16BIT, 4000);
-	g_logTimer = &logtim;
-
 	//Wait 10ms to avoid resets during shutdown from destroying diagnostic output
-	g_logTimer->Sleep(100);
+	g_logTimer.Sleep(100);
 
 	//Clear screen and move cursor to X0Y0
 	g_uart.Printf("\x1b[2J\x1b[0;0H");
 
 	//Start the logger
-	g_log.Initialize(&g_uart, &logtim);
+	g_log.Initialize(&g_uart, &g_logTimer);
 	g_log("UART logging ready\n");
 }
 
@@ -594,7 +580,7 @@ void InitExpander()
 	//Clear reset
 	static GPIOPin tca_rst(&GPIOB, 1, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 	tca_rst = 1;
-	g_logTimer->Sleep(20);
+	g_logTimer.Sleep(20);
 
 	//Initialize the expander
 	static TCA6424A expander(g_i2c, 0x44);

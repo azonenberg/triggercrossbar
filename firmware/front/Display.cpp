@@ -427,22 +427,22 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 	*m_cs_n = 1;
 
 	g_log("Resetting display\n");
-	g_logTimer->Sleep(1000);
+	g_logTimer.Sleep(1000);
 
 	//Reset the display, need 5ms between each cycle
 	*m_rst_n = 1;
-	g_logTimer->Sleep(500);
+	g_logTimer.Sleep(500);
 	*m_rst_n = 0;
-	g_logTimer->Sleep(500);
+	g_logTimer.Sleep(500);
 	*m_rst_n = 1;
-	g_logTimer->Sleep(500);
+	g_logTimer.Sleep(500);
 
 	//wait for busy to clear
 
 	//Soft reset
 	SendCommand(0x00);
 	SendData(0x0e);
-	g_logTimer->Sleep(500);
+	g_logTimer.Sleep(500);
 
 	//Clear both bitplanes to blank
 	Clear();
@@ -450,10 +450,10 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 
 	//Read the OTP data
 	g_log("Reading OTP...\n");
-	g_logTimer->Sleep(500);
+	g_logTimer.Sleep(500);
 	LogIndenter li(g_log);
 	SendCommand(0xa2);
-	g_logTimer->Sleep(500);
+	g_logTimer.Sleep(500);
 	ReadData();	//dummy cycle before valid data
 	int activeBank = 0;
 	for(int i=0; ; i++)
