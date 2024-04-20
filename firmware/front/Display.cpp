@@ -450,8 +450,10 @@ Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin*
 
 	//Read the OTP data
 	g_log("Reading OTP...\n");
+	g_logTimer->Sleep(500);
 	LogIndenter li(g_log);
 	SendCommand(0xa2);
+	g_logTimer->Sleep(500);
 	ReadData();	//dummy cycle before valid data
 	int activeBank = 0;
 	for(int i=0; ; i++)

@@ -43,11 +43,10 @@ void BusFault_Handler();
 void HardFault_Handler();
 void NMI_Handler();
 
-//void UART4_Handler();
-
 void defaultISR();
 void SPI_CSHandler();
 void SPI1_Handler();
+void USART2_Handler();
 
 extern GPIOPin* g_inmodeLED[4];
 
@@ -110,7 +109,7 @@ fnptr __attribute__((section(".vector"))) vectorTable[] =
 	SPI1_Handler,			//irq35 SPI1
 	defaultISR,				//irq36 SPI2
 	defaultISR,				//irq37 USART1
-	defaultISR,				//irq38 USART2
+	USART2_Handler,			//irq38 USART2
 	defaultISR,				//irq39 USART3
 	defaultISR,				//irq40 EXTI15_10
 	defaultISR,				//irq41 RTC_ALARM
@@ -270,4 +269,17 @@ void __attribute__((isr)) SPI_CSHandler()
 void __attribute__((isr)) SPI1_Handler()
 {
 	g_fpgaSPI->OnIRQRxData(SPI1.DR);
+}
+
+
+/**
+	@brief UART1 interrupt
+ */
+void __attribute__((isr)) USART2_Handler()
+{
+	if(USART2.ISR & USART_ISR_TXE)
+		g_uart.OnIRQTxEmpty();
+
+	if(USART2.ISR & USART_ISR_RXNE)
+		g_uart.OnIRQRxData();
 }

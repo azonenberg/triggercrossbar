@@ -447,10 +447,10 @@ void InitUART()
 	GPIOPin uart_tx(&GPIOD, 5, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 7);
 	GPIOPin uart_rx(&GPIOD, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 7);
 
-	//Enable the UART RX interrupt
-	//TODO: Make an RCC method for this
-	//volatile uint32_t* NVIC_ISER1 = (volatile uint32_t*)(0xe000e104);
-	// *NVIC_ISER1 = 0x100000;
+	//Enable the UART interrupt
+	//TODO: Make an RCC method for this or something
+	volatile uint32_t* NVIC_ISER0 = (volatile uint32_t*)(0xe000e100);
+	NVIC_ISER0[1] |= 0x40;
 }
 
 void InitLog()
@@ -618,9 +618,9 @@ void InitSPI()
 	static GPIOPin display_mosi(&GPIOD, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
 	//MISO not used, bus is bidirectional
 
-	//Divide by 64 to get 625 kHz SPI
+	//Divide by 128 to get 312.5 kHz SPI
 	//We can run up to 10 MHz for writes but readback Fmax is ~2 MHz
-	static SPI displaySPI(&SPI2, false, 64);
+	static SPI displaySPI(&SPI2, false, 128);
 	g_displaySPI = &displaySPI;
 
 	//Set up GPIOs for FPGA bus
@@ -651,10 +651,6 @@ void InitSPI()
 	//Set up IRQ35 as SPI1 interrupt
 	NVIC_ISER[1] |= 0x8;
 	SPI1.CR2 |= SPI_RXNEIE;
-
-	//TODO: Make an RCC method for this?
-	//volatile uint32_t* NVIC_ISER1 = (volatile uint32_t*)(0xe000e104);
-	// *NVIC_ISER1 = 0x100000;
 }
 
 void InitDisplay()
@@ -680,8 +676,7 @@ void InitDisplay()
 
 	//Change the SPI baud rate once the display has read the ROM
 	//div 16 = 2.5 MHz, should be fine
-	//g_displaySPI->SetBaudDiv(16);
-	g_displaySPI->SetBaudDiv(32);
+	g_displaySPI->SetBaudDiv(16);
 }
 
 /**
