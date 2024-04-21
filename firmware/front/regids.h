@@ -46,6 +46,7 @@ enum front_regid_t
 	FRONT_FPGA_FW		= 0x07,	//FPGA firmware revision
 	FRONT_IP4_SUBNET	= 0x08,	//Subnet mask
 	FRONT_IP6_SUBNET	= 0x09,	//Subnet mask
+	FRONT_IPV4_DHCP		= 0x0a,	//1 = DHCP, 0 = static IP
 
 	FRONT_FPGA_TEMP		= 0x10,	//FPGA die temperature
 	FRONT_MCU_TEMP		= 0x11,	//MCU die temperature

@@ -283,6 +283,12 @@ void UpdateFrontPanelDisplay()
 		SendFrontPanelByte(0xff);
 	SetFrontPanelCS(1);
 
+	//Set Ethernet DHCP state
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_IPV4_DHCP);
+	SendFrontPanelByte(g_dhcpClient->IsEnabled());
+	SetFrontPanelCS(1);
+
 	/*
 		Only update version number strings once per boot to save SPI bus bandwidth.
 

@@ -56,6 +56,7 @@
 #include <staticnet/ssh/SSHTransportServer.h>
 
 #include "ManagementTCPProtocol.h"
+#include "ManagementUDPProtocol.h"
 #include "FPGAInterface.h"
 #include "OctalDAC.h"
 
@@ -71,6 +72,8 @@ extern Timer* g_logTimer;
 extern EthernetInterface* g_ethIface;
 extern MACAddress g_macAddress;
 extern IPv4Config g_ipConfig;
+extern bool g_usingDHCP;
+extern ManagementDHCPClient* g_dhcpClient;
 extern EthernetProtocol* g_ethProtocol;
 extern I2C* g_macI2C;
 extern I2C* g_sfpI2C;

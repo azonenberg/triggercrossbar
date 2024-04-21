@@ -79,6 +79,7 @@ uint16_t g_iout = 0;
 uint16_t g_fanspeed = 0;
 uint16_t g_ipv4SubnetSize = 0;
 uint16_t g_ipv6SubnetSize = 0;
+bool g_staticIP = true;
 
 //Indicates the main MCU is alive
 bool	g_mainMCUDown = true;
@@ -231,6 +232,12 @@ int main()
 
 								g_ipv4Addr[nbyte-1] = data;
 							}
+							break;
+
+						//DHCP enable flag
+						case FRONT_IPV4_DHCP:
+							if(nbyte == 0)
+								g_staticIP = nbyte ? true : false;
 							break;
 
 						//IPv6 address
@@ -476,10 +483,14 @@ void RefreshDisplay(bool forceFull)
 	else
 		g_display->Text6x8(vleft, texty, linkSpeed, true);
 
+	//DHCP mode
+	g_display->Text6x8(textright - 6*textwidth, texty, g_staticIP ? "Static" : "  DHCP", true);
+
 	//IPv4 address and subnet mask
 	texty -= textheight;
 	buf.Clear();
-	buf.Printf("IPv4  %d.%d.%d.%d/%d", g_ipv4Addr[0], g_ipv4Addr[1], g_ipv4Addr[2], g_ipv4Addr[3], g_ipv4SubnetSize);
+	buf.Printf("IPv4  %d.%d.%d.%d/%d",
+		g_ipv4Addr[0], g_ipv4Addr[1], g_ipv4Addr[2], g_ipv4Addr[3], g_ipv4SubnetSize);
 	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//Next rows: IPv6 address

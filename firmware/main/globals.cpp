@@ -168,3 +168,9 @@ ManagementSSHTransportServer* g_sshd = nullptr;
 
 ///@brief Default SSH username if not configured
 const char* g_defaultSshUsername = "admin";
+
+///@brief Selects whether the DHCP client is active or not
+bool g_usingDHCP = false;
+
+///@brief The DHCP client
+ManagementDHCPClient* g_dhcpClient = nullptr;

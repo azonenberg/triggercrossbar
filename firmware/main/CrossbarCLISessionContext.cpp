@@ -49,6 +49,7 @@ enum cmdid_t
 	//CMD_DESCRIPTION,
 	CMD_DETAIL,
 	//CMD_DEBUG,
+	CMD_DHCP,
 	CMD_EXIT,
 	CMD_FINGERPRINT,
 	CMD_FULL,
@@ -117,6 +118,7 @@ static const clikeyword_t g_hostnameCommands[] =
 
 static const clikeyword_t g_ipAddressCommands[] =
 {
+	{"dhcp",		CMD_DHCP,			nullptr,				"Use DHCP for IP configuration"},
 	{"<address>",	FREEFORM_TOKEN,		nullptr,				"New IPv4 address and subnet mask in x.x.x.x/yy format"},
 	{nullptr,		INVALID_COMMAND,	nullptr,				nullptr}
 };
@@ -525,6 +527,9 @@ void CrossbarCLISessionContext::OnCommit()
 	//Save SSH authorized key list
 	g_keyMgr.CommitToKVS();
 
+	//Save DHCP configuration
+	g_dhcpClient->SaveConfigToKVS();
+
 	//Save IP configuration
 	if(!g_kvs->StoreObjectIfNecessary<IPv4Address>(g_ipConfig.m_address, g_defaultIP, "ip.address"))
 		m_stream->Printf("KVS write error\n");
@@ -671,7 +676,17 @@ void CrossbarCLISessionContext::OnIPCommand()
 	switch(m_command[1].m_commandID)
 	{
 		case CMD_ADDRESS:
-			OnIPAddress(m_command[2].m_text);
+			if(m_command[2].m_commandID == CMD_DHCP)
+			{
+				g_usingDHCP = true;
+				g_dhcpClient->Enable();
+			}
+			else
+			{
+				g_usingDHCP = false;
+				g_dhcpClient->Disable();
+				OnIPAddress(m_command[2].m_text);
+			}
 			break;
 
 		case CMD_GATEWAY:
@@ -741,6 +756,7 @@ void CrossbarCLISessionContext::OnRollback()
 {
 	g_keyMgr.LoadFromKVS(false);
 
+	g_dhcpClient->LoadConfigFromKVS();
 	ConfigureIP();
 	LoadHostname();
 	g_sshd->LoadUsername();
