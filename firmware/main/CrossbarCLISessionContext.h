@@ -89,6 +89,8 @@ protected:
 	void OnNoSSHCommand();
 	void OnNoSSHKeyCommand();
 
+	void OnNtpServer(const char* addr);
+
 	void OnReload();
 	void OnRollback();
 
@@ -108,6 +110,7 @@ protected:
 	void OnShowIPAddress();
 	void OnShowIPRoute();
 	void OnShowMMDRegister();
+	void OnShowNtp();
 	void OnShowRegister();
 	void OnShowSSHFingerprint();
 	void OnShowSSHKeys();

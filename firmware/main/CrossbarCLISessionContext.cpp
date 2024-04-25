@@ -62,11 +62,13 @@ enum cmdid_t
 	CMD_KEYS,
 	CMD_MMD,
 	CMD_NO,
+	CMD_NTP,
 	CMD_REFRESH,
 	CMD_RELOAD,
 	CMD_REGISTER,
 	CMD_ROLLBACK,
 	CMD_ROUTE,
+	CMD_SERVER,
 	CMD_SET,
 	CMD_SHOW,
 	CMD_SSH,
@@ -156,6 +158,7 @@ static const clikeyword_t g_noSshCommands[] =
 
 static const clikeyword_t g_noCommands[] =
 {
+	{"ntp",				CMD_NTP,				nullptr,					"Disables the NTP client"},
 	{"ssh",				CMD_SSH,				g_noSshCommands,			"Remove authorized SSH keys"},
 
 	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
@@ -280,6 +283,7 @@ static const clikeyword_t g_showCommands[] =
 	{"hardware",		CMD_HARDWARE,		nullptr,					"Print hardware information"},
 	//{"interface",		CMD_INTERFACE,		g_showInterfaceCommands,	"Display interface properties and stats"},*/
 	{"ip",				CMD_IP,				g_showIpCommands,			"Print IPv4 information"},
+	{"ntp",				CMD_NTP,			nullptr,					"Print NTP information"},
 	{"ssh",				CMD_SSH,			g_showSshCommands,			"Print SSH information"},
 	//{"temperature",		CMD_TEMPERATURE,	nullptr,					"Display temperature sensor values"},
 	{"version",			CMD_VERSION,		nullptr,					"Show firmware / FPGA version"},
@@ -323,6 +327,21 @@ static const clikeyword_t g_sshCommands[] =
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// "ntp"
+
+static const clikeyword_t g_ntpServerCommands[] =
+{
+	{"<ip>",			FREEFORM_TOKEN,			nullptr,					"IP address of NTP server to use"},
+	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
+};
+
+static const clikeyword_t g_ntpCommands[] =
+{
+	{"server",			CMD_SERVER,				g_ntpServerCommands,		"Sets the NTP server to use"},
+	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // zeroize
 
 static const clikeyword_t g_zeroizeCommands[] =
@@ -344,6 +363,7 @@ static const clikeyword_t g_rootCommands[] =
 	{"hostname",	CMD_HOSTNAME,		g_hostnameCommands,		"Change the host name"},
 	{"ip",			CMD_IP,				g_ipCommands,			"Configure IP addresses"},
 	{"no",			CMD_NO,				g_noCommands,			"Remove or disable features"},
+	{"ntp",			CMD_NTP,			g_ntpCommands,			"Configure NTP client"},
 	{"refresh",		CMD_REFRESH,		g_refreshCommands,		"Refresh front panel display"},
 	{"reload",		CMD_RELOAD,			nullptr,				"Restart the system"},
 	{"rollback",	CMD_ROLLBACK,		nullptr,				"Revert changes made since last commit"},
@@ -445,6 +465,11 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 			OnNoCommand();
 			break;
 
+		case CMD_NTP:
+			if(m_command[1].m_commandID == CMD_SERVER)
+				OnNtpServer(m_command[2].m_text);
+			break;
+
 		case CMD_RELOAD:
 			OnReload();
 			break;
@@ -529,6 +554,7 @@ void CrossbarCLISessionContext::OnCommit()
 
 	//Save DHCP configuration
 	g_dhcpClient->SaveConfigToKVS();
+	g_ntpClient->SaveConfigToKVS();
 
 	//Save IP configuration
 	if(!g_kvs->StoreObjectIfNecessary<IPv4Address>(g_ipConfig.m_address, g_defaultIP, "ip.address"))
@@ -700,6 +726,23 @@ void CrossbarCLISessionContext::OnIPCommand()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// "ntp"
+
+void CrossbarCLISessionContext::OnNtpServer(const char* addr)
+{
+	//Parse the base IP address
+	IPv4Address iaddr;
+	if(!ParseIPAddress(addr, iaddr))
+	{
+		m_stream->Printf("Usage: ntp server x.x.x.x\n");
+		return;
+	}
+
+	g_ntpClient->Enable();
+	g_ntpClient->SetServerAddress(iaddr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "no"
 
 void CrossbarCLISessionContext::OnNoSSHKeyCommand()
@@ -724,6 +767,10 @@ void CrossbarCLISessionContext::OnNoCommand()
 {
 	switch(m_command[1].m_commandID)
 	{
+		case CMD_NTP:
+			g_ntpClient->Disable();
+			break;
+
 		case CMD_SSH:
 			OnNoSSHCommand();
 			break;
@@ -757,6 +804,7 @@ void CrossbarCLISessionContext::OnRollback()
 	g_keyMgr.LoadFromKVS(false);
 
 	g_dhcpClient->LoadConfigFromKVS();
+	g_ntpClient->LoadConfigFromKVS();
 	ConfigureIP();
 	LoadHostname();
 	g_sshd->LoadUsername();
@@ -846,6 +894,10 @@ void CrossbarCLISessionContext::OnShowCommand()
 
 		case CMD_REGISTER:
 			OnShowRegister();
+			break;
+
+		case CMD_NTP:
+			OnShowNtp();
 			break;
 
 		case CMD_SSH:
@@ -1300,6 +1352,40 @@ void CrossbarCLISessionContext::OnShowMMDRegister()
 	auto value = ManagementPHYExtendedRead(mmd, regid);
 
 	m_stream->Printf("MMD %02x register 0x%04x = 0x%04x\n", mmd, regid, value);
+}
+
+void CrossbarCLISessionContext::OnShowNtp()
+{
+	if(g_ntpClient->IsEnabled())
+	{
+		m_stream->Printf("NTP client enabled\n");
+		auto ip = g_ntpClient->GetServerAddress();
+
+		if(g_ntpClient->IsSynchronized())
+		{
+			tm synctime;
+			uint16_t syncsub;
+			g_ntpClient->GetLastSync(synctime, syncsub);
+
+			m_stream->Printf("Last synchronized to server %d.%d.%d.%d at %04d-%02d-%02dT%02d:%02d:%02d.%04d\n",
+				ip.m_octets[0], ip.m_octets[1], ip.m_octets[2], ip.m_octets[3],
+				synctime.tm_year + 1900,
+				synctime.tm_mon+1,
+				synctime.tm_mday,
+				synctime.tm_hour,
+				synctime.tm_min,
+				synctime.tm_sec,
+				syncsub);
+		}
+		else
+		{
+			m_stream->Printf("Using server %d.%d.%d.%d (not currently synchronized)\n",
+				ip.m_octets[0], ip.m_octets[1], ip.m_octets[2], ip.m_octets[3] );
+		}
+
+	}
+	else
+		m_stream->Printf("NTP client disabled\n");
 }
 
 void CrossbarCLISessionContext::OnShowRegister()

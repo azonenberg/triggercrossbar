@@ -174,3 +174,6 @@ bool g_usingDHCP = false;
 
 ///@brief The DHCP client
 ManagementDHCPClient* g_dhcpClient = nullptr;
+
+///@brief The NTP client
+ManagementNTPClient* g_ntpClient = nullptr;

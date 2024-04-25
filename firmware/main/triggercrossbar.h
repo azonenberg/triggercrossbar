@@ -39,6 +39,7 @@
 #include <peripheral/OctoSPIManager.h>
 #include <peripheral/Power.h>
 #include <peripheral/RCC.h>
+#include <peripheral/RTC.h>
 #include <peripheral/SPI.h>
 #include <peripheral/Timer.h>
 #include <peripheral/UART.h>
@@ -74,6 +75,7 @@ extern MACAddress g_macAddress;
 extern IPv4Config g_ipConfig;
 extern bool g_usingDHCP;
 extern ManagementDHCPClient* g_dhcpClient;
+extern ManagementNTPClient* g_ntpClient;
 extern EthernetProtocol* g_ethProtocol;
 extern I2C* g_macI2C;
 extern I2C* g_sfpI2C;
@@ -105,6 +107,7 @@ void InitLog(CharacterDevice* logdev, Timer* timer);
 void InitDTS();
 void InitQSPI();
 void InitFPGA();
+void InitRTC();
 
 void InitI2C();
 void InitEEPROM();

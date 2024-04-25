@@ -57,6 +57,7 @@ int main()
 	InitUART();
 	InitLog(&g_cliUART, g_logTimer);
 	DetectHardware();
+	InitRTC();
 
 	/*
 		Use sectors 6 and 7 of main flash (in single bank mode) for a 128 kB microkvs
@@ -387,6 +388,26 @@ void UpdateFrontPanelDisplay()
 
 	//Fan
 	SendFrontPanelSensor(FRONT_FAN_RPM, GetFanRPM(0));
+
+	//Wait a short time (if we send too fast front panel might drop data)
+	//TODO: increase buffer size on front panel
+	g_logTimer->Sleep(1);
+
+	//Timestamp of data
+	tm rtctime;
+	uint16_t rtcsubsec;
+	RTC::GetTime(rtctime, rtcsubsec);
+	buf.Clear();
+	buf.Printf("%02d:%02d:%02d",
+		rtctime.tm_hour,
+		rtctime.tm_min,
+		rtctime.tm_sec);
+
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_TIMESTAMP);
+	for(size_t i=0; i<sizeof(tmp); i++)
+		SendFrontPanelByte(tmp[i]);
+	SetFrontPanelCS(1);
 
 	firstRefresh = false;
 }

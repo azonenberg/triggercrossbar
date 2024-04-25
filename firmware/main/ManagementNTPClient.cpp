@@ -28,49 +28,129 @@
 ***********************************************************************************************************************/
 
 #include "triggercrossbar.h"
-#include "ManagementUDPProtocol.h"
+#include "ManagementNTPClient.h"
+
+///@brief KVS key for NTP enable state
+static const char* g_ntpEnableObjectID = "ntp.enable";
+
+///@brief KVS key for NTP server IP
+static const char* g_ntpServerObjectID = "ntp.server";
+
+const IPv4Address g_defaultNtpServer			= { .m_octets{0, 0, 0, 0} };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
 
-ManagementUDPProtocol::ManagementUDPProtocol(IPv4Protocol* ipv4)
-	: UDPProtocol(ipv4)
-	, m_dhcp(this)
-	, m_ntp(this)
+ManagementNTPClient::ManagementNTPClient(UDPProtocol* udp)
+	: NTPClient(udp)
+	, m_initialSyncDone(false)
 {
+	g_ntpClient = this;
+	LoadConfigFromKVS();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Timer handlers
+// BSP interfacing
 
-void ManagementUDPProtocol::OnAgingTick()
+uint64_t ManagementNTPClient::GetLocalTimestamp()
 {
-	m_dhcp.OnAgingTick();
-	m_ntp.OnAgingTick();
+	//TODO: use the RTC or a dedicated timer
+	//for now just use the log timer
+	uint64_t tnow = g_logTimer->GetCount();
+
+	//RTC is 100us steps, convert to native NTP units (2^-32 sec)
+	return tnow * 429497;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Message handlers
+// Notification handlers from NTP stack
 
-void ManagementUDPProtocol::OnRxData(
-	IPv4Address srcip,
-	uint16_t sport,
-	uint16_t dport,
-	uint8_t* payload,
-	uint16_t payloadLen)
+void ManagementNTPClient::OnTimeUpdated(time_t sec, uint32_t frac)
 {
-	switch(dport)
+	//Apply offset from UTC to local time zone so the RTC can be set in local time
+	//TEMP: hard code UTC-7 PDT
+	sec -= 7*3600;
+
+	//Crack fields to something suitable for feeding to the RTC
+	//We can't use newlib's localtime() or localtime_r() because it calls sbrk() under the hood :(
+	//So we vendor musl's implementation instead since that only uses local stack variables
+	struct tm cracked;
+	if(nullptr == gmtime_r(&sec, &cracked))
+		return;
+
+	//Get the OLD RTC time (before applying the NTP shift)
+	tm rtctime;
+	uint16_t rtcsubsec;
+	RTC::GetTime(rtctime, rtcsubsec);
+
+	//Convert sub-second units to 10 kHz tick values (100us)
+	uint32_t microseconds = frac / 4295;
+	uint16_t subsec = microseconds / 100;
+
+	//Push to the RTC
+	uint32_t rtcTicksPerSec = 10000;
+	RTC::SetPrescaleAndTime(50, rtcTicksPerSec, cracked, subsec);
+
+	//Calculate the delta between the two timestamps
+	int32_t dfrac = rtcsubsec - subsec;
+	int32_t dsec =
+		rtctime.tm_sec - cracked.tm_sec +
+		(rtctime.tm_min - cracked.tm_min) * 60 +
+		(rtctime.tm_hour - cracked.tm_hour) * 3600 +
+		(rtctime.tm_mday - cracked.tm_mday) * 86400;
+
+	//If fractional delta is negative, normalize it
+	if(dfrac < 0)
 	{
-		case DHCP_CLIENT_PORT:
-			m_dhcp.OnRxData(srcip, sport, dport, payload, payloadLen);
-			break;
-
-		case NTP_PORT:
-			m_ntp.OnRxData(srcip, sport, dport, payload, payloadLen);
-			break;
-
-		//ignore it
-		default:
-			break;
+		dsec --;
+		dfrac += rtcTicksPerSec;
 	}
+
+	int64_t pollPeriodTicks = m_timeout * rtcTicksPerSec;
+	int64_t error = dsec * rtcTicksPerSec + dfrac;
+	int64_t ppbError = (1000 * 1000 * 1000) * error / pollPeriodTicks;
+
+	int32_t ppm = ppbError / 1000;
+	int32_t ppb = ppbError % 1000;
+
+	//We're now synchronized!
+	if(m_initialSyncDone)
+	{
+		//Log absolute error assuming same polling interval
+		g_log("NTP resync complete, local clock error %d.%04d sec over %d sec (%d.%03d ppm)\n",
+			dsec, dfrac, m_timeout, ppm, ppb);
+	}
+	else
+	{
+		g_log("Initial NTP sync successful, step = %d.%04d sec\n", dsec, dfrac);
+		m_initialSyncDone = true;
+	}
+
+	m_lastSync = cracked;
+	m_lastSyncFrac = subsec;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Serialization
+
+void ManagementNTPClient::LoadConfigFromKVS()
+{
+	//Check if we're using NTP and, if so, enable it
+	bool enable = g_kvs->ReadObject(g_ntpEnableObjectID, false);
+	if(enable)
+		Enable();
+	else
+		Disable();
+
+	//Load server IP address
+	m_serverAddress = g_kvs->ReadObject<IPv4Address>(g_defaultNtpServer, g_ntpServerObjectID);
+}
+
+void ManagementNTPClient::SaveConfigToKVS()
+{
+	if(!g_kvs->StoreObjectIfNecessary(g_ntpEnableObjectID, IsEnabled(), false))
+		g_log(Logger::ERROR, "KVS write error\n");
+
+	if(!g_kvs->StoreObjectIfNecessary<IPv4Address>(m_serverAddress, g_defaultNtpServer, g_ntpServerObjectID))
+		g_log(Logger::ERROR, "KVS write error\n");
 }

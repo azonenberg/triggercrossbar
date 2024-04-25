@@ -27,30 +27,42 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef ManagementUDPProtocol_h
-#define ManagementUDPProtocol_h
+#ifndef ManagementNTPClient_h
+#define ManagementNTPClient_h
 
-#include "ManagementDHCPClient.h"
-#include "ManagementNTPClient.h"
+#include <staticnet/ntp/NTPClient.h>
 
 /**
-	@brief UDP handlers for management stack
+	@brief NTP client service
  */
-class ManagementUDPProtocol : public UDPProtocol
+class ManagementNTPClient : public NTPClient
 {
 public:
-	ManagementUDPProtocol(IPv4Protocol* ipv4);
+	ManagementNTPClient(UDPProtocol* udp);
 
-	ManagementDHCPClient& GetDHCP()
-	{ return m_dhcp; }
+	void LoadConfigFromKVS();
+	void SaveConfigToKVS();
 
-	virtual void OnAgingTick();
+	bool IsSynchronized()
+	{ return (m_state != STATE_DESYNCED) && m_initialSyncDone; }
+
+	void GetLastSync(tm& t, uint16_t& frac)
+	{
+		t = m_lastSync;
+		frac = m_lastSyncFrac;
+	}
 
 protected:
-	virtual void OnRxData(IPv4Address srcip, uint16_t sport, uint16_t dport, uint8_t* payload, uint16_t payloadLen);
+	virtual uint64_t GetLocalTimestamp();
 
-	ManagementDHCPClient m_dhcp;
-	ManagementNTPClient m_ntp;
+	virtual void OnTimeUpdated(time_t sec, uint32_t frac);
+
+	///@brief True if we've synced at least once since boot
+	bool m_initialSyncDone;
+
+	///@brief Timestamp of the last successful sync
+	tm m_lastSync;
+	uint16_t m_lastSyncFrac;
 };
 
 #endif

@@ -106,6 +106,17 @@ void InitUART()
 	g_cliUART.Printf("\x1b[2J\x1b[0;0H");
 }
 
+void InitRTC()
+{
+	g_log("Initializing RTC...\n");
+	LogIndenter li(g_log);
+	g_log("Using external clock divided by 50 (500 kHz)\n");
+
+	//Turn on the RTC APB clock so we can configure it, then set the clock source for it in the RCC
+	RCCHelper::Enable(&_RTC);
+	RTC::SetClockFromHSE(50);
+}
+
 void DetectHardware()
 {
 	g_log("Identifying hardware\n");

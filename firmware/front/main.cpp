@@ -80,6 +80,7 @@ uint16_t g_fanspeed = 0;
 uint16_t g_ipv4SubnetSize = 0;
 uint16_t g_ipv6SubnetSize = 0;
 bool g_staticIP = true;
+char g_dataTimestamp[20] = {0};
 
 //Indicates the main MCU is alive
 bool	g_mainMCUDown = true;
@@ -362,6 +363,11 @@ int main()
 								g_ipv6SubnetSize |= data << 8;
 							break;
 
+						//Timestamp of sensor values
+						case FRONT_TIMESTAMP:
+							RxSPIString(nbyte, g_dataTimestamp, sizeof(g_dataTimestamp), data);
+							break;
+
 						//Port direction indicator LEDs
 						case FRONT_DIR_LEDS:
 							*g_outmodeLED[0] = (data & 1) == 1;
@@ -549,6 +555,17 @@ void RefreshDisplay(bool forceFull)
 	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//Line below version info
+	texty --;
+	g_display->Line(xleft, texty, lineright, texty, true);
+	texty -= 2;
+
+	//Data timestamp
+	texty -= textheight;
+	buf.Clear();
+	buf.Printf("Updated  %s", g_dataTimestamp);
+	g_display->Text6x8(textleft, texty, tmp, true);
+
+	//Final bottom line
 	texty --;
 	g_display->Line(xleft, texty, lineright, texty, true);
 
