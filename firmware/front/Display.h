@@ -30,10 +30,12 @@
 #ifndef Display_h
 #define Display_h
 
+typedef SPI<256, 32> DisplaySPIType;
+
 class Display
 {
 public:
-	Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin* rst);
+	Display(DisplaySPIType* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin* rst);
 
 	void StartRefresh(bool forceFullScreenUpdate);
 	void OnTick();
@@ -58,7 +60,7 @@ protected:
 	void LineHigh(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black);
 
 protected:
-	SPI* m_spi;
+	DisplaySPIType* m_spi;
 	GPIOPin* m_busy_n;
 	GPIOPin* m_cs_n;
 	GPIOPin* m_dc;

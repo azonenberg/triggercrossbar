@@ -189,7 +189,7 @@ void MMUFault_Handler()
 void __attribute__((isr)) SPI_CSHandler()
 {
 	//for now only trigger on falling edge so no need to check
-	g_spi->OnIRQCSEdge(false);
+	g_spi.OnIRQCSEdge(false);
 
 	//Acknowledge the interrupt
 	EXTI.PR |= 0x10;
@@ -201,11 +201,11 @@ void __attribute__((isr)) SPI_CSHandler()
 void __attribute__((isr)) SPI1_Handler()
 {
 	if(SPI1.SR & SPI_RX_NOT_EMPTY)
-		g_spi->OnIRQRxData(SPI1.DR);
+		g_spi.OnIRQRxData(SPI1.DR);
 	if(SPI1.SR & SPI_TX_EMPTY)
 	{
-		if(g_spi->HasNextTxByte())
-			SPI1.DR = g_spi->GetNextTxByte();
+		if(g_spi.HasNextTxByte())
+			SPI1.DR = g_spi.GetNextTxByte();
 
 		//if no data to send, disable the interrupt
 		else

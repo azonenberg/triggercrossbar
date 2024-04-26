@@ -36,7 +36,7 @@
 #include "triggercrossbar.h"
 #include "OctalDAC.h"
 
-OctalDAC::OctalDAC(SPI& spi, GPIOPin& csn)
+OctalDAC::OctalDAC(SPIBase& spi, GPIOPin& csn)
 	: m_spi(spi)
 	, m_csn(csn)
 {

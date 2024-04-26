@@ -51,13 +51,16 @@ I2C g_i2c(&I2C2, 4, 100);
 
 TCA6424A* g_expander = nullptr;
 
-SPI* g_displaySPI = nullptr;
+//Divide 40 MHz base clock by 128 to get 312.5 kHz SPI
+//We can run up to 10 MHz for writes but readback Fmax is ~2 MHz
+DisplaySPIType g_displaySPI(&SPI2, false, 128);
+
 Display* g_display = nullptr;
 
 GPIOPin* g_inmodeLED[4] = {nullptr};
 GPIOPin* g_outmodeLED[4] = {nullptr};
 
-SPI g_fpgaSPI(&SPI1, true, 2, false);
+SPI<1024, 64> g_fpgaSPI(&SPI1, true, 2, false);
 GPIOPin* g_fpgaSPICS = nullptr;
 
 //Display state
@@ -117,8 +120,8 @@ int main()
 	uint8_t nbyte = 0;
 	uint8_t cmd = 0;
 	uint32_t secSinceLastMcuUpdate = 0;
-	const uint32_t fullRefreshInterval = 86400;
-	const uint32_t displayRefreshInterval = 86400;
+	const uint32_t displayRefreshInterval = 3600;						//1 hour
+	const uint32_t fullRefreshInterval = displayRefreshInterval * 24;	//1 day
 	while(1)
 	{
 		//Check for overflows on our log message timer
@@ -562,7 +565,7 @@ void RefreshDisplay(bool forceFull)
 	//Data timestamp
 	texty -= textheight;
 	buf.Clear();
-	buf.Printf("Updated  %s", g_dataTimestamp);
+	buf.Printf("Updated         %s", g_dataTimestamp);
 	g_display->Text6x8(textleft, texty, tmp, true);
 
 	//Final bottom line

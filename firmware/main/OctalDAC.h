@@ -41,7 +41,7 @@
 class OctalDAC
 {
 public:
-	OctalDAC(SPI& spi, GPIOPin& csn);
+	OctalDAC(SPIBase& spi, GPIOPin& csn);
 
 	void SetChannelValue(uint8_t channel, uint16_t code);
 
@@ -52,7 +52,7 @@ public:
 	}
 
 protected:
-	SPI& m_spi;
+	SPIBase& m_spi;
 	GPIOPin& m_csn;
 };
 

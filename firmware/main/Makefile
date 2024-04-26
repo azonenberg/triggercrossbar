@@ -27,6 +27,8 @@ all:
 	mkdir -p output
 	cd output/
 	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/*.cpp || exit 1
+	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/net/*.cpp || exit 1
+	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/ssh/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/microkvs/kvs/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/microkvs/driver/STM32StorageBank.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/embedded-cli/*.cpp || exit 1

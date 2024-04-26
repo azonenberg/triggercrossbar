@@ -56,12 +56,12 @@
 #include <staticnet/stack/staticnet.h>
 #include <staticnet/ssh/SSHTransportServer.h>
 
-#include "ManagementTCPProtocol.h"
-#include "ManagementUDPProtocol.h"
+#include "net/ManagementTCPProtocol.h"
+#include "net/ManagementUDPProtocol.h"
 #include "FPGAInterface.h"
 #include "OctalDAC.h"
 
-#include "CrossbarSSHKeyManager.h"
+#include "ssh/CrossbarSSHKeyManager.h"
 
 #define MAX_LOG_SINKS SSH_TABLE_SIZE
 
@@ -175,7 +175,7 @@ extern bool g_basetLinkUp;
 extern uint8_t g_basetLinkSpeed;
 extern bool g_sfpLinkUp;
 
-extern SPI* g_superSPI;
+extern SPI<64, 64> g_superSPI;
 extern GPIOPin* g_superSPICS;
 
 extern bool g_displayRefreshPending;

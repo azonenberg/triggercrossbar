@@ -51,7 +51,7 @@ extern UART<32, 256> g_uart;
 extern Logger g_log;
 
 extern I2C* g_i2c;
-extern SPI* g_spi;
+extern SPI<64, 64> g_spi;
 extern const uint8_t g_ibcI2cAddress;
 extern const uint8_t g_tempI2cAddress;
 

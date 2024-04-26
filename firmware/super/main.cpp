@@ -119,7 +119,8 @@ char g_ibcVersion[20] = {0};
 //Our version string
 char g_version[20] = {0};
 
-SPI* g_spi = nullptr;
+SPI<64, 64> g_spi(&SPI1, true, 2, false);
+
 GPIOPin* g_spiCS = nullptr;
 
 //Latest IBC sensor readings
@@ -182,9 +183,9 @@ int main()
 	while(1)
 	{
 		//Read and process SPI events
-		if(g_spi->HasEvents())
+		if(g_spi.HasEvents())
 		{
-			auto event = g_spi->GetEvent();
+			auto event = g_spi.GetEvent();
 
 			//Reset byte count on CS# rising or falling edge
 			if(event.type == SPIEvent::TYPE_CS)
@@ -205,32 +206,32 @@ int main()
 					{
 						//Read our fimware version
 						case SUPER_REG_VERSION:
-							g_spi->NonblockingWriteFifo((uint8_t*)g_version, sizeof(g_version));
+							g_spi.NonblockingWriteFifo((uint8_t*)g_version, sizeof(g_version));
 							break;
 
 						//Read IBC firmware version
 						case SUPER_REG_IBCVERSION:
-							g_spi->NonblockingWriteFifo((uint8_t*)g_ibcVersion, sizeof(g_ibcVersion));
+							g_spi.NonblockingWriteFifo((uint8_t*)g_ibcVersion, sizeof(g_ibcVersion));
 							break;
 
 						//IBC sensors
 						case SUPER_REG_IBCVIN:
-							g_spi->NonblockingWriteFifo((uint8_t*)&g_vin48, sizeof(g_vin48));
+							g_spi.NonblockingWriteFifo((uint8_t*)&g_vin48, sizeof(g_vin48));
 							break;
 						case SUPER_REG_IBCIIN:
-							g_spi->NonblockingWriteFifo((uint8_t*)&g_iin, sizeof(g_iin));
+							g_spi.NonblockingWriteFifo((uint8_t*)&g_iin, sizeof(g_iin));
 							break;
 						case SUPER_REG_IBCTEMP:
-							g_spi->NonblockingWriteFifo((uint8_t*)&g_ibcTemp, sizeof(g_ibcTemp));
+							g_spi.NonblockingWriteFifo((uint8_t*)&g_ibcTemp, sizeof(g_ibcTemp));
 							break;
 						case SUPER_REG_IBCVOUT:
-							g_spi->NonblockingWriteFifo((uint8_t*)&g_vout12, sizeof(g_vout12));
+							g_spi.NonblockingWriteFifo((uint8_t*)&g_vout12, sizeof(g_vout12));
 							break;
 						case SUPER_REG_IBCIOUT:
-							g_spi->NonblockingWriteFifo((uint8_t*)&g_iout, sizeof(g_iout));
+							g_spi.NonblockingWriteFifo((uint8_t*)&g_iout, sizeof(g_iout));
 							break;
 						case SUPER_REG_IBCVSENSE:
-							g_spi->NonblockingWriteFifo((uint8_t*)&g_voutsense, sizeof(g_voutsense));
+							g_spi.NonblockingWriteFifo((uint8_t*)&g_voutsense, sizeof(g_voutsense));
 							break;
 					}
 				}
@@ -959,10 +960,6 @@ void InitSPI()
 	static GPIOPin spi_mosi(&GPIOA, 7, GPIOPin::MODE_PERIPHERAL, slew, 0);
 	static GPIOPin spi_miso(&GPIOA, 6, GPIOPin::MODE_PERIPHERAL, slew, 0);
 	static GPIOPin spi_cs_n(&GPIOA, 4, GPIOPin::MODE_PERIPHERAL, slew, 0);
-
-	//Set up the SPI bus
-	static SPI spi(&SPI1, true, 2, false);
-	g_spi = &spi;
 
 	//Save the CS# pin
 	g_spiCS = &spi_cs_n;

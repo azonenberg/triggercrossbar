@@ -413,7 +413,7 @@ static const CharacterCell8x15 g_bitmapFont8x16[256] __attribute__((section(".ro
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
 
-Display::Display(SPI* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin* rst)
+Display::Display(DisplaySPIType* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin* rst)
 	: m_spi(spi)
 	, m_busy_n(busy_n)
 	, m_cs_n(cs_n)

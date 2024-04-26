@@ -133,8 +133,13 @@ uint8_t g_basetLinkSpeed = 0;
 
 //TODO: SFP+ link status
 
-///@brief SPI bus to supervisor
-SPI* g_superSPI = nullptr;
+/**
+	@brief SPI bus to supervisor
+
+	SPI4 runs on spi 4/5 kernel clock domain
+	default after reset is APB2 clock which is 68.75 MHz, divide by 128 to get 537 kHz
+ */
+SPI<64, 64> g_superSPI(&SPI4, true, 128);
 
 ///@brief Chip select for supervisor CS
 GPIOPin* g_superSPICS = nullptr;

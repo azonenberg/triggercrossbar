@@ -27,26 +27,29 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-/**
-	@file
-	@brief Declaration of ManagementPasswordAuthenticator
- */
-#ifndef ManagementPasswordAuthenticator_h
-#define ManagementPasswordAuthenticator_h
+#ifndef ManagementTCPProtocol_h
+#define ManagementTCPProtocol_h
 
-/**
-	@brief Base class for password authentication providers
- */
-class ManagementPasswordAuthenticator : public SSHPasswordAuthenticator
+#include "CrossbarSCPIServer.h"
+#include "../ssh/ManagementSSHTransportServer.h"
+
+class ManagementTCPProtocol : public TCPProtocol
 {
 public:
-	virtual bool TestLogin(
-		const char* username,
-		uint16_t username_len,
-		const char* password,
-		uint16_t password_len,
-		CryptoEngine* crypto
-		);
+	ManagementTCPProtocol(IPv4Protocol* ipv4);
+
+protected:
+	virtual bool IsPortOpen(uint16_t port) override;
+	virtual void OnConnectionAccepted(TCPTableEntry* state) override;
+	virtual void OnConnectionClosed(TCPTableEntry* state) override;
+	virtual void OnRxData(TCPTableEntry* state, uint8_t* payload, uint16_t payloadLen) override;
+
+	virtual uint32_t GenerateInitialSequenceNumber() override;
+
+	ManagementSSHTransportServer m_ssh;
+	CrossbarSCPIServer m_scpi;
+
+	STM32CryptoEngine m_crypt;
 };
 
 #endif

@@ -36,7 +36,7 @@
 #include "triggercrossbar.h"
 #include <ctype.h>
 #include "DeviceFPGAInterface.h"
-#include "QSPIEthernetInterface.h"
+#include "net/QSPIEthernetInterface.h"
 #include "../super/superregs.h"
 
 void TrimSpaces(char* str);
@@ -314,31 +314,26 @@ void InitSupervisor()
 	static GPIOPin spi_miso(&GPIOE, 5, GPIOPin::MODE_PERIPHERAL, slew, 5);
 	static GPIOPin spi_mosi(&GPIOE, 6, GPIOPin::MODE_PERIPHERAL, slew, 5);
 
-	//SPI4 runs on spi 4/5 kernel clock domain
-	//default after reset is APB2 clock which is 68.75 MHz, divide by 128 to get 537 kHz
-	static SPI super_spi(&SPI4, true, 128);
-	g_superSPI = &super_spi;
-
 	//Get the supervisor firmware version
 	super_cs_n = 0;
-	g_superSPI->BlockingWrite(SUPER_REG_VERSION);
-	g_superSPI->WaitForWrites();
-	g_superSPI->DiscardRxData();
-	g_superSPI->BlockingRead();	//discard dummy byte
+	g_superSPI.BlockingWrite(SUPER_REG_VERSION);
+	g_superSPI.WaitForWrites();
+	g_superSPI.DiscardRxData();
+	g_superSPI.BlockingRead();	//discard dummy byte
 	for(size_t i=0; i<sizeof(g_superVersion); i++)
-		g_superVersion[i] = g_superSPI->BlockingRead();
+		g_superVersion[i] = g_superSPI.BlockingRead();
 	g_superVersion[sizeof(g_superVersion)-1] = '\0';
 	super_cs_n = 1;
 	g_log("Firmware version: %s\n", g_superVersion);
 
 	//Get IBC firmware version
 	super_cs_n = 0;
-	g_superSPI->BlockingWrite(SUPER_REG_IBCVERSION);
-	g_superSPI->WaitForWrites();
-	g_superSPI->DiscardRxData();
-	g_superSPI->BlockingRead();	//discard dummy byte
+	g_superSPI.BlockingWrite(SUPER_REG_IBCVERSION);
+	g_superSPI.WaitForWrites();
+	g_superSPI.DiscardRxData();
+	g_superSPI.BlockingRead();	//discard dummy byte
 	for(size_t i=0; i<sizeof(g_ibcVersion); i++)
-		g_ibcVersion[i] = g_superSPI->BlockingRead();
+		g_ibcVersion[i] = g_superSPI.BlockingRead();
 	g_ibcVersion[sizeof(g_ibcVersion)-1] = '\0';
 	super_cs_n = 1;
 	g_log("IBC firmware version: %s\n", g_ibcVersion);

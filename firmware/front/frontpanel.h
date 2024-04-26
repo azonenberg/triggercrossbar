@@ -66,10 +66,10 @@ void InitDisplay();
 extern UART<16, 256> g_uart;
 extern Logger g_log;
 extern Timer g_logTimer;
-extern SPI g_fpgaSPI;
+extern SPI<1024, 64> g_fpgaSPI;
 extern I2C g_i2c;
 extern TCA6424A* g_expander;
-extern SPI* g_displaySPI;
+extern DisplaySPIType g_displaySPI;
 extern GPIOPin* g_fpgaSPICS;
 extern Display* g_display;
 

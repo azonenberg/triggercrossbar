@@ -227,11 +227,6 @@ void InitSPI()
 	static GPIOPin display_mosi(&GPIOD, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
 	//MISO not used, bus is bidirectional
 
-	//Divide by 128 to get 312.5 kHz SPI
-	//We can run up to 10 MHz for writes but readback Fmax is ~2 MHz
-	static SPI displaySPI(&SPI2, false, 128);
-	g_displaySPI = &displaySPI;
-
 	//Set up GPIOs for FPGA bus
 	static GPIOPin fpga_sck(&GPIOE, 13, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
 	static GPIOPin fpga_mosi(&GPIOE, 15, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
@@ -273,14 +268,14 @@ void InitDisplay()
 	display_bs = 0;
 
 	//Set up the display itself
-	static Display display(g_displaySPI, &display_busy_n, &display_cs_n, &display_dc, &display_rst_n);
+	static Display display(&g_displaySPI, &display_busy_n, &display_cs_n, &display_dc, &display_rst_n);
 	g_display = &display;
 
 	//Do not do an initial display refresh, the main MCU will do that when it's ready
 
 	//Change the SPI baud rate once the display has read the ROM
 	//div 16 = 2.5 MHz, should be fine
-	g_displaySPI->SetBaudDiv(16);
+	g_displaySPI.SetBaudDiv(32);
 }
 
 void InitSensors()

@@ -389,10 +389,6 @@ void UpdateFrontPanelDisplay()
 	//Fan
 	SendFrontPanelSensor(FRONT_FAN_RPM, GetFanRPM(0));
 
-	//Wait a short time (if we send too fast front panel might drop data)
-	//TODO: increase buffer size on front panel
-	g_logTimer->Sleep(1);
-
 	//Timestamp of data
 	tm rtctime;
 	uint16_t rtcsubsec;
@@ -415,12 +411,12 @@ void UpdateFrontPanelDisplay()
 uint16_t SupervisorRegRead(uint8_t regid)
 {
 	*g_superSPICS = 0;
-	g_superSPI->BlockingWrite(regid);
-	g_superSPI->WaitForWrites();
-	g_superSPI->DiscardRxData();
-	g_superSPI->BlockingRead();	//discard dummy byte
-	uint16_t tmp = g_superSPI->BlockingRead();
-	tmp |= (g_superSPI->BlockingRead() << 8);
+	g_superSPI.BlockingWrite(regid);
+	g_superSPI.WaitForWrites();
+	g_superSPI.DiscardRxData();
+	g_superSPI.BlockingRead();	//discard dummy byte
+	uint16_t tmp = g_superSPI.BlockingRead();
+	tmp |= (g_superSPI.BlockingRead() << 8);
 	*g_superSPICS = 1;
 
 	g_logTimer->Sleep(1);
