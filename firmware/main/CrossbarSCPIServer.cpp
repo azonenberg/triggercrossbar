@@ -374,7 +374,7 @@ void SaveChannelConfig()
 			g_log(Logger::ERROR, "KVS write error\n");
 
 		keybuf.Clear();
-		keybuf.Printf("ch-out%d.level", chnum);
+		keybuf.Printf("ch-io%d.level", chnum);
 		if(!g_kvs->StoreObjectIfNecessary<int>(key, g_triggerTxLevels[chnum], g_defaultTxLevel))
 			g_log(Logger::ERROR, "KVS write error\n");
 	}
