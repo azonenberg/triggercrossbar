@@ -42,7 +42,7 @@
 		[chan]:DIR [IN|OUT] (only for IO8..11)
 		Set bidirectional channel direction
 
-		[chan]:LEVEL [mV] (only for OUT4...7, IO8...11)
+		[chan]:LEV [mV] (only for OUT4...7, IO8...11)
 		Set logic-1 level for the channel
 
 		[chan]:MUX [index]
@@ -50,6 +50,9 @@
 
 		[chan]:THRESH [mV]
 		Set input threshold
+
+		[chan]:NICK [str]
+		Set nickname of channel
 
 	BERT commands:
 		[chan]:PATTERN USER, PRBS7, PRBS15, PRBS23, PRBS31, FASTSQUARE, SLOWSQUARE
@@ -124,16 +127,59 @@ bool g_bertTxClkSelIsQpll[2] = {false, false};
 ///@brief Clock selectors for BERT RX channels
 bool g_bertRxClkSelIsQpll[2] = {false, false};
 
+static const int g_defaultRxThreshold = 850;
+
 ///@brief Input thresholds for trigger RX channels, in mV
 int g_triggerRxThresholds[12] =
 {
-	850, 850, 850, 850, 850, 850, 850, 850, 850, 850, 850, 850
+	g_defaultRxThreshold, g_defaultRxThreshold, g_defaultRxThreshold, g_defaultRxThreshold,
+	g_defaultRxThreshold, g_defaultRxThreshold, g_defaultRxThreshold, g_defaultRxThreshold,
+	g_defaultRxThreshold, g_defaultRxThreshold, g_defaultRxThreshold, g_defaultRxThreshold
 };
+
+static const int g_defaultTxLevel = 2000;
 
 ///@brief Drive levels for trigger TX channels, in mV
 int g_triggerTxLevels[12] =
 {
-	2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000
+	g_defaultTxLevel, g_defaultTxLevel, g_defaultTxLevel, g_defaultTxLevel,
+	g_defaultTxLevel, g_defaultTxLevel, g_defaultTxLevel, g_defaultTxLevel,
+	g_defaultTxLevel, g_defaultTxLevel, g_defaultTxLevel, g_defaultTxLevel
+};
+
+///@brief Display names of input channels
+char g_inputDisplayNames[8][DISPLAY_NAME_MAX] =
+{
+	"IN0",
+	"IN1",
+	"IN2",
+	"IN3",
+	"IN4",
+	"IN5",
+	"IN6",
+	"IN7"
+};
+
+///@brief Display names of output channels
+char g_outputDisplayNames[8][DISPLAY_NAME_MAX] =
+{
+	"OUT0",
+	"OUT1",
+	"OUT2",
+	"OUT3",
+	"OUT4",
+	"OUT5",
+	"OUT6",
+	"OUT7"
+};
+
+///@brief Display names of bidir channels
+char g_bidirDisplayNames[4][DISPLAY_NAME_MAX] =
+{
+	"IO8",
+	"IO9",
+	"IO10",
+	"IO11"
 };
 
 ///Names of PRBS patterns
@@ -179,6 +225,161 @@ enum gtxregids
 	ES_SDATA			= 157 - 15b
 	*/
 };
+
+//Figure out which DAC channel to use for each channel
+//No rhyme or reason here, depends on PCB layout
+static const int g_rxDacChannels[12] = {7, 6, 1, 0, 5, 4, 3, 2, 4, 5, 3, 6};
+static const int g_rxDacIndex[12] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 };
+
+//Figure out which DAC channel to use for each channel
+//No rhyme or reason here, depends on PCB layout
+static const int g_txDacChannels[12] = {0, 0, 0, 0, 7, 6, 5, 4, 3, 1, 2, 0};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Serialization (not SCPI related per se, but in this file since that gives us access to all the globals)
+
+void LoadChannelConfig()
+{
+	g_log("Loading channel configuration from KVS\n");
+
+	char key[KVS_NAMELEN];
+	StringBuffer keybuf(key, KVS_NAMELEN);
+	for(int i=0; i<8; i++)
+	{
+		//Input channel config
+		keybuf.Clear();
+		keybuf.Printf("ch-in%d.nickname", i);
+		auto hlog = g_kvs->FindObject(key);
+		if(hlog)
+		{
+			memset(g_inputDisplayNames[i], 0, DISPLAY_NAME_MAX);
+			strncpy(
+				g_inputDisplayNames[i],
+				(const char*)g_kvs->MapObject(hlog),
+				std::min((size_t)hlog->m_len, (size_t)DISPLAY_NAME_MAX-1));
+		}
+
+		keybuf.Printf("ch-in%d.threshold", i);
+		g_triggerRxThresholds[i] = g_kvs->ReadObject<int>(g_defaultRxThreshold, key);
+		g_rxDacs[g_rxDacIndex[i]]->SetChannelMillivolts(g_rxDacChannels[i], g_triggerRxThresholds[i]);
+
+		//Output channel config
+		keybuf.Clear();
+		keybuf.Printf("ch-out%d.nickname", i);
+		hlog = g_kvs->FindObject(key);
+		if(hlog)
+		{
+			memset(g_outputDisplayNames[i], 0, DISPLAY_NAME_MAX);
+			strncpy(
+				g_outputDisplayNames[i],
+				(const char*)g_kvs->MapObject(hlog),
+				std::min((size_t)hlog->m_len, (size_t)DISPLAY_NAME_MAX-1));
+		}
+
+		//first 4 channels are fixed swing
+		if(i > 3)
+		{
+			keybuf.Clear();
+			keybuf.Printf("ch-out%d.level", i);
+			g_triggerTxLevels[i] = g_kvs->ReadObject<int>(g_defaultTxLevel, key);
+			g_txDac->SetChannelMillivolts(g_txDacChannels[i], g_triggerTxLevels[i]);
+		}
+	}
+
+	//Bidir ports (channels 8-11)
+	for(int i=0; i<4; i++)
+	{
+		int chnum = i+8;
+
+		//Input channel config
+		keybuf.Clear();
+		keybuf.Printf("ch-io%d.nickname", chnum);
+		auto hlog = g_kvs->FindObject(key);
+		if(hlog)
+		{
+			memset(g_bidirDisplayNames[i], 0, DISPLAY_NAME_MAX);
+			strncpy(
+				g_bidirDisplayNames[i],
+				(const char*)g_kvs->MapObject(hlog),
+				std::min((size_t)hlog->m_len, (size_t)DISPLAY_NAME_MAX-1));
+		}
+
+		keybuf.Printf("ch-io%d.threshold", chnum);
+		g_triggerRxThresholds[chnum] = g_kvs->ReadObject<int>(g_defaultRxThreshold, key);
+		g_rxDacs[g_rxDacIndex[chnum]]->SetChannelMillivolts(g_rxDacChannels[chnum], g_triggerRxThresholds[i]);
+
+		keybuf.Clear();
+		keybuf.Printf("ch-io%d.level", chnum);
+		g_triggerTxLevels[chnum] = g_kvs->ReadObject<int>(g_defaultTxLevel, key);
+		g_txDac->SetChannelMillivolts(g_txDacChannels[chnum], g_triggerTxLevels[chnum]);
+	}
+}
+
+void SaveChannelConfig()
+{
+	//Input and output channels
+	char key[KVS_NAMELEN];
+	StringBuffer keybuf(key, KVS_NAMELEN);
+	char hwname[KVS_NAMELEN];
+	StringBuffer hwbuf(hwname, KVS_NAMELEN);
+	for(int i=0; i<8; i++)
+	{
+		//Input channel config
+		hwbuf.Clear();
+		hwbuf.Printf("IN%d", i);
+		keybuf.Clear();
+		keybuf.Printf("ch-in%d.nickname", i);
+		if(!g_kvs->StoreStringObjectIfNecessary(key, g_inputDisplayNames[i], hwname))
+			g_log(Logger::ERROR, "KVS write error\n");
+
+		keybuf.Clear();
+		keybuf.Printf("ch-in%d.threshold", i);
+		if(!g_kvs->StoreObjectIfNecessary<int>(key, g_triggerRxThresholds[i], g_defaultRxThreshold))
+			g_log(Logger::ERROR, "KVS write error\n");
+
+		//Output channel config
+		hwbuf.Clear();
+		hwbuf.Printf("OUT%d", i);
+		keybuf.Clear();
+		keybuf.Printf("ch-out%d.nickname", i);
+		if(!g_kvs->StoreStringObjectIfNecessary(key, g_outputDisplayNames[i], hwname))
+			g_log(Logger::ERROR, "KVS write error\n");
+
+		//first 4 channels are fixed swing
+		if(i > 3)
+		{
+			keybuf.Clear();
+			keybuf.Printf("ch-out%d.level", i);
+			if(!g_kvs->StoreObjectIfNecessary<int>(key, g_triggerTxLevels[i], g_defaultTxLevel))
+				g_log(Logger::ERROR, "KVS write error\n");
+		}
+	}
+
+	//Bidir ports (channels 8-11)
+	for(int i=0; i<4; i++)
+	{
+		int chnum = i+8;
+
+		//Input channel config
+		hwbuf.Clear();
+		hwbuf.Printf("IO%d", chnum);
+		keybuf.Clear();
+		keybuf.Printf("ch-io%d.nickname", chnum);
+		if(!g_kvs->StoreStringObjectIfNecessary(key, g_bidirDisplayNames[i], hwname))
+			g_log(Logger::ERROR, "KVS write error\n");
+
+		keybuf.Clear();
+		keybuf.Printf("ch-io%d.threshold", chnum);
+		if(!g_kvs->StoreObjectIfNecessary<int>(key, g_triggerRxThresholds[chnum], g_defaultRxThreshold))
+			g_log(Logger::ERROR, "KVS write error\n");
+
+		keybuf.Clear();
+		keybuf.Printf("ch-out%d.level", chnum);
+		if(!g_kvs->StoreObjectIfNecessary<int>(key, g_triggerTxLevels[chnum], g_defaultTxLevel))
+			g_log(Logger::ERROR, "KVS write error\n");
+	}
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
@@ -333,14 +534,26 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 
 		int chan = GetChannelID(subject);
 		int mv = atoi(args);
-
-		//Figure out which DAC channel to use for each channel
-		//No rhyme or reason here, depends on PCB layout
-		static const int channels[12] = {7, 6, 1, 0, 5, 4, 3, 2, 4, 5, 3, 6};
-		static const int dacs[12] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 };
-		g_rxDacs[dacs[chan]]->SetChannelMillivolts(channels[chan], mv);
+		g_rxDacs[g_rxDacIndex[chan]]->SetChannelMillivolts(g_rxDacChannels[chan], mv);
 
 		g_triggerRxThresholds[chan] = mv;
+	}
+
+	//Nickname for port
+	else if(!strcmp(command, "NICK"))
+	{
+		//need to have a channel and value
+		if(!subject || !args)
+			return;
+
+		int chan = GetChannelID(subject);
+
+		if( (subject == strstr(subject, "IN")) && (chan >= 0) && (chan < 8) )
+			strncpy(g_inputDisplayNames[chan], args, DISPLAY_NAME_MAX-1);
+		else if( (subject == strstr(subject, "IO")) && (chan >= 8) && (chan <= 11) )
+			strncpy(g_bidirDisplayNames[chan - 8], args, DISPLAY_NAME_MAX-1);
+		else if( (subject == strstr(subject, "OUT")) && (chan >= 0) && (chan < 8) )
+			strncpy(g_outputDisplayNames[chan], args, DISPLAY_NAME_MAX-1);
 	}
 
 	//Level for output ports
@@ -353,10 +566,7 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		int chan = GetChannelID(subject);
 		int mv = atoi(args);
 
-		//Figure out which DAC channel to use for each channel
-		//No rhyme or reason here, depends on PCB layout
-		static const int channels[12] = {0, 0, 0, 0, 7, 6, 5, 4, 3, 1, 2, 0};
-		g_txDac->SetChannelMillivolts(channels[chan], mv);
+		g_txDac->SetChannelMillivolts(g_txDacChannels[chan], mv);
 
 		g_triggerTxLevels[chan] = mv;
 	}
@@ -913,6 +1123,26 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		buf.Printf("%d\n", g_muxsel[chan]);
 	}
 
+	//Nickname for port
+	else if(!strcmp(command, "NICK"))
+	{
+		//need to have a channel and value
+		if(!subject)
+			return;
+
+		int chan = GetChannelID(subject);
+
+		SocketReplyBuffer buf(m_tcp, socket);
+		if( (subject == strstr(subject, "IN")) && (chan >= 0) && (chan < 8) )
+			buf.Printf("%s\n", g_inputDisplayNames[chan]);
+		else if( (subject == strstr(subject, "IO")) && (chan >= 8) && (chan <= 11) )
+			buf.Printf("%s\n", g_bidirDisplayNames[chan - 8]);
+		else if( (subject == strstr(subject, "OUT")) && (chan >= 0) && (chan < 8) )
+			buf.Printf("%s\n", g_outputDisplayNames[chan]);
+		else
+			buf.Printf("INVALID\n");
+	}
+
 	//Bidir port direction
 	else if(!strcmp(command, "DIR"))
 	{
@@ -955,7 +1185,8 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		int chan = GetChannelID(subject);
 		if( (chan < 0) || (chan >= 12) )
 			return;
-		if(subject[0] != 'O')
+
+		if( (subject[0] != 'O') && !( (subject[0] == 'I') && (subject[1] == 'O') ) )
 			return;
 
 		SocketReplyBuffer buf(m_tcp, socket);

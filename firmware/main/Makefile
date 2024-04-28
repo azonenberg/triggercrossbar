@@ -13,8 +13,8 @@ CXXFLAGS=-g -O0 --std=c++17 -Wall -Wextra \
 	-Wl,--wrap=calloc \
 	-Wl,--wrap=realloc \
 	-Wl,--wrap=alloca \
-	-Wl,--wrap=sbrk_aligned \
-	-flto=auto -pipe
+	-Wl,--wrap=sbrk_aligned #\
+#	-flto=auto -pipe
 
 .ONESHELL:
 .SILENT: all

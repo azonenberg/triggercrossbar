@@ -197,4 +197,12 @@ extern char g_sshUsername[CLI_USERNAME_MAX];
 extern ManagementSSHTransportServer* g_sshd;
 extern const char* g_defaultSshUsername;
 
+void LoadChannelConfig();
+void SaveChannelConfig();
+
+#define DISPLAY_NAME_MAX 32
+extern char g_inputDisplayNames[8][DISPLAY_NAME_MAX];
+extern char g_outputDisplayNames[8][DISPLAY_NAME_MAX];
+extern char g_bidirDisplayNames[4][DISPLAY_NAME_MAX];
+
 #endif

@@ -95,6 +95,9 @@ int main()
 	InitEthernet();
 	InitIP();
 
+	//Load instrument channel configuration from the KVS
+	LoadChannelConfig();
+
 	//Create a CLI stream for the UART
 	UARTOutputStream uartStream;
 	uartStream.Initialize(&g_cliUART);
@@ -120,6 +123,7 @@ int main()
 	g_irq = &irq;
 
 	//Main event loop
+	uint32_t secTillNext5MinTick = 0;
 	uint32_t next1HzTick = 0;
 	uint32_t next10HzTick = 0;
 	uint32_t nextPhyPoll = 0;
@@ -167,6 +171,16 @@ int main()
 		{
 			g_ethProtocol->OnAgingTick();
 			next1HzTick = g_logTimer->GetCount() + 10000;
+
+			//Push channel config to KVS every 5 mins if it's changed
+			//DEBUG: every 10 sec
+			if(secTillNext5MinTick == 0)
+			{
+				secTillNext5MinTick = 300;
+				SaveChannelConfig();
+			}
+			else
+				secTillNext5MinTick --;
 
 			//Push new register values to front panel every second (it will refresh the panel whenever it wants to)
 			UpdateFrontPanelDisplay();

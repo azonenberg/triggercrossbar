@@ -969,6 +969,7 @@ void CrossbarCLISessionContext::OnShowFlash()
 			m_stream->Printf("    Active bank: Left\n");
 		else
 			m_stream->Printf("    Active bank: Right\n");
+		m_stream->Printf("    Header version: %d\n", g_kvs->GetBankHeaderVersion());
 		m_stream->Printf("    Log area:    %6d / %6d entries free (%d %%)\n",
 			g_kvs->GetFreeLogEntries(),
 			g_kvs->GetLogCapacity(),
