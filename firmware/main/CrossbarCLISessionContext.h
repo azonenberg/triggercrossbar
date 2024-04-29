@@ -86,6 +86,7 @@ protected:
 	void OnIPGateway(const char* gw);
 
 	void OnNoCommand();
+	void OnNoFlashCommand();
 	void OnNoSSHCommand();
 	void OnNoSSHKeyCommand();
 

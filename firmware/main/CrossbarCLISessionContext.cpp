@@ -145,7 +145,6 @@ static const clikeyword_t g_ipCommands[] =
 static const clikeyword_t g_noSshKeyCommands[] =
 {
 	{"<slot>",			FREEFORM_TOKEN,			nullptr,					"Slot number of the authorized SSH key to delete"},
-
 	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
 };
 
@@ -156,8 +155,15 @@ static const clikeyword_t g_noSshCommands[] =
 	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
 };
 
+static const clikeyword_t g_noFlashCommands[] =
+{
+	{"<key>",			FREEFORM_TOKEN,			nullptr,					"Key of the flash object to delete"},
+	{nullptr,			INVALID_COMMAND,		nullptr,					nullptr}
+};
+
 static const clikeyword_t g_noCommands[] =
 {
+	{"flash",			CMD_FLASH,				g_noFlashCommands,			"Deletes objects from flash"},
 	{"ntp",				CMD_NTP,				nullptr,					"Disables the NTP client"},
 	{"ssh",				CMD_SSH,				g_noSshCommands,			"Remove authorized SSH keys"},
 
@@ -763,10 +769,33 @@ void CrossbarCLISessionContext::OnNoSSHCommand()
 	}
 }
 
+/**
+	@brief "no flash key" - deletes a key from flash
+ */
+void CrossbarCLISessionContext::OnNoFlashCommand()
+{
+	const char* key = m_command[2].m_text;
+
+	auto hlog = g_kvs->FindObject(key);
+	if(hlog)
+	{
+		if(!g_kvs->StoreObject(key, nullptr, 0))
+			m_stream->Printf("KVS write error\n");
+		else
+			m_stream->Printf("Object \"%s\" deleted\n", key);
+	}
+	else
+		m_stream->Printf("Object \"%s\" not found, could not delete\n", key);
+}
+
 void CrossbarCLISessionContext::OnNoCommand()
 {
 	switch(m_command[1].m_commandID)
 	{
+		case CMD_FLASH:
+			OnNoFlashCommand();
+			break;
+
 		case CMD_NTP:
 			g_ntpClient->Disable();
 			break;
@@ -988,6 +1017,10 @@ void CrossbarCLISessionContext::OnShowFlash()
 		int size = 0;
 		for(uint32_t i=0; i<nfound; i++)
 		{
+			//If the object has no content, don't show it (it's been deleted)
+			if(list[i].size == 0)
+				continue;
+
 			//Is this a group?
 			auto dotpos = strchr(list[i].key, '.');
 			if(dotpos != nullptr)
