@@ -42,8 +42,8 @@ public:
 	virtual ~DeviceFPGAInterface();
 
 	virtual void Nop();
-	virtual void BlockingRead(uint32_t insn, uint8_t* data, uint32_t len);
-	virtual void BlockingWrite(uint32_t insn, const uint8_t* data, uint32_t len);
+	virtual void BlockingRead(uint32_t addr, uint8_t* data, uint32_t len);
+	virtual void BlockingWrite(uint32_t addr, const uint8_t* data, uint32_t len);
 	virtual void CryptoEngineBlock();
 
 protected:

@@ -85,8 +85,7 @@ void InitFPGA()
 	g_log("Initializing FPGA\n");
 	LogIndenter li(g_log);
 
-	//Wait 50ms to make sure the FPGA is booted
-	//TODO: more formal handshake of some sort?
+	//Wait for the DONE signal to go high
 	g_log("Waiting for FPGA boot\n");
 	static GPIOPin fpgaDone(&GPIOF, 6, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
 	while(!fpgaDone)

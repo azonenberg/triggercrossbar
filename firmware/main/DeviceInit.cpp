@@ -375,16 +375,24 @@ void InitQSPI()
 	uint8_t prescale = 5;
 
 	//Configure the OCTOSPI itself
+	//Original code used "instruction", but we want "address" to enable memory mapping
 	static OctoSPI qspi(&OCTOSPI1, 0x02000000, prescale);
 	qspi.SetDoubleRateMode(false);
-	qspi.SetInstructionMode(OctoSPI::MODE_QUAD, 2);
-	qspi.SetAddressMode(OctoSPI::MODE_NONE);
+	qspi.SetInstructionMode(OctoSPI::MODE_NONE);
+	qspi.SetAddressMode(OctoSPI::MODE_QUAD, 2);
 	qspi.SetAltBytesMode(OctoSPI::MODE_NONE);
 	qspi.SetDataMode(OctoSPI::MODE_QUAD);
 	qspi.SetDummyCycleCount(1);
 	qspi.SetDQSEnable(false);
 	qspi.SetDeselectTime(1);
 	qspi.SetSampleDelay(false);
+
+	//REG_FPGA_IDCODE		= 0x0000,
+	//g_log("Hang because we havent implemented the rest yet\n");
+
+	//Just hang for now
+	//while(1)
+	//{}
 
 	g_qspi = &qspi;
 
