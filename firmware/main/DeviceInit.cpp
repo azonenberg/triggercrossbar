@@ -387,12 +387,49 @@ void InitQSPI()
 	qspi.SetDeselectTime(1);
 	qspi.SetSampleDelay(false);
 
-	//REG_FPGA_IDCODE		= 0x0000,
-	//g_log("Hang because we havent implemented the rest yet\n");
+	/*
+	//Poke MPU settings to disable caching etc on the QSPI memory
+	volatile uint32_t* mpu_type = reinterpret_cast<volatile uint32_t*>(0xe000ed90);
+	volatile uint32_t* mpu_ctrl = reinterpret_cast<volatile uint32_t*>(0xe000ed94);
+	volatile uint32_t* mpu_rnr = reinterpret_cast<volatile uint32_t*>(0xe000ed98);
+	volatile uint32_t* mpu_rbar = reinterpret_cast<volatile uint32_t*>(0xe000ed9c);
+	volatile uint32_t* mpu_rasr = reinterpret_cast<volatile uint32_t*>(0xe000eda0);
+
+	//g_log("MPU_TYPE = %08x\n", *mpu_type);
+	*mpu_ctrl = 6;
+	*mpu_rnr = 0;
+	*mpu_rasr = 0x100001;
+	*mpu_rbar = 0x90000010;
+
+
+	//Force 32-bit access size with no prefetching
+	//This will increase overhead when reading ethernet frames but should speed other stuff
+	OCTOSPI1.CR |= OCTOSPI_TCEN;
+	OCTOSPI1.LPTR = 0x1;
+
+	OCTOSPI1.DCR3 = 0x00020003;	//max transaction size = 4 bytes,
+								//release CS on word boundaries
+
+	//Forcing HYPERBUS register mode did not work, leads to infinite retries!!
+	//Mode 6 and 7 (reserved) did nothing special
+	//OCTOSPI1.DCR1 = (OCTOSPI1.DCR1 & ~0x7000000) | 0x2000000;
+
+	//Configure memory mapping mode
+	qspi.SetMemoryMapMode();
+
+	volatile uint32_t* ptr = reinterpret_cast<volatile uint32_t*>(0x90000000);
+	uint32_t a = ptr[0];
+	uint32_t b = ptr[1];
+	uint32_t c = ptr[0];
+	uint32_t d = ptr[33];
+	uint32_t e = ptr[0];
+	g_log("data = %08x %08x %08x %08x %08x\n", a, b, c, d, e);
 
 	//Just hang for now
-	//while(1)
-	//{}
+	g_log("Hang because we havent implemented the rest yet\n");
+	while(1)
+	{}
+	*/
 
 	g_qspi = &qspi;
 

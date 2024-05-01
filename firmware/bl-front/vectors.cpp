@@ -27,7 +27,7 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "frontpanel.h"
+#include "bootloader.h"
 
 typedef void(*fnptr)();
 
@@ -157,19 +157,10 @@ fnptr __attribute__((section(".vector"))) vectorTable[] =
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Firmware version string used for the bootloader
-
-extern "C" const char
-	__attribute__((section(".fwver")))
-	__attribute__((used))
-	g_firmwareVersion[] = __DATE__ " " __TIME__;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Stub for unused interrupts
 
 void defaultISR()
 {
-	g_uart.PrintString("Unused interrupt vector called\n");
 	while(1)
 	{}
 }
@@ -179,83 +170,33 @@ void defaultISR()
 
 void NMI_Handler()
 {
-	g_uart.PrintString("NMI\n");
 	while(1)
 	{}
 }
 
 void HardFault_Handler()
 {
-	uint32_t* msp;
-	asm volatile("mrs %[result], MSP" : [result]"=r"(msp));
-	msp += 12;	//locals/alignment
-	uint32_t r0 = msp[0];
-	uint32_t r1 = msp[1];
-	uint32_t r2 = msp[2];
-	uint32_t r3 = msp[3];
-	uint32_t r12 = msp[4];
-	uint32_t lr = msp[5];
-	uint32_t pc = msp[6];
-	uint32_t xpsr = msp[7];
-
-	g_uart.Printf("Hard fault\n");
-	g_uart.Printf("    HFSR  = %08x\n", *(volatile uint32_t*)(0xe000ed2C));
-	g_uart.Printf("    MMFAR = %08x\n", *(volatile uint32_t*)(0xe000ed34));
-	g_uart.Printf("    BFAR  = %08x\n", *(volatile uint32_t*)(0xe000ed38));
-	g_uart.Printf("    CFSR  = %08x\n", *(volatile uint32_t*)(0xe000ed28));
-	g_uart.Printf("    UFSR  = %08x\n", *(volatile uint16_t*)(0xe000ed2a));
-	g_uart.Printf("    DFSR  = %08x\n", *(volatile uint32_t*)(0xe000ed30));
-	g_uart.Printf("    MSP   = %08x\n", msp);
-	g_uart.Printf("    r0    = %08x\n", r0);
-	g_uart.Printf("    r1    = %08x\n", r1);
-	g_uart.Printf("    r2    = %08x\n", r2);
-	g_uart.Printf("    r3    = %08x\n", r3);
-	g_uart.Printf("    r12   = %08x\n", r12);
-	g_uart.Printf("    lr    = %08x\n", lr);
-	g_uart.Printf("    pc    = %08x\n", pc);
-	g_uart.Printf("    xpsr  = %08x\n", xpsr);
-
-	g_uart.Printf("    Stack:\n");
-	for(int i=0; i<16; i++)
-		g_uart.Printf("        %08x\n", msp[i]);
-
 	while(1)
 	{}
 }
 
 void BusFault_Handler()
 {
-	g_uart.PrintString("Bus fault\n");
 	while(1)
 	{}
 }
 
 void UsageFault_Handler()
 {
-	g_uart.PrintString("Usage fault\n");
 	while(1)
 	{}
 }
 
 void MMUFault_Handler()
 {
-	g_uart.PrintString("MMU fault\n");
 	while(1)
 	{}
 }
-
-/*
-void __attribute__((isr)) UART4_Handler()
-{
-	//Check why we got the IRQ.
-	//For now, ignore anything other than "data ready"
-	if(0 == (UART4.ISR & USART_ISR_RXNE))
-		return;
-
-	//rx data? Shove it in the fifo
-	g_uart.OnIRQRxData(UART4.RDR);
-}
-*/
 
 /**
 	@brief GPIO interrupt used for SPI chip select

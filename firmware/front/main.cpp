@@ -95,6 +95,9 @@ int main()
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
 	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
 
+	//Re-enable interrupts since the bootloader turned them off to jump to us
+	EnableInterrupts();
+
 	//Hardware setup
 	InitPower();
 	InitClocks();

@@ -57,3 +57,4 @@ all:
 	cd ../
 	arm-none-eabi-objcopy -O binary --only-section=.text --only-section=.data firmware.elf firmware.bin
 	./imagesize.sh
+	arm-none-eabi-strip -s -o main-stripped.elf firmware.elf

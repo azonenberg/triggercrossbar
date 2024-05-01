@@ -75,11 +75,8 @@ void InitUART()
 
 void InitLog()
 {
-	//Wait 10ms to avoid resets during shutdown from destroying diagnostic output
+	//Do *not* clear the screen, since we want to see bootloader output
 	g_logTimer.Sleep(100);
-
-	//Clear screen and move cursor to X0Y0
-	g_uart.Printf("\x1b[2J\x1b[0;0H");
 
 	//Start the logger
 	g_log.Initialize(&g_uart, &g_logTimer);
