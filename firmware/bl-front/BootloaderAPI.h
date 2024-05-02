@@ -27,57 +27,35 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef frontpanel_h
-#define frontpanel_h
+#ifndef BootloaderAPI_h
+#define BootloaderAPI_h
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
+//Boot state machine
+enum BootloaderState
+{
+	STATE_POR		= 0x00,			//we just booted for the first time since powerup
+	STATE_APP		= 0x01,			//Application was launched, no fault detected
+	STATE_DFU		= 0x02,			//Application requested we enter DFU mode
+	STATE_CRASH		= 0x03			//Application crash handler called
+};
 
-#include <peripheral/ADC.h>
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
-#include <peripheral/Power.h>
-#include <peripheral/RCC.h>
-#include <peripheral/SPI.h>
-#include <peripheral/Timer.h>
-#include <peripheral/UART.h>
-#include <util/Logger.h>
-#include <util/FIFO.h>
-#include <util/StringBuffer.h>
+enum CrashReason
+{
+	CRASH_UNUSED_ISR	= 0x00,
+	CRASH_NMI			= 0x01,
+	CRASH_HARD_FAULT	= 0x02,
+	CRASH_BUS_FAULT		= 0x03,
+	CRASH_USAGE_FAULT	= 0x04,
+	CRASH_MMU_FAULT		= 0x05
+};
 
-#include "../bl-front/BootloaderAPI.h"
-#include "TCA6424A.h"
-#include "Display.h"
+//BBRAM content
+struct __attribute__((packed)) BootloaderBBRAM
+{
+	BootloaderState m_state;
+	CrashReason		m_crashReason;
+};
 
-void InitPower();
-void InitClocks();
-void InitUART();
-void InitLog();
-void DetectHardware();
-void InitGPIOs();
-void InitI2C();
-void InitSensors();
-void InitExpander();
-void InitSPI();
-void InitDisplay();
-
-extern UART<16, 256> g_uart;
-extern Logger g_log;
-extern Timer g_logTimer;
-extern SPI<1024, 64> g_fpgaSPI;
-extern I2C g_i2c;
-extern TCA6424A* g_expander;
-extern DisplaySPIType g_displaySPI;
-extern GPIOPin* g_fpgaSPICS;
-extern Display* g_display;
-
-uint16_t ReadThermalSensor(uint8_t addr);
-extern const uint8_t g_tempI2cAddress;
-
-extern GPIOPin* g_inmodeLED[4];
-extern GPIOPin* g_outmodeLED[4];
+extern volatile BootloaderBBRAM* g_bbram;
 
 #endif

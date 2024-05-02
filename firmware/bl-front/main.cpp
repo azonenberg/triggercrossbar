@@ -28,6 +28,7 @@
 ***********************************************************************************************************************/
 
 #include "bootloader.h"
+#include "BootloaderAPI.h"
 #include <microkvs/driver/STM32StorageBank.h>
 #include <algorithm>
 
@@ -54,7 +55,13 @@ KVS* g_kvs = nullptr;
 bool ValidateAppPartition(const uint32_t* appVector);
 void FirmwareUpdateFlow();
 void BootApplication(const uint32_t* appVector);
+bool IsAppUpdated(const char*& firmwareVer);
 extern "C" void __attribute__((noreturn)) DoBootApplication(const uint32_t* appVector);
+
+///@brief The battery-backed RAM used to store state across power cycles
+volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
+
+const char* g_imageVersionKey = "firmware.imageVersion";
 
 int main()
 {
@@ -67,6 +74,7 @@ int main()
 	InitUART();
 	InitLog();
 	RCCHelper::Enable(&_CRC);
+	RCCHelper::Enable(&_RTC);
 
 	/**
 		@brief Use sectors 126 and 127 of flash for a for a 2 kB microkvs
@@ -77,18 +85,104 @@ int main()
 	static STM32StorageBank right(reinterpret_cast<uint8_t*>(0x0803f800), 0x800);
 	InitKVS(&left, &right, 32);
 
+	//Check bbram state
+	bool goStraightToDFU = false;
+	bool crashed = false;
+	g_log("Checking reason for last reset...\n");
+	{
+		LogIndenter li(g_log);
+		switch(g_bbram->m_state)
+		{
+			case STATE_POR:
+				g_log("Power cycle\n");
+				break;
+
+			case STATE_APP:
+				g_log("Application was running, probably requested warm reboot\n");
+				break;
+
+			case STATE_DFU:
+				g_log("Application requested DFU entry\n");
+				goStraightToDFU = true;
+				break;
+
+			case STATE_CRASH:
+				crashed = true;
+				switch(g_bbram->m_crashReason)
+				{
+					case CRASH_UNUSED_ISR:
+						g_log(Logger::ERROR, "Unused ISR called\n");
+						break;
+
+					case CRASH_NMI:
+						g_log(Logger::ERROR, "NMI\n");
+						break;
+
+					case CRASH_HARD_FAULT:
+						g_log(Logger::ERROR, "Hard fault\n");
+						break;
+
+					case CRASH_BUS_FAULT:
+						g_log(Logger::ERROR, "Bus fault\n");
+						break;
+
+					case CRASH_USAGE_FAULT:
+						g_log(Logger::ERROR, "Usage fault\n");
+						break;
+
+					case CRASH_MMU_FAULT:
+						g_log(Logger::ERROR, "MMU fault\n");
+						break;
+
+					default:
+						g_log(Logger::ERROR, "Unknown crash code\n");
+						break;
+				}
+				break;
+
+			default:
+				g_log("Last reset from unknown cause\n");
+				break;
+		}
+	}
+
 	//Application region of flash runs from the end of the bootloader (0x08008000)
 	//to the start of the KVS (0x0803f000), so 220 kB
 	//Firmware version string is put right after vector table by linker script at a constant address
 	const uint32_t* appVector  = reinterpret_cast<const uint32_t*>(0x8008000);
-	if(!ValidateAppPartition(appVector))
+
+	//Skip all other processing if a DFU was requested
+	if(goStraightToDFU)
 		FirmwareUpdateFlow();
 
-	//TODO: somehow detect (via bbram) boot failures/segfaults in the app image and stay in bootloader mode
-	//TODO: have some config for the app to explicitly request us to stay in bootloader mode
+	//Application crashed? Don't try to run the crashy app again to avoid bootlooping
+	//TODO: give it a couple of tries first?
+	else if(crashed)
+	{
+		const char* firmwareVer = nullptr;
+		if(IsAppUpdated(firmwareVer))
+		{
+			g_log("Application was updated since last flash, attempting to boot new image\n");
+			if(ValidateAppPartition(appVector))
+				BootApplication(appVector);
+			else
+				FirmwareUpdateFlow();
+		}
+
+		else
+		{
+			g_log("Still running same crashy binary, going to DFU flow\n");
+			FirmwareUpdateFlow();
+		}
+	}
+
+	//Corrupted image? Go to DFU, it's our only hope
+	else if(!ValidateAppPartition(appVector))
+		FirmwareUpdateFlow();
 
 	//If we get to this point, the image is valid, boot it
-	BootApplication(appVector);
+	else
+		BootApplication(appVector);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -110,6 +204,7 @@ void __attribute__((noreturn)) BootApplication(const uint32_t* appVector)
 	g_log("Booting application...\n\n");
 	g_uart.Flush();
 
+	g_bbram->m_state = STATE_APP;
 	DoBootApplication(appVector);
 }
 
@@ -117,23 +212,12 @@ void __attribute__((noreturn)) BootApplication(const uint32_t* appVector)
 // Application booting
 
 /**
-	@brief Check if the app partition contains what looks like a valid image
+	@brief Checks if the application partition contains a different firmware version than we last booted
  */
-bool ValidateAppPartition(const uint32_t* appVector)
+bool IsAppUpdated(const char*& firmwareVer)
 {
-	g_log("Checking application partition at 0x%08x\n",
-		reinterpret_cast<uint32_t>(appVector));
-	LogIndenter li(g_log);
-
-	//Vector table is blank? No app present
-	if(appVector[0] == 0xffffffff)
-	{
-		g_log(Logger::ERROR, "Application partition appears to be blank\n");
-		return false;
-	}
-
 	//Image is present, see if we have a good version string
-	const char* firmwareVer = reinterpret_cast<const char*>(0x80081a0);
+	firmwareVer = reinterpret_cast<const char*>(0x80081a0);
 	bool validVersion = false;
 	for(size_t i=0; i<32; i++)
 	{
@@ -154,9 +238,7 @@ bool ValidateAppPartition(const uint32_t* appVector)
 	g_log("Found firmware version:       %s\n", firmwareVer);
 
 	//See if we're booting a previously booted image
-	const char* imageVersionKey = "firmware.imageVersion";
-	bool updatedViaJtag = false;
-	auto hlog = g_kvs->FindObject(imageVersionKey);
+	auto hlog = g_kvs->FindObject(g_imageVersionKey);
 	if(hlog)
 	{
 		char knownVersion[33] = {0};
@@ -165,22 +247,44 @@ bool ValidateAppPartition(const uint32_t* appVector)
 
 		//Is this the image we are now booting?
 		if(0 != strcmp(knownVersion, firmwareVer))
-			updatedViaJtag = true;
+			return true;
 	}
 
 	//Valid image but nothing in KVS, we must have just jtagged the first firmware
 	else
 	{
 		g_log("No previous image version information in KVS\n");
-		updatedViaJtag = true;
+		return true;
+	}
+
+	//If we get here, we're using the same firmware
+	return false;
+}
+
+/**
+	@brief Check if the app partition contains what looks like a valid image
+ */
+bool ValidateAppPartition(const uint32_t* appVector)
+{
+	g_log("Checking application partition at 0x%08x\n",
+		reinterpret_cast<uint32_t>(appVector));
+	LogIndenter li(g_log);
+
+	//Vector table is blank? No app present
+	if(appVector[0] == 0xffffffff)
+	{
+		g_log(Logger::ERROR, "Application partition appears to be blank\n");
+		return false;
 	}
 
 	//See if we have a saved CRC in flash
 	uint32_t expectedCRC = 0;
 	const char* crcKey = "firmware.crc";
+	const char* firmwareVer = nullptr;
+	bool updatedViaJtag = IsAppUpdated(firmwareVer);
 	if(!updatedViaJtag)
 	{
-		hlog = g_kvs->FindObject(crcKey);
+		auto hlog = g_kvs->FindObject(crcKey);
 		if(!hlog)
 		{
 			g_log(Logger::WARNING, "Image version found in KVS, but not a CRC. Can't verify integrity\n");
@@ -206,7 +310,7 @@ bool ValidateAppPartition(const uint32_t* appVector)
 	{
 		g_log("New image present (JTAG flash?) but no corresponding saved CRC, updating CRC and version\n");
 
-		g_kvs->StoreObject(imageVersionKey, (const uint8_t*)firmwareVer, strlen(firmwareVer));
+		g_kvs->StoreObject(g_imageVersionKey, (const uint8_t*)firmwareVer, strlen(firmwareVer));
 		g_kvs->StoreObject(crcKey, (const uint8_t*)&crc, sizeof(crc));
 		return true;
 	}

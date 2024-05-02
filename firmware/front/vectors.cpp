@@ -48,6 +48,8 @@ void SPI_CSHandler();
 void SPI1_Handler();
 void USART2_Handler();
 
+void __attribute__((noreturn)) Reset();
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Interrupt vector table
 
@@ -165,13 +167,23 @@ extern "C" const char
 	g_firmwareVersion[] = __DATE__ " " __TIME__;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Reboot if things go sideways
+
+void __attribute__((noreturn)) Reset()
+{
+	SCB.AIRCR = 0x05fa0004;
+	while(1)
+	{}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Stub for unused interrupts
 
 void defaultISR()
 {
-	g_uart.PrintString("Unused interrupt vector called\n");
-	while(1)
-	{}
+	g_bbram->m_state = STATE_CRASH;
+	g_bbram->m_crashReason = CRASH_UNUSED_ISR;
+	Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -179,13 +191,14 @@ void defaultISR()
 
 void NMI_Handler()
 {
-	g_uart.PrintString("NMI\n");
-	while(1)
-	{}
+	g_bbram->m_state = STATE_CRASH;
+	g_bbram->m_crashReason = CRASH_NMI;
+	Reset();
 }
 
 void HardFault_Handler()
 {
+	/*
 	uint32_t* msp;
 	asm volatile("mrs %[result], MSP" : [result]"=r"(msp));
 	msp += 12;	//locals/alignment
@@ -221,41 +234,36 @@ void HardFault_Handler()
 
 	while(1)
 	{}
+	*/
+
+	g_bbram->m_state = STATE_CRASH;
+	g_bbram->m_crashReason = CRASH_HARD_FAULT;
+	Reset();
 }
 
 void BusFault_Handler()
 {
-	g_uart.PrintString("Bus fault\n");
-	while(1)
-	{}
+	g_bbram->m_state = STATE_CRASH;
+	g_bbram->m_crashReason = CRASH_BUS_FAULT;
+	Reset();
 }
 
 void UsageFault_Handler()
 {
-	g_uart.PrintString("Usage fault\n");
-	while(1)
-	{}
+	g_bbram->m_state = STATE_CRASH;
+	g_bbram->m_crashReason = CRASH_USAGE_FAULT;
+	Reset();
 }
 
 void MMUFault_Handler()
 {
-	g_uart.PrintString("MMU fault\n");
-	while(1)
-	{}
+	g_bbram->m_state = STATE_CRASH;
+	g_bbram->m_crashReason = CRASH_MMU_FAULT;
+	Reset();
 }
 
-/*
-void __attribute__((isr)) UART4_Handler()
-{
-	//Check why we got the IRQ.
-	//For now, ignore anything other than "data ready"
-	if(0 == (UART4.ISR & USART_ISR_RXNE))
-		return;
-
-	//rx data? Shove it in the fifo
-	g_uart.OnIRQRxData(UART4.RDR);
-}
-*/
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ISRs
 
 /**
 	@brief GPIO interrupt used for SPI chip select
