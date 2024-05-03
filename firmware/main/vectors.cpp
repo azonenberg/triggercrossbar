@@ -238,7 +238,10 @@ fnptr __attribute__((section(".vector"))) vectorTable[] =
 
 void defaultISR()
 {
+	g_cliUART.BlockingFlush();
 	g_cliUART.PrintString("Unused interrupt vector called\n");
+	g_cliUART.BlockingFlush();
+
 	while(1)
 	{}
 }
@@ -248,13 +251,17 @@ void defaultISR()
 
 void NMI_Handler()
 {
+	g_cliUART.BlockingFlush();
 	g_cliUART.PrintString("NMI\n");
+	g_cliUART.BlockingFlush();
 	while(1)
 	{}
 }
 
 void HardFault_Handler()
 {
+	g_cliUART.BlockingFlush();
+
 	uint32_t* msp;
 	asm volatile("mrs %[result], MSP" : [result]"=r"(msp));
 	msp += 12;	//locals/alignment
@@ -275,6 +282,7 @@ void HardFault_Handler()
 	g_cliUART.Printf("    UFSR  = %08x\n", *(volatile uint16_t*)(0xe000ed2a));
 	g_cliUART.Printf("    DFSR  = %08x\n", *(volatile uint32_t*)(0xe000ed30));
 	g_cliUART.Printf("    MSP   = %08x\n", msp);
+	g_cliUART.BlockingFlush();
 	g_cliUART.Printf("    r0    = %08x\n", r0);
 	g_cliUART.Printf("    r1    = %08x\n", r1);
 	g_cliUART.Printf("    r2    = %08x\n", r2);
@@ -285,8 +293,12 @@ void HardFault_Handler()
 	g_cliUART.Printf("    xpsr  = %08x\n", xpsr);
 
 	g_cliUART.Printf("    Stack:\n");
+	g_cliUART.BlockingFlush();
 	for(int i=0; i<16; i++)
+	{
 		g_cliUART.Printf("        %08x\n", msp[i]);
+		g_cliUART.BlockingFlush();
+	}
 
 	while(1)
 	{}
@@ -294,21 +306,30 @@ void HardFault_Handler()
 
 void BusFault_Handler()
 {
+	g_cliUART.BlockingFlush();
 	g_cliUART.PrintString("Bus fault\n");
+	g_cliUART.BlockingFlush();
+
 	while(1)
 	{}
 }
 
 void UsageFault_Handler()
 {
+	g_cliUART.BlockingFlush();
 	g_cliUART.PrintString("Usage fault\n");
+	g_cliUART.BlockingFlush();
+
 	while(1)
 	{}
 }
 
 void MMUFault_Handler()
 {
+	g_cliUART.BlockingFlush();
 	g_cliUART.PrintString("MMU fault\n");
+	g_cliUART.BlockingFlush();
+
 	while(1)
 	{}
 }
