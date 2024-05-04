@@ -99,16 +99,14 @@ uint32_t ManagementSFTPServer::OpenFile(
 	[[maybe_unused]] uint32_t accessMask,
 	[[maybe_unused]] uint32_t flags)
 {
-	g_cliUART.Printf("OpenFile(%s, access=%x, flags=%x)\n", path, accessMask, flags);
+	g_log("OpenFile(%s, access=%x, flags=%x)\n", path, accessMask, flags);
 
 	//For now, all of our files are stored in a single handle
 	//See which one to use
 	if(!strcmp(path, g_frontPanelDfuPath))
 	{
 		m_openFile = FILE_ID_FRONT_DFU;
-		g_cliUART.Printf("Front panel DFU\n");
-
-		//TODO: reboot the MCU in DFU mode and wait for it to acknowledge
+		m_frontUpdater.OnDeviceOpened();
 	}
 
 	//Return the constant handle zero for all open requests
@@ -116,17 +114,36 @@ uint32_t ManagementSFTPServer::OpenFile(
 }
 
 void ManagementSFTPServer::WriteFile(
-	uint32_t handle,
-	uint64_t offset,
+	[[maybe_unused]] uint32_t handle,
+	[[maybe_unused]] uint64_t offset,
 	const uint8_t* data,
 	uint32_t len)
 {
-	//TODO: validate offsets are sequential
-	g_cliUART.Printf("WriteFile: %u bytes at offset=%d\n", len, (uint32_t)offset);
+	//Ignore handle since we only support one right now
+	switch(m_openFile)
+	{
+		case FILE_ID_FRONT_DFU:
+			m_frontUpdater.OnRxData(data, len);
+			break;
+
+		default:
+			break;
+	}
 }
 
 bool ManagementSFTPServer::CloseFile([[maybe_unused]] uint32_t handle)
 {
-	//always allowed
+	switch(m_openFile)
+	{
+		case FILE_ID_FRONT_DFU:
+			m_frontUpdater.OnDeviceClosed();
+			break;
+
+		default:
+			break;
+	}
+
+	//always allowed, we no longer have an open file
+	m_openFile = FILE_ID_NONE;
 	return true;
 }

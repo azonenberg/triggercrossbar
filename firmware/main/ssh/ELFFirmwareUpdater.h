@@ -27,38 +27,98 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
+#ifndef ELFFirmwareUpdater_h
+#define ELFFirmwareUpdater_h
+
+#define ELF_RX_BUFFER_SIZE 2048
+
+//max number of segments we're willing to process
+#define MAX_SEGMENTS_PER_ELF 4
+
+#include "ELFStructs.h"
+
 /**
-	@file
-	@brief Declaration of ManagementSFTPServer
+	@brief Important attributes of a program header specifying how to flash it
  */
-#ifndef ManagementSFTPServer_h
-#define ManagementSFTPServer_h
-
-#include "ELFFirmwareUpdater.h"
-
-class ManagementSFTPServer : public SFTPServer
+class ProgramHeaderData
 {
 public:
-	ManagementSFTPServer()
-		: m_openFile(FILE_ID_NONE)
-	{}
+	uint32_t	m_fileoff;
+	uint32_t	m_phyaddr;
+	uint32_t	m_size;
+};
 
-	virtual bool DoesFileExist(const char* path) override;
-	virtual bool CanOpenFile(const char* path, uint32_t accessMask, uint32_t flags) override;
-	virtual uint32_t OpenFile(const char* path, uint32_t accessMask, uint32_t flags) override;
-	virtual void WriteFile(uint32_t handle, uint64_t offset, const uint8_t* data, uint32_t len) override;
-	virtual bool CloseFile(uint32_t handle) override;
+/**
+	@brief Base class for flashing an external device with an image in ELF format
+ */
+class ELFFirmwareUpdater
+{
+public:
+	ELFFirmwareUpdater();
+	virtual ~ELFFirmwareUpdater();
+
+	///@brief Called when the device file is opened
+	void OnDeviceOpened();
+
+	///@brief Called when new data arrives
+	void OnRxData(const uint8_t* data, uint32_t len);
+
+	///@brief Called when the device file is closed (update complete)
+	void OnDeviceClosed();
 
 protected:
-	enum FileID
+
+	void MarkDataProcessed(uint32_t bytes)
 	{
-		FILE_ID_NONE,
+		m_offset += bytes;
+		m_rxBuffer.Pop(bytes);
+	}
 
-		FILE_ID_FRONT_DFU
-	} m_openFile;
+	bool ProcessDataFromBuffer();
 
-	//Firmware updater drivers
-	ELFFirmwareUpdater m_frontUpdater;
+	void ParseEhdr();
+	void DiscardPhdrPadding();
+	void ParsePhdr();
+	void DiscardSegmentPadding();
+	void ProcessSegmentData();
+
+	//Handlers for derived class
+	virtual void StartUpdate();
+	virtual void OnWriteData(uint32_t physicalAddress, uint8_t* data, uint32_t len);
+	virtual void FinishUpdate();
+
+	///@brief Parser state machine
+	enum
+	{
+		STATE_READ_EHDR,
+		STATE_PHDR_PADDING,
+		STATE_READ_PHDRS,
+		STATE_SEGMENT_PADDING,
+		STATE_SEGMENT_DATA,
+		STATE_DONE,
+
+		STATE_FAILED
+	} m_state;
+
+	///@brief Buffer for handling incoming data
+	CircularFIFO<ELF_RX_BUFFER_SIZE> m_rxBuffer;
+
+	//Current offset into the file
+	uint32_t m_offset;
+
+	//ELF header values
+	uint32_t m_phoff;
+	uint32_t m_phnum;
+	uint32_t m_phIndex;
+
+	///@brief Number of PT_LOAD segments we have to flash
+	uint32_t m_numLoadableSegments;
+
+	///@brief Metadata for the loadable segments
+	ProgramHeaderData m_loadableSegments[MAX_SEGMENTS_PER_ELF];
+
+	///@brief Index of the current segment being processed
+	uint32_t m_currentSegment;
 };
 
 #endif

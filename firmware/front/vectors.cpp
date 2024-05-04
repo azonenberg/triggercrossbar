@@ -166,6 +166,11 @@ extern "C" const char
 	__attribute__((used))
 	g_firmwareVersion[] = __DATE__ " " __TIME__;
 
+extern "C" const char
+	__attribute__((section(".fwid")))
+	__attribute__((used))
+	g_firmwareID[] = "trigger-crossbar-frontpanel";
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Reboot if things go sideways
 

@@ -27,38 +27,79 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-/**
-	@file
-	@brief Declaration of ManagementSFTPServer
- */
-#ifndef ManagementSFTPServer_h
-#define ManagementSFTPServer_h
+#ifndef ELFStructs_h
+#define ELFStructs_h
 
-#include "ELFFirmwareUpdater.h"
+#define ELFMAG0 0x7f
+#define ELFMAG1 'E'
+#define ELFMAG2 'L'
+#define ELFMAG3 'F'
 
-class ManagementSFTPServer : public SFTPServer
+#define EI_CLASS	4
+#define EI_DATA		5
+#define EI_VERSION	6
+
+enum Elf_Class
 {
-public:
-	ManagementSFTPServer()
-		: m_openFile(FILE_ID_NONE)
-	{}
+	ELFCLASS32 = 1
+};
 
-	virtual bool DoesFileExist(const char* path) override;
-	virtual bool CanOpenFile(const char* path, uint32_t accessMask, uint32_t flags) override;
-	virtual uint32_t OpenFile(const char* path, uint32_t accessMask, uint32_t flags) override;
-	virtual void WriteFile(uint32_t handle, uint64_t offset, const uint8_t* data, uint32_t len) override;
-	virtual bool CloseFile(uint32_t handle) override;
+enum Elf_Data
+{
+	ELFDATA2LSB	= 1
+};
 
-protected:
-	enum FileID
-	{
-		FILE_ID_NONE,
+enum Elf_Version
+{
+	EV_CURRENT = 1
+};
 
-		FILE_ID_FRONT_DFU
-	} m_openFile;
+//e_type values
+enum Elf_type
+{
+	ET_EXEC	= 2
+};
 
-	//Firmware updater drivers
-	ELFFirmwareUpdater m_frontUpdater;
+//e_machine values
+enum Elf_machine
+{
+	EM_ARM	= 40
+};
+
+struct __attribute__((packed)) Elf32_Ehdr
+{
+	uint8_t		e_ident[16];
+	uint16_t	e_type;
+	uint16_t	e_machine;
+	uint32_t	e_version;
+	uint32_t	e_entry;
+	uint32_t	e_phoff;
+	uint32_t	e_shoff;
+	uint32_t	e_flags;
+	uint16_t	e_ehsize;
+	uint16_t	e_phentsize;
+	uint16_t	e_phnum;
+	uint16_t	e_shentsize;
+	uint16_t	e_shnum;
+	uint16_t	e_shstrndx;
+};
+
+//p_type values
+enum Elf_Ptype
+{
+	PT_LOAD	= 1
+};
+
+struct __attribute__((packed)) Elf32_Phdr
+{
+	uint32_t	p_type;
+	uint32_t	p_offset;
+	uint32_t	p_vaddr;
+	uint32_t	p_paddr;
+	uint32_t	p_filesz;
+	uint32_t	p_memsz;
+	uint32_t	p_flags;
+	uint32_t	p_align;
 };
 
 #endif
