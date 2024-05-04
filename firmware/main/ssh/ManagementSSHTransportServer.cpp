@@ -42,9 +42,12 @@ ManagementSSHTransportServer::ManagementSSHTransportServer(TCPProtocol& tcp)
 
 	g_sshd = this;
 
-	//Initialize crypto engines
+	//Initialize crypto and SFTP state
 	for(size_t i=0; i<SSH_TABLE_SIZE; i++)
+	{
 		m_state[i].m_crypto = &m_engine[i];
+		m_state[i].m_sftpState = &m_sftpState[i];
+	}
 
 	//Find the keys, generating if required
 	unsigned char pub[ECDSA_KEY_SIZE] = {0};
@@ -86,6 +89,9 @@ ManagementSSHTransportServer::ManagementSSHTransportServer(TCPProtocol& tcp)
 	//Set up authenticators
 	UsePasswordAuthenticator(nullptr);
 	UsePubkeyAuthenticator(&m_auth);
+
+	//Set up SFTP server
+	UseSFTPServer(&m_sftp);
 }
 
 ManagementSSHTransportServer::~ManagementSSHTransportServer()
@@ -138,4 +144,13 @@ void ManagementSSHTransportServer::OnRxShellData(int id, TCPTableEntry* /*socket
 {
 	for(uint16_t i=0; i<len; i++)
 		m_context[id].OnKeystroke(data[i]);
+}
+
+void ManagementSSHTransportServer::DoExecRequest(int id, TCPTableEntry* socket, const char* cmd, uint16_t len)
+{
+	m_context[id].Initialize(id, socket, this, m_state[id].m_username);
+
+	for(uint16_t i=0; i<len; i++)
+		m_context[id].OnKeystroke(cmd[i], false);
+	m_context[id].SilentExecute();
 }

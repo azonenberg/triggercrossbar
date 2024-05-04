@@ -29,43 +29,31 @@
 
 /**
 	@file
-	@brief Declaration of ManagementSSHTransportServer
+	@brief Declaration of ManagementSFTPServer
  */
-#ifndef ManagementSSHTransportServer_h
-#define ManagementSSHTransportServer_h
+#ifndef ManagementSFTPServer_h
+#define ManagementSFTPServer_h
 
-#include <staticnet/ssh/SSHTransportServer.h>
-#include "ManagementPubkeyAuthenticator.h"
-#include "ManagementSFTPServer.h"
-#include "CrossbarCLISessionContext.h"
-#include "DeviceCryptoEngine.h"
-
-/**
-	@brief SSH server class for the bridge test
- */
-class ManagementSSHTransportServer : public SSHTransportServer
+class ManagementSFTPServer : public SFTPServer
 {
 public:
-	ManagementSSHTransportServer(TCPProtocol& tcp);
-	virtual ~ManagementSSHTransportServer();
+	ManagementSFTPServer()
+		: m_openFile(FILE_ID_NONE)
+	{}
 
-	void LoadUsername();
+	virtual bool DoesFileExist(const char* path) override;
+	virtual bool CanOpenFile(const char* path, uint32_t accessMask, uint32_t flags) override;
+	virtual uint32_t OpenFile(const char* path, uint32_t accessMask, uint32_t flags) override;
+	virtual void WriteFile(uint32_t handle, uint64_t offset, const uint8_t* data, uint32_t len) override;
+	virtual bool CloseFile(uint32_t handle) override;
 
 protected:
-	virtual void InitializeShell(int id, TCPTableEntry* socket);
-	virtual void GracefulDisconnect(int id, TCPTableEntry* socket);
-	virtual void DropConnection(int id, TCPTableEntry* socket);
-	virtual void OnRxShellData(int id, TCPTableEntry* socket, char* data, uint16_t len);
-	virtual void DoExecRequest(int id, TCPTableEntry* socket, const char* cmd, uint16_t len) override;
+	enum FileID
+	{
+		FILE_ID_NONE,
 
-	ManagementPubkeyAuthenticator m_auth;
-
-	CrossbarCLISessionContext m_context[SSH_TABLE_SIZE];
-
-	DeviceCryptoEngine m_engine[SSH_TABLE_SIZE];
-	SFTPConnectionState m_sftpState[SSH_TABLE_SIZE];
-
-	ManagementSFTPServer m_sftp;
+		FILE_ID_FRONT_DFU
+	} m_openFile;
 };
 
 #endif

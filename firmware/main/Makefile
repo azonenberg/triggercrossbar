@@ -45,6 +45,7 @@ all:
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/net/tcp/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/net/udp/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/ntp/*.cpp || exit 1
+	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/sftp/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/ssh/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/cpu/*.* || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/cli/*.cpp || exit 1
