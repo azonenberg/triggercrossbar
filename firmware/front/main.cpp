@@ -93,6 +93,11 @@ bool RxSPIString(uint8_t nbyte, char* buf, uint8_t size, uint8_t data);
 ///@brief The battery-backed RAM used to store state across power cycles
 volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
 
+//Default MISO to be using alt mode 0 (NJTRST) so we can use JTAG for debug
+GPIOPin g_fpgaMiso(&GPIOB, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
+
+bool g_misoIsJtag = true;
+
 int main()
 {
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
@@ -206,6 +211,32 @@ int main()
 				if(nbyte == 0)
 				{
 					cmd = data;
+
+					switch(cmd)
+					{
+						//Reboot in bootloader mode
+						case FRONT_ENTER_DFU:
+							g_bbram->m_state = STATE_DFU;
+							Reset();
+							break;
+
+						//Commands that produce SPI output
+						case FRONT_GET_STATUS:
+							{
+								if(g_misoIsJtag)
+									SetMisoToSPIMode();
+
+								const uint8_t tmp = FRONT_NORMAL;
+								g_fpgaSPI.NonblockingWriteFifo(&tmp, sizeof(tmp));
+							}
+							break;
+
+						//sending any other SPI command returns us to JTAG mode
+						default:
+							if(!g_misoIsJtag)
+								SetMisoToJTAGMode();
+							break;
+					}
 				}
 
 				//Then comes data bytes
@@ -213,6 +244,10 @@ int main()
 				{
 					switch(cmd)
 					{
+						//Readback commands do nothing here
+						case FRONT_GET_STATUS:
+							break;
+
 						//Schedule a display refresh
 						case FRONT_REFRESH_FAST:
 							nextDisplayRefresh = 0;
@@ -411,6 +446,24 @@ int main()
 	}
 
 	return 0;
+}
+
+/**
+	@brief Puts the SPI MISO pin in SPI mode (disconnecting JTAG)
+ */
+void SetMisoToSPIMode()
+{
+	g_fpgaMiso.SetMode(GPIOPin::MODE_PERIPHERAL, 5);
+	g_misoIsJtag = false;
+}
+
+/**
+	@brief Puts the SPI MISO pin in JTAG mode (reconnecting JTAG)
+ */
+void SetMisoToJTAGMode()
+{
+	g_fpgaMiso.SetMode(GPIOPin::MODE_PERIPHERAL, 0);
+	g_misoIsJtag = true;
 }
 
 /**

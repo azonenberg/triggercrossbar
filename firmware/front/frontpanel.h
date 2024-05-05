@@ -80,4 +80,9 @@ extern const uint8_t g_tempI2cAddress;
 extern GPIOPin* g_inmodeLED[4];
 extern GPIOPin* g_outmodeLED[4];
 
+void __attribute__((noreturn)) Reset();
+
+void SetMisoToSPIMode();
+void SetMisoToJTAGMode();
+
 #endif

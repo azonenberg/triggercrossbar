@@ -26,57 +26,114 @@
 * POSSIBILITY OF SUCH DAMAGE.                                                                                          *
 *                                                                                                                      *
 ***********************************************************************************************************************/
-#ifndef front_regids_h
-#define front_regids_h
 
-enum front_mode_t
+#include "triggercrossbar.h"
+#include "FrontPanelFirmwareUpdater.h"
+#include "../../front/regids.h"
+
+bool g_frontPanelDFUInProgress = false;
+
+bool IsFrontPanelDFU()
+{ return g_frontPanelDFUInProgress; }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Construction / destruction
+
+FrontPanelFirmwareUpdater::FrontPanelFirmwareUpdater()
 {
-	FRONT_NORMAL		= 0x55,
-	FRONT_BOOTLOADER	= 0xaa
-};
+}
 
-enum front_regid_t
+FrontPanelFirmwareUpdater::~FrontPanelFirmwareUpdater()
 {
-	FRONT_ETH_LINK		= 0x00,	//0 = 10M
-								//1 = 100M
-								//2 = 1G
-								//3 = 10G
-								//ff = down
+}
 
-	FRONT_IP4_ADDR		= 0x01,	//IPv4 address
-	FRONT_IP6_ADDR		= 0x02,	//IPv6 address
-	FRONT_SERIAL		= 0x03,	//FPGA serial number (used as system s/n for now... but not 100% reliable as DNA values can have duplicates)
-	FRONT_MCU_FW		= 0x04,	//MCU firmware revision
-	FRONT_IBC_FW		= 0x05,	//IBC firmware revision
-	FRONT_SUPER_FW		= 0x06,	//Supervisor firmware revision
-	FRONT_FPGA_FW		= 0x07,	//FPGA firmware revision
-	FRONT_IP4_SUBNET	= 0x08,	//Subnet mask
-	FRONT_IP6_SUBNET	= 0x09,	//Subnet mask
-	FRONT_IPV4_DHCP		= 0x0a,	//1 = DHCP, 0 = static IP
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Firmware update logic
 
-	FRONT_FPGA_TEMP		= 0x10,	//FPGA die temperature
-	FRONT_MCU_TEMP		= 0x11,	//MCU die temperature
-	FRONT_IBC_TEMP		= 0x12,	//IBC board temperature
-	FRONT_FAN_RPM		= 0x13,	//Fan RPM
-	FRONT_TIMESTAMP		= 0x14,	//Timestamp of last sensor reading update
+void FrontPanelFirmwareUpdater::StartUpdate()
+{
+	g_log("Starting DFU of front panel\n");
+	LogIndenter li(g_log);
 
-	FRONT_IBC_VIN		= 0x20,	//IBC input voltage
-	FRONT_IBC_IIN		= 0x21,	//IBC input power
-	FRONT_IBC_VOUT		= 0x22,	//IBC output voltage
-	FRONT_IBC_IOUT		= 0x23,	//IBC output power
+	g_frontPanelDFUInProgress = true;
 
-	FRONT_DIR_LEDS		= 0x30,	//Direction LEDS
-								//High nibble = IN11:8
-								//Low nibble = OUT11:8
-	FRONT_PORT_LEDS		= 0x31,	//All port LED states
+	//Put the front panel in DFU mode if it's not already
+	auto mode = GetFrontPanelMode();
+	switch(mode)
+	{
+		case FRONT_NORMAL:
+		{
+			g_log("Front panel is in normal mode, restarting in DFU mode...\n");
 
-	FRONT_REFRESH_FAST	= 0x40,	//force fast refresh
-	FRONT_REFRESH_FULL	= 0x41,	//force full refresh
+			//Go to DFU mode
+			SetFrontPanelCS(0);
+			SendFrontPanelByte(FRONT_ENTER_DFU);
+			SetFrontPanelCS(1);
 
-	FRONT_ENTER_DFU		= 0x80,	//reboot to DFU mode
-	FRONT_GET_STATUS	= 0x81,	//Return 0x55 in normal mode
-								//or 0xaa in bootloader mode
-	FRONT_BOOT_APP		= 0x82	//reboot in application mode
-};
+			//Wait for reset
+			g_logTimer->Sleep(500);
 
-#endif
+			//Make sure we're back up in DFU mode
+			mode = GetFrontPanelMode();
+			if(mode != FRONT_BOOTLOADER)
+			{
+				g_log(Logger::ERROR, "Front panel is not in bootloader mode (expected mode 0x%02x, got %02x)\n",
+					FRONT_BOOTLOADER,
+					mode);
+
+				m_state = STATE_FAILED;
+				return;
+			}
+		}
+		break;
+
+		case FRONT_BOOTLOADER:
+			g_log("Front panel is already in DFU mode, no action needed at this time\n");
+			break;
+
+		default:
+			g_log(Logger::ERROR, "Front panel is not in a valid mode (got %02x)\n", mode);
+			break;
+	}
+
+	//TODO: erase the application flash partition
+
+}
+
+void FrontPanelFirmwareUpdater::OnWriteData(uint32_t physicalAddress, uint8_t* data, uint32_t len)
+{
+	g_log("OnWriteData phyaddr=0x%08x len=%x\n", physicalAddress, len);
+}
+
+void FrontPanelFirmwareUpdater::FinishUpdate()
+{
+	g_log("DFU complete, rebooting MCU\n");
+	LogIndenter li(g_log);
+
+	//Request booting the app
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_BOOT_APP);
+	SetFrontPanelCS(1);
+
+	//Wait for reset
+	//TODO: we don't want to hang the whole chip for 1 sec, do this in some kind of timer state machine
+	g_logTimer->Sleep(10000);
+
+	//Make sure we're back up in application mode
+	auto mode = GetFrontPanelMode();
+	switch(mode)
+	{
+		case FRONT_NORMAL:
+			g_log("Update successful\n");
+			g_frontPanelDFUInProgress = false;
+			break;
+
+		case FRONT_BOOTLOADER:
+			g_log(Logger::ERROR, "Front panel is still in DFU mode, something went wrong\n");
+			break;
+
+		default:
+			g_log(Logger::ERROR, "Front panel is not in a valid mode (got %02x)\n", mode);
+			break;
+	}
+}

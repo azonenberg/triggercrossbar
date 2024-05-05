@@ -222,15 +222,13 @@ void InitSPI()
 	static GPIOPin display_sck(&GPIOD, 1, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
 	//PD0 used as route through, leave tristated
 	static GPIOPin display_mosi(&GPIOD, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
-	//MISO not used, bus is bidirectional
 
 	//Set up GPIOs for FPGA bus
 	static GPIOPin fpga_sck(&GPIOE, 13, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
 	static GPIOPin fpga_mosi(&GPIOE, 15, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
-	//static GPIOPin fpga_miso(&GPIOB, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
-	//DO NOT configure MISO since this pin doubles as JTRST
-	//If we enable it, JTAG will stop working!
 	static GPIOPin fpga_cs_n(&GPIOB, 0, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+	//DO NOT configure MISO initially since this pin doubles as JTRST
+	//If we enable it, JTAG will stop working!
 
 	//Save the CS# pin
 	g_fpgaSPICS = &fpga_cs_n;

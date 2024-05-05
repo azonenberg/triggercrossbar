@@ -31,6 +31,7 @@
 #include "BootloaderAPI.h"
 #include <microkvs/driver/STM32StorageBank.h>
 #include <algorithm>
+#include "../front/regids.h"
 
 ///@brief Logging UART
 ///USART2 is on APB1 (40 MHz), so we need a divisor of 347.22, round to 347
@@ -63,6 +64,14 @@ volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(
 
 const char* g_imageVersionKey = "firmware.imageVersion";
 
+//Default MISO to be using alt mode 0 (NJTRST) so we can use JTAG for debug
+GPIOPin g_fpgaMiso(&GPIOB, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
+
+bool g_misoIsJtag = true;
+
+void SetMisoToSPIMode();
+void SetMisoToJTAGMode();
+
 int main()
 {
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
@@ -75,6 +84,7 @@ int main()
 	InitLog();
 	RCCHelper::Enable(&_CRC);
 	RCCHelper::Enable(&_RTC);
+	InitSPI();
 
 	/**
 		@brief Use sectors 126 and 127 of flash for a for a 2 kB microkvs
@@ -185,14 +195,146 @@ int main()
 		BootApplication(appVector);
 }
 
+void InitSPI()
+{
+	g_log("Initializing SPI\n");
+
+	//Set up GPIOs for display bus
+	static GPIOPin display_sck(&GPIOD, 1, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+	//PD0 used as route through, leave tristated
+	static GPIOPin display_mosi(&GPIOD, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+
+	//Set up GPIOs for FPGA bus
+	static GPIOPin fpga_sck(&GPIOE, 13, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+	static GPIOPin fpga_mosi(&GPIOE, 15, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+	static GPIOPin fpga_cs_n(&GPIOB, 0, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
+	//DO NOT configure MISO initially since this pin doubles as JTRST
+	//If we enable it, JTAG will stop working!
+
+	//Save the CS# pin
+	g_fpgaSPICS = &fpga_cs_n;
+
+	//Set up IRQ6 for SPI CS# (PB0) change
+	//Use EXTI0 as PB0 interrupt on falling edge
+	//TODO: make a wrapper for this?
+	RCCHelper::EnableSyscfg();
+	NVIC_EnableIRQ(6);
+	SYSCFG.EXTICR1 = (SYSCFG.EXTICR1 & 0xfffffff8) | 0x1;
+	EXTI.IMR1 |= 1;
+	EXTI.FTSR1 |= 1;
+
+	//Set up IRQ35 as SPI1 interrupt
+	NVIC_EnableIRQ(35);
+	g_fpgaSPI.EnableRxInterrupt();
+}
+
+/**
+	@brief Puts the SPI MISO pin in SPI mode (disconnecting JTAG)
+ */
+void SetMisoToSPIMode()
+{
+	g_fpgaMiso.SetMode(GPIOPin::MODE_PERIPHERAL, 5);
+	g_misoIsJtag = false;
+}
+
+/**
+	@brief Puts the SPI MISO pin in JTAG mode (reconnecting JTAG)
+ */
+void SetMisoToJTAGMode()
+{
+	g_fpgaMiso.SetMode(GPIOPin::MODE_PERIPHERAL, 0);
+	g_misoIsJtag = true;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Run the firmware updater
 
 void __attribute__((noreturn)) FirmwareUpdateFlow()
 {
-	g_log("Hanging until we implement a reflash flow\n");
+	uint8_t nbyte = 0;
+	uint8_t cmd = 0;
+
+	const uint32_t* appVector  = reinterpret_cast<const uint32_t*>(0x8008000);
+
 	while(1)
-	{}
+	{
+		g_log.UpdateOffset(60000);
+
+		//If CS# deasserted, go to JTAG mode
+		if(*g_fpgaSPICS)
+		{
+			if(!g_misoIsJtag)
+				SetMisoToJTAGMode();
+		}
+
+		//Read and process SPI events
+		if(g_fpgaSPI.HasEvents())
+		{
+			auto event = g_fpgaSPI.GetEvent();
+
+			//Reset byte count on CS# rising or falling edge
+			if(event.type == SPIEvent::TYPE_CS)
+				nbyte = 0;
+
+			//Process data byte
+			else
+			{
+				auto data = event.data;
+
+				//First byte is command
+				if(nbyte == 0)
+				{
+					cmd = data;
+
+					switch(cmd)
+					{
+						//Launch the application
+						case FRONT_BOOT_APP:
+							g_log("Exiting DFU mode to boot application\n");
+							BootApplication(appVector);
+							break;
+
+						//Commands that produce SPI output
+						case FRONT_GET_STATUS:
+							{
+								if(g_misoIsJtag)
+									SetMisoToSPIMode();
+
+								const uint8_t tmp = FRONT_BOOTLOADER;
+								g_fpgaSPI.NonblockingWriteFifo(&tmp, sizeof(tmp));
+							}
+							break;
+
+						default:
+							break;
+					}
+				}
+
+				//Then comes data bytes
+				else
+				{
+					switch(cmd)
+					{
+						//Readback commands do nothing here
+						case FRONT_GET_STATUS:
+							break;
+
+						default:
+							g_log("Unrecognized command %02x\n", cmd);
+							break;
+
+					}
+				}
+
+				nbyte ++;
+			}
+		}
+	}
+
+	g_log("No reflash flow implemented, booting app in a bit...\n");
+	for(int i=0; i<5; i++)
+		g_logTimer.Sleep(10000);
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -200,6 +342,9 @@ void __attribute__((noreturn)) FirmwareUpdateFlow()
 
 void __attribute__((noreturn)) BootApplication(const uint32_t* appVector)
 {
+	//Debug delay in case we bork something
+	g_logTimer.Sleep(10000);
+
 	//Print our final log message and flush the transmit FIFO before transferring control to the application
 	g_log("Booting application...\n\n");
 	g_uart.Flush();

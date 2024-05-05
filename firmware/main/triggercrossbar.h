@@ -187,6 +187,8 @@ extern uint32_t g_usercode;
 void SetFrontPanelDirectionLEDs(uint8_t leds);
 void SetFrontPanelCS(bool b);
 void SendFrontPanelByte(uint8_t data);
+uint8_t ReadFrontPanelByte();
+uint8_t GetFrontPanelMode();
 
 bool CheckForFPGAEvents();
 
@@ -199,6 +201,8 @@ extern const char* g_defaultSshUsername;
 
 void LoadChannelConfig();
 void SaveChannelConfig();
+
+bool IsFrontPanelDFU();
 
 #define DISPLAY_NAME_MAX 32
 extern char g_inputDisplayNames[8][DISPLAY_NAME_MAX];

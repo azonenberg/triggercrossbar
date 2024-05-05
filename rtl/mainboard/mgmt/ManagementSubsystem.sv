@@ -71,6 +71,7 @@ module ManagementSubsystem(
 	//SPI interface to front panel
 	output wire						frontpanel_sck,
 	output wire						frontpanel_mosi,
+	input wire						frontpanel_miso,
 	output wire						frontpanel_cs_n,
 
 	//Configuration registers in core clock domain
@@ -361,6 +362,7 @@ module ManagementSubsystem(
 	wire		front_shift_en;
 	wire[7:0]	front_shift_data;
 	wire		front_shift_done;
+	wire[7:0]	front_rx_data;
 
 	SPIHostInterface spi(
 		.clk(sys_clk),
@@ -368,12 +370,12 @@ module ManagementSubsystem(
 
 		.spi_sck(frontpanel_sck),
 		.spi_mosi(frontpanel_mosi),
-		.spi_miso(1'b0),	//tx only
+		.spi_miso(frontpanel_miso),
 
 		.shift_en(front_shift_en),
 		.shift_done(front_shift_done),
 		.tx_data(front_shift_data),
-		.rx_data());
+		.rx_data(front_rx_data));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Register interface
@@ -449,6 +451,7 @@ module ManagementSubsystem(
 		.front_shift_en(front_shift_en),
 		.front_shift_done(front_shift_done),
 		.front_shift_data(front_shift_data),
+		.front_rx_data(front_rx_data),
 		.front_cs_n(frontpanel_cs_n),
 		.trig_in_led(trig_in_led),
 		.trig_out_led(trig_out_led),
@@ -471,5 +474,27 @@ module ManagementSubsystem(
 		.crypt_dsa_done(crypt_dsa_done),
 		.crypt_dsa_addr(crypt_dsa_addr)
 	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Debug ILA
+
+	ila_1 ila(
+		.clk(sys_clk),
+		.probe0(front_shift_en),
+		.probe1(front_shift_done),
+		.probe2(front_shift_data),
+		.probe3(front_rx_data),
+		.probe4(frontpanel_sck),
+		.probe5(frontpanel_mosi),
+		.probe6(frontpanel_miso),
+		.probe7(frontpanel_cs_n),
+
+		.probe8(mgmt_wr_en_ff),
+		.probe9(mgmt_wr_addr_ff),
+		.probe10(mgmt_wr_data_ff),
+
+		.probe11(mgmt_rd_en_ff),
+		.probe12(mgmt_rd_addr_ff)
+		);
 
 endmodule

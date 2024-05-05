@@ -215,7 +215,17 @@ void __attribute__((isr)) SPI_CSHandler()
  */
 void __attribute__((isr)) SPI1_Handler()
 {
-	g_fpgaSPI.OnIRQRxData(SPI1.DR);
+	if(SPI1.SR & SPI_RX_NOT_EMPTY)
+		g_fpgaSPI.OnIRQRxData(SPI1.DR);
+	if(SPI1.SR & SPI_TX_EMPTY)
+	{
+		if(g_fpgaSPI.HasNextTxByte())
+			SPI1.DR = g_fpgaSPI.GetNextTxByte();
+
+		//if no data to send, disable the interrupt
+		else
+			SPI1.CR2 &= ~SPI_TXEIE;
+	}
 }
 
 /**

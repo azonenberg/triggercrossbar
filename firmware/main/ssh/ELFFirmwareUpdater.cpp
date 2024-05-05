@@ -31,6 +31,9 @@
 #include "ELFFirmwareUpdater.h"
 #include <algorithm>
 
+//TODO move to derived class
+#include "../front/regids.h"
+
 int ComparePhdrAddress(const void* a, const void* b);
 
 int ComparePhdrAddress(const void* a, const void* b)
@@ -384,23 +387,3 @@ void ELFFirmwareUpdater::ProcessSegmentData()
 	}
 }
 
-////////////////////////////
-// DEBUG
-
-void ELFFirmwareUpdater::StartUpdate()
-{
-	g_log("DFU start\n");
-	//TODO: reboot the MCU in DFU mode and wait for it to acknowledge
-	//TODO: this should be in a derived class
-}
-
-void ELFFirmwareUpdater::FinishUpdate()
-{
-	//TODO: reboot MCU to run new firmware
-	g_log("DFU complete\n");
-}
-
-void ELFFirmwareUpdater::OnWriteData(uint32_t physicalAddress, uint8_t* data, uint32_t len)
-{
-	g_log("OnWriteData phyaddr=0x%08x len=%x\n", physicalAddress, len);
-}

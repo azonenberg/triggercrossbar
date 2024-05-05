@@ -44,7 +44,7 @@ module top(
 
 	//SPI interface to front panel
 	output wire			frontpanel_sck,
-	output wire			frontpanel_miso,
+	input wire			frontpanel_miso,
 	output wire			frontpanel_mosi,
 	output wire			frontpanel_cs_n,
 
@@ -117,11 +117,6 @@ module top(
 	//PMOD connector
 	inout wire[7:0]		pmod_dq
 );
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// tie off because silicon errata in front panel STM32, this has to be used as TRST#
-
-	assign frontpanel_miso = 1;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Clock synthesis
@@ -567,6 +562,7 @@ module top(
 
 		.frontpanel_sck(frontpanel_sck),
 		.frontpanel_mosi(frontpanel_mosi),
+		.frontpanel_miso(frontpanel_miso),
 		.frontpanel_cs_n(frontpanel_cs_n),
 		.trig_in_led(trig_in_led),
 		.trig_out_led(trig_out_led),

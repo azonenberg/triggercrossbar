@@ -110,6 +110,7 @@ module ManagementRegisterInterface(
 	output logic					front_shift_en = 0,
 	output logic[7:0]				front_shift_data = 0,
 	input wire						front_shift_done,
+	input wire[7:0]					front_rx_data,
 	output logic					front_cs_n = 1,
 
 	//still in core clock domain, synchronizer in serdes module
@@ -623,6 +624,7 @@ module ManagementRegisterInterface(
 					REG_USERCODE_3:		rd_data	<= usercode[31:24];
 
 					REG_FRONT_STAT:		rd_data <= {7'b0, front_busy };
+					REG_FRONT_DATA:		rd_data	<= front_rx_data;
 
 					REG_FPGA_IRQSTAT: begin
 						rd_data		<= {7'b0, !rxheader_rd_empty };

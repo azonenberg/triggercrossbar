@@ -54,6 +54,7 @@ void InitClocks();
 void InitUART();
 void InitLog();
 void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
+void InitSPI();
 
 extern UART<16, 256> g_uart;
 extern Logger g_log;

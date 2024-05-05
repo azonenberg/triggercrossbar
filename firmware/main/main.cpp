@@ -36,6 +36,7 @@
 void LogTemperatures();
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value);
 void UpdateFrontPanelActivityLEDs();
+void InitFrontPanel();
 
 GPIOPin* g_irq = nullptr;
 
@@ -106,10 +107,8 @@ int main()
 	CrossbarCLISessionContext uartContext;
 	uartContext.Initialize(&uartStream, "localadmin");
 
-	//Update the display and set the direction LEDs to all-input (default state on new FPGA bitstream load)
-	SetFrontPanelDirectionLEDs(0xf0);
-	UpdateFrontPanelActivityLEDs();
-	UpdateFrontPanelDisplay();
+	//Bring up the front panel
+	InitFrontPanel();
 
 	//Enable interrupts only after all setup work is done
 	EnableInterrupts();
@@ -218,6 +217,42 @@ void PollFPGA()
 	}
 }
 
+void InitFrontPanel()
+{
+	g_log("Initializing front panel\n");
+	LogIndenter li(g_log);
+
+	//Check what mode we're in
+	auto mode = GetFrontPanelMode();
+	if(mode == FRONT_NORMAL)
+		g_log("Front panel MCU is up\n");
+	else if(mode == FRONT_BOOTLOADER)
+	{
+		g_log(Logger::ERROR, "Front panel MCU is in DFU mode, shouldn't be\n");
+		return;
+	}
+	else
+	{
+		g_log(Logger::ERROR, "Unexpected response 0x%02x to FRONT_GET_STATUS\n", mode);
+		return;
+	}
+
+	//Update the display and set the direction LEDs to all-input (default state on new FPGA bitstream load)
+	SetFrontPanelDirectionLEDs(0xf0);
+	UpdateFrontPanelActivityLEDs();
+	UpdateFrontPanelDisplay();
+}
+
+uint8_t GetFrontPanelMode()
+{
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_GET_STATUS);
+	g_logTimer->Sleep(1);
+	auto ret = ReadFrontPanelByte();
+	SetFrontPanelCS(1);
+	return ret;
+}
+
 void SetFrontPanelCS(bool b)
 {
 	g_fpga->BlockingWrite8(REG_FRONT_CTRL, b);
@@ -233,6 +268,19 @@ void SendFrontPanelByte(uint8_t data)
 	{}
 }
 
+uint8_t ReadFrontPanelByte()
+{
+	//Send the data byte
+	g_fpga->BlockingWrite8(REG_FRONT_DATA, 0x00);
+
+	//Block until not busy
+	while(0 != g_fpga->BlockingRead8(REG_FRONT_STAT))
+	{}
+
+	//Return the response
+	return g_fpga->BlockingRead8(REG_FRONT_DATA);
+}
+
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value)
 {
 	SetFrontPanelCS(0);
@@ -244,6 +292,9 @@ void SendFrontPanelSensor(uint8_t cmd, uint16_t value)
 
 void SetFrontPanelDirectionLEDs(uint8_t leds)
 {
+	if(IsFrontPanelDFU())
+		return;
+
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_DIR_LEDS);
 	SendFrontPanelByte(leds);
@@ -252,6 +303,9 @@ void SetFrontPanelDirectionLEDs(uint8_t leds)
 
 void UpdateFrontPanelActivityLEDs()
 {
+	if(IsFrontPanelDFU())
+		return;
+
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_PORT_LEDS);
 
@@ -270,6 +324,9 @@ void UpdateFrontPanelActivityLEDs()
  */
 void UpdateFrontPanelDisplay()
 {
+	if(IsFrontPanelDFU())
+		return;
+
 	static bool firstRefresh = true;
 
 	char tmp[20] = {0};

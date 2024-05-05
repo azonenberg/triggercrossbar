@@ -34,7 +34,7 @@
 #ifndef ManagementSFTPServer_h
 #define ManagementSFTPServer_h
 
-#include "ELFFirmwareUpdater.h"
+#include "FrontPanelFirmwareUpdater.h"
 
 class ManagementSFTPServer : public SFTPServer
 {
@@ -58,7 +58,7 @@ protected:
 	} m_openFile;
 
 	//Firmware updater drivers
-	ELFFirmwareUpdater m_frontUpdater;
+	FrontPanelFirmwareUpdater m_frontUpdater;
 };
 
 #endif
