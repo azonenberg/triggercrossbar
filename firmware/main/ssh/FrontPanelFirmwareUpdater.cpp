@@ -96,8 +96,26 @@ void FrontPanelFirmwareUpdater::StartUpdate()
 			break;
 	}
 
-	//TODO: erase the application flash partition
+	//Erase the application flash partition
+	//TODO: can we optimize to only erase sectors that have content?
+	g_log("Erasing application flash partition...\n");
+	auto start = g_logTimer->GetCount();
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_ERASE_APP);
+	g_logTimer->Sleep(1);
+	while(1)
+	{
+		auto delta = g_logTimer->GetCount() - start;
 
+		auto status = ReadFrontPanelByte();
+		if(status == 1)
+		{
+			LogIndenter li(g_log);
+			g_log("Flash erase complete (in %d.%d ms)\n", delta / 10, delta % 10);
+			break;
+		}
+	}
+	SetFrontPanelCS(1);
 }
 
 void FrontPanelFirmwareUpdater::OnWriteData(uint32_t physicalAddress, uint8_t* data, uint32_t len)
@@ -117,7 +135,7 @@ void FrontPanelFirmwareUpdater::FinishUpdate()
 
 	//Wait for reset
 	//TODO: we don't want to hang the whole chip for 1 sec, do this in some kind of timer state machine
-	g_logTimer->Sleep(10000);
+	g_logTimer->Sleep(15000);
 
 	//Make sure we're back up in application mode
 	auto mode = GetFrontPanelMode();

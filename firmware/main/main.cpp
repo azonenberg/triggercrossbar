@@ -228,7 +228,8 @@ void InitFrontPanel()
 		g_log("Front panel MCU is up\n");
 	else if(mode == FRONT_BOOTLOADER)
 	{
-		g_log(Logger::ERROR, "Front panel MCU is in DFU mode, shouldn't be\n");
+		g_log(Logger::ERROR, "Front panel MCU is in DFU mode (we didn't expect this)\n");
+		g_frontPanelDFUInProgress = true;
 		return;
 	}
 	else

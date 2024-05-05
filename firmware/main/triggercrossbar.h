@@ -202,6 +202,7 @@ extern const char* g_defaultSshUsername;
 void LoadChannelConfig();
 void SaveChannelConfig();
 
+extern bool g_frontPanelDFUInProgress;
 bool IsFrontPanelDFU();
 
 #define DISPLAY_NAME_MAX 32

@@ -41,8 +41,8 @@ UART<16, 256> g_uart(&USART2, 347);
 Logger g_log;
 
 //APB1 is 40 MHz
-//Divide down to get 10 kHz ticks
-Timer g_logTimer(&TIM15, Timer::FEATURE_GENERAL_PURPOSE_16BIT, 4000);
+//Divide down to get 10 kHz ticks (note TIM2 is double rate)
+Timer g_logTimer(&TIM2, Timer::FEATURE_ADVANCED, 8000);
 
 GPIOPin* g_inmodeLED[4] = {nullptr};
 GPIOPin* g_outmodeLED[4] = {nullptr};
@@ -71,6 +71,8 @@ bool g_misoIsJtag = true;
 
 void SetMisoToSPIMode();
 void SetMisoToJTAGMode();
+
+void EraseFlash();
 
 int main()
 {
@@ -251,6 +253,8 @@ void SetMisoToJTAGMode()
 
 void __attribute__((noreturn)) FirmwareUpdateFlow()
 {
+	g_log("In DFU mode\n");
+
 	uint8_t nbyte = 0;
 	uint8_t cmd = 0;
 
@@ -288,10 +292,32 @@ void __attribute__((noreturn)) FirmwareUpdateFlow()
 
 					switch(cmd)
 					{
+						//padding sent during flash writes etc, discard it
+						case 0x00:
+							break;
+
 						//Launch the application
 						case FRONT_BOOT_APP:
-							g_log("Exiting DFU mode to boot application\n");
-							BootApplication(appVector);
+							g_log("Attempting to boot application\n");
+							if(ValidateAppPartition(appVector))
+								BootApplication(appVector);
+							g_log("Image is invalid, remaining in DFU mode\n");
+							break;
+
+						//Start erasing flash
+						case FRONT_ERASE_APP:
+
+							if(g_misoIsJtag)
+								SetMisoToSPIMode();
+
+							//Tell client we're busy
+							g_fpgaSPI.NonblockingWriteDevice(0x00);
+
+							//Do the erase cycle
+							EraseFlash();
+
+							//We're now done
+							g_fpgaSPI.NonblockingWriteDevice(0x01);
 							break;
 
 						//Commands that produce SPI output
@@ -316,7 +342,9 @@ void __attribute__((noreturn)) FirmwareUpdateFlow()
 					switch(cmd)
 					{
 						//Readback commands do nothing here
+						case 0x00:
 						case FRONT_GET_STATUS:
+						case FRONT_ERASE_APP:
 							break;
 
 						default:
@@ -330,11 +358,38 @@ void __attribute__((noreturn)) FirmwareUpdateFlow()
 			}
 		}
 	}
+}
 
-	g_log("No reflash flow implemented, booting app in a bit...\n");
-	for(int i=0; i<5; i++)
-		g_logTimer.Sleep(10000);
+void EraseFlash()
+{
+	//TODO: it's much more efficient to only erase the stuff we are overwriting, instead of the whole chip
+	g_log("Erasing application flash partition\n");
+	LogIndenter li(g_log);
 
+	uint8_t* appStart				= reinterpret_cast<uint8_t*>(0x8008000);
+	uint8_t* appEnd 				= reinterpret_cast<uint8_t*>(0x0803f000);
+	const uint32_t delta			= appEnd - appStart;
+	const uint32_t eraseBlockSize	= 2048;
+	const uint32_t nblocks 			= delta / eraseBlockSize;
+
+	auto start = g_logTimer.GetCount();
+	for(uint32_t i=0; i<nblocks; i++)
+	{
+		//Discard any SPI data events sent during this time
+		while(g_fpgaSPI.HasEvents())
+		{ g_fpgaSPI.GetEvent(); }
+
+		if( (i % 10) == 0)
+		{
+			auto dt = g_logTimer.GetCount() - start;
+			g_log("Block %u / %u (elapsed %d.%d ms)\n", i, nblocks, dt / 10, dt % 10);
+		}
+
+		Flash::BlockErase(appStart + i*nblocks);
+	}
+
+	auto dt = g_logTimer.GetCount() - start;
+	g_log("Done (in %d.%d ms)\n", dt / 10, dt % 10);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

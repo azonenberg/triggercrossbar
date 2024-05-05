@@ -37,6 +37,9 @@ enum front_mode_t
 
 enum front_regid_t
 {
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Commands in 00 - 7f available for application
+
 	FRONT_ETH_LINK		= 0x00,	//0 = 10M
 								//1 = 100M
 								//2 = 1G
@@ -45,7 +48,8 @@ enum front_regid_t
 
 	FRONT_IP4_ADDR		= 0x01,	//IPv4 address
 	FRONT_IP6_ADDR		= 0x02,	//IPv6 address
-	FRONT_SERIAL		= 0x03,	//FPGA serial number (used as system s/n for now... but not 100% reliable as DNA values can have duplicates)
+	FRONT_SERIAL		= 0x03,	//FPGA serial number (used as system s/n for now... but not 100% reliable
+								//as DNA values can have duplicates)
 	FRONT_MCU_FW		= 0x04,	//MCU firmware revision
 	FRONT_IBC_FW		= 0x05,	//IBC firmware revision
 	FRONT_SUPER_FW		= 0x06,	//Supervisor firmware revision
@@ -73,10 +77,15 @@ enum front_regid_t
 	FRONT_REFRESH_FAST	= 0x40,	//force fast refresh
 	FRONT_REFRESH_FULL	= 0x41,	//force full refresh
 
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Commands in 80-ff reserved for the bootloader (or entry to it)
+
 	FRONT_ENTER_DFU		= 0x80,	//reboot to DFU mode
 	FRONT_GET_STATUS	= 0x81,	//Return 0x55 in normal mode
 								//or 0xaa in bootloader mode
-	FRONT_BOOT_APP		= 0x82	//reboot in application mode
+	FRONT_BOOT_APP		= 0x82,	//reboot in application mode
+	FRONT_ERASE_APP		= 0x83	//erase application partition of flash
 };
 
 #endif
