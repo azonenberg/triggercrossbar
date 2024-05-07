@@ -43,9 +43,12 @@ void TrimSpaces(char* str);
 
 void InitClocks()
 {
+	//With CPU_FREQ_BOOST not set, max frequency is 520 MHz
+	//
+
 	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
 	//A bit of extra latency is fine, the CPU being faster than flash is not.
-	Flash::SetConfiguration(550, RANGE_VOS0);
+	Flash::SetConfiguration(513, RANGE_VOS0);
 
 	//By default out of reset, we're clocked by the HSI clock at 64 MHz
 	//Initialize the external clock source at 25 MHz
@@ -56,26 +59,26 @@ void InitClocks()
 		1,		//PLL1
 		25,		//input is 25 MHz from the HSE
 		2,		//25/2 = 12.5 MHz at the PFD
-		44,		//12.5 * 44 = 550 MHz at the VCO
-		1,		//div P (primary output 550 MHz)
-		10,		//div Q (55 MHz kernel clock)
+		40,		//12.5 * 40 = 500 MHz at the VCO
+		1,		//div P (primary output 500 MHz)
+		10,		//div Q (50 MHz kernel clock)
 		32,		//div R (not used for now),
 		RCCHelper::CLOCK_SOURCE_HSE
 	);
 
 	//Set up main system clock tree
 	RCCHelper::InitializeSystemClocks(
-		1,		//sysclk = 550 MHz
-		2,		//AHB = 275 MHz
-		4,		//APB1 = 68.75 MHz
-		4,		//APB2 = 68.75 MHz
-		4,		//APB3 = 68.75 MHz
-		4		//APB4 = 68.75 MHz
+		1,		//sysclk = 500 MHz
+		2,		//AHB = 250 MHz
+		4,		//APB1 = 62.5 MHz
+		4,		//APB2 = 62.5 MHz
+		4,		//APB3 = 62.5 MHz
+		4		//APB4 = 62.5 MHz
 	);
 
 	//RNG clock should be >= HCLK/32
-	//AHB2 HCLK is 275 MHz so min 8.57 MHz
-	//Select PLL1 Q clock (55 MHz)
+	//AHB2 HCLK is 250 MHz so min 7.8125 MHz
+	//Select PLL1 Q clock (50 MHz)
 	RCC.D2CCIP2R = (RCC.D2CCIP2R & ~0x300) | (0x100);
 
 	//Select PLL1 as system clock source
@@ -84,9 +87,9 @@ void InitClocks()
 
 void InitTimer()
 {
-	//APB1 is 68.75 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
+	//APB1 is 62.5 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
 	//Divide down to get 10 kHz ticks
-	static Timer logtim(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 13750);
+	static Timer logtim(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 12500);
 	g_logTimer = &logtim;
 }
 

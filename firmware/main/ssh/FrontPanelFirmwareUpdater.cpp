@@ -36,11 +36,15 @@ bool g_frontPanelDFUInProgress = false;
 bool IsFrontPanelDFU()
 { return g_frontPanelDFUInProgress; }
 
+#define ETHERNET_CRC_POLY 0x04c11db7
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
 
 FrontPanelFirmwareUpdater::FrontPanelFirmwareUpdater()
+	: m_runningLength(0)
 {
+	RCCHelper::Enable(&_CRC);
 }
 
 FrontPanelFirmwareUpdater::~FrontPanelFirmwareUpdater()
@@ -117,6 +121,9 @@ void FrontPanelFirmwareUpdater::StartUpdate()
 		g_logTimer->Sleep(1);
 	}
 	SetFrontPanelCS(1);
+
+	CRC::ChecksumInit();
+	m_runningLength = 0;
 
 	LogIndenter li2(g_log);
 	auto delta = g_logTimer->GetCount() - start;
@@ -208,6 +215,11 @@ void FrontPanelFirmwareUpdater::OnWriteData(uint32_t physicalAddress, uint8_t* d
 
 	g_logTimer->Sleep(50);
 
+	//Calculate the CRC32 of the data while we wait for the write to complete
+	CRC::ChecksumUpdate(data, len);
+	auto runningCRC = CRC::ChecksumFinal();
+	m_runningLength += len;
+
 	//Poll until the write has completed
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_FLASH_STATUS);
@@ -229,7 +241,8 @@ void FrontPanelFirmwareUpdater::OnWriteData(uint32_t physicalAddress, uint8_t* d
 	//0.1 bits / tick
 	auto delta = g_logTimer->GetCount() - start;
 	uint32_t kbps = 10 * len / delta;
-	g_log("Wrote %u bytes to 0x%08x in %d.%d ms (%u Kbps)\n", len, physicalAddress, delta / 10, delta % 10, kbps);
+	g_log("Wrote %u bytes to 0x%08x in %d.%d ms (%u Kbps), running crc = %08x, length = %d\n",
+		len, physicalAddress, delta / 10, delta % 10, kbps, runningCRC, m_runningLength);
 }
 
 void FrontPanelFirmwareUpdater::FinishSegment()
@@ -251,6 +264,38 @@ void FrontPanelFirmwareUpdater::FinishUpdate()
 {
 	g_log("DFU complete\n");
 	LogIndenter li(g_log);
+
+	//CRC of the actual firmware file
+	g_log("Calculated image CRC32: 0x%08x\n", CRC::ChecksumFinal());
+
+	//Calculate CRC of the entire flash partition
+	//Pad with zeroes up to an 8-byte boundary, then ones
+	//(this is horribly inefficient!)
+	static const uint8_t zero[8] = { 0 };
+	static const uint8_t one[8] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	if(m_runningLength % 8)
+	{
+		auto zpad = 8 - (m_runningLength % 8);
+		CRC::ChecksumUpdate(zero, zpad);
+		m_runningLength += zpad;
+	}
+	const uint32_t flashSectorLength = 2048;
+	const uint32_t flashSectorCount = 110;
+	const uint32_t flashByteSize = flashSectorLength * flashSectorCount;
+	uint32_t blocksToAdd = (flashByteSize - m_runningLength) / 8;
+	for(uint32_t i=0; i<blocksToAdd; i++)
+		CRC::ChecksumUpdate(one, 8);
+	auto crc = CRC::ChecksumFinal();
+	g_log("Calculated full-partition CRC32: 0x%08x\n", crc);
+
+	//Send the expected CRC to the bootloader
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_EXPECTED_CRC);
+	SendFrontPanelByte(crc & 0xff);
+	SendFrontPanelByte((crc >> 8) & 0xff);
+	SendFrontPanelByte((crc >> 16) & 0xff);
+	SendFrontPanelByte((crc >> 24) & 0xff);
+	SetFrontPanelCS(1);
 
 	//Request booting the app
 	g_log("Booting application\n");

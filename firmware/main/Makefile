@@ -1,6 +1,6 @@
 SRCDIR=$(CURDIR)
 ROOTDIR=$(CURDIR)/../../
-CXXFLAGS=-g -O0 --std=c++17 -Wall -Wextra \
+CXXFLAGS=-g -O3 --std=c++17 -Wall -Wextra \
 	-I$(ROOTDIR) \
 	-I$(SRCDIR) \
 	-I$(ROOTDIR)/stm32-cpp/devices/inc \
@@ -15,6 +15,9 @@ CXXFLAGS=-g -O0 --std=c++17 -Wall -Wextra \
 	-Wl,--wrap=alloca \
 	-Wl,--wrap=sbrk_aligned #\
 #	-flto=auto -pipe
+
+LDFLAGS=-Wl,-T $(ROOTDIR)/stm32-cpp/devices/link/stm32h735.ld \
+	 -L$(ROOTDIR)/stm32-cpp/devices/link/
 
 .ONESHELL:
 .SILENT: all
@@ -54,7 +57,7 @@ all:
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/peripheral/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/util/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/devices/src/stm32h735.cpp || exit 1
-	$(CXX) $(CXXFLAGS) *.o -Wl,-T $(ROOTDIR)/stm32-cpp/devices/link/stm32h735.ld -o ../firmware.elf
+	$(CXX) $(CXXFLAGS) *.o $(LDFLAGS) -o ../firmware.elf
 	cd ../
 	arm-none-eabi-objcopy -O binary --only-section=.text --only-section=.data firmware.elf firmware.bin
 	./imagesize.sh

@@ -64,6 +64,7 @@ extern "C" void __attribute__((noreturn)) DoBootApplication(const uint32_t* appV
 volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
 
 const char* g_imageVersionKey = "firmware.imageVersion";
+const char* g_imageCRCKey = "firmware.crc";
 
 //Default MISO to be using alt mode 0 (NJTRST) so we can use JTAG for debug
 GPIOPin g_fpgaMiso(&GPIOB, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
@@ -71,6 +72,7 @@ GPIOPin g_fpgaMiso(&GPIOB, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
 bool g_misoIsJtag = true;
 
 void EraseFlash();
+const char* GetImageVersion();
 
 int main()
 {
@@ -262,6 +264,7 @@ void __attribute__((noreturn)) FirmwareUpdateFlow()
 	uint32_t wraddr = 0;
 	uint32_t bytesSoFar = 0;
 	uint32_t bytesLastPrinted = 0;
+	uint32_t expectedCRC = 0;
 
 	while(1)
 	{
@@ -332,10 +335,25 @@ void __attribute__((noreturn)) FirmwareUpdateFlow()
 
 						//Launch the application
 						case FRONT_BOOT_APP:
-							g_log("Attempting to boot application\n");
-							if(ValidateAppPartition(appVector))
-								BootApplication(appVector);
-							g_log("Image is invalid, remaining in DFU mode\n");
+							{
+								g_log("Preparing to boot application\n");
+
+								auto sver = GetImageVersion();
+								if(!sver)
+								{
+									g_log(Logger::ERROR, "No image version string found\n");
+									continue;
+								}
+
+								//Write image version and expected CRC to KVS
+								g_kvs->StoreObject(g_imageVersionKey, (const uint8_t*)sver, strlen(sver));
+								g_kvs->StoreObject(g_imageCRCKey, (const uint8_t*)&expectedCRC, sizeof(uint32_t));
+
+								//Try booting it
+								if(ValidateAppPartition(appVector))
+									BootApplication(appVector);
+								g_log("Image is invalid, remaining in DFU mode\n");
+							}
 							break;
 
 						//Start erasing flash
@@ -349,6 +367,7 @@ void __attribute__((noreturn)) FirmwareUpdateFlow()
 							//Do the erase cycle
 							bytesSoFar = 0;
 							bytesLastPrinted = 0;
+							expectedCRC = 0;
 							EraseFlash();
 
 							//Discard any SPI data events that showed up during erase
@@ -434,6 +453,11 @@ void __attribute__((noreturn)) FirmwareUpdateFlow()
 							wraddr = (wraddr >> 8) | (data << 24);
 							break;
 
+						//Expected CRC32 (little endian)
+						case FRONT_EXPECTED_CRC:
+							expectedCRC = (expectedCRC >> 8) | (data << 24);
+							break;
+
 						//Flash data
 						case FRONT_FLASH_WRITE:
 							writebuf.Push(data);
@@ -458,7 +482,7 @@ void EraseFlash()
 	g_log("Erasing application flash partition\n");
 	LogIndenter li(g_log);
 
-	uint8_t* appStart				= reinterpret_cast<uint8_t*>(0x8008000);
+	uint8_t* appStart				= reinterpret_cast<uint8_t*>(0x08008000);
 	uint8_t* appEnd 				= reinterpret_cast<uint8_t*>(0x0803f000);
 	const uint32_t delta			= appEnd - appStart;
 	const uint32_t eraseBlockSize	= 2048;
@@ -501,6 +525,19 @@ void __attribute__((noreturn)) BootApplication(const uint32_t* appVector)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Application booting
+
+const char* GetImageVersion()
+{
+	auto firmwareVer = reinterpret_cast<const char*>(0x80081a0);
+	for(size_t i=0; i<32; i++)
+	{
+		if(firmwareVer[i] == '\0')
+			return firmwareVer;
+	}
+
+	//no null terminator
+	return nullptr;
+}
 
 /**
 	@brief Checks if the application partition contains a different firmware version than we last booted
@@ -570,12 +607,11 @@ bool ValidateAppPartition(const uint32_t* appVector)
 
 	//See if we have a saved CRC in flash
 	uint32_t expectedCRC = 0;
-	const char* crcKey = "firmware.crc";
 	const char* firmwareVer = nullptr;
 	bool updatedViaJtag = IsAppUpdated(firmwareVer);
 	if(!updatedViaJtag)
 	{
-		auto hlog = g_kvs->FindObject(crcKey);
+		auto hlog = g_kvs->FindObject(g_imageCRCKey);
 		if(!hlog)
 		{
 			g_log(Logger::WARNING, "Image version found in KVS, but not a CRC. Can't verify integrity\n");
@@ -602,7 +638,7 @@ bool ValidateAppPartition(const uint32_t* appVector)
 		g_log("New image present (JTAG flash?) but no corresponding saved CRC, updating CRC and version\n");
 
 		g_kvs->StoreObject(g_imageVersionKey, (const uint8_t*)firmwareVer, strlen(firmwareVer));
-		g_kvs->StoreObject(crcKey, (const uint8_t*)&crc, sizeof(crc));
+		g_kvs->StoreObject(g_imageCRCKey, (const uint8_t*)&crc, sizeof(crc));
 		return true;
 	}
 

@@ -82,10 +82,10 @@ OctoSPI* g_qspi = nullptr;
 /**
 	@brief UART console
 
-	Default after reset is for UART4 to be clocked by PCLK1 (APB1 clock) which is 68.75 MHz
-	So we need a divisor of 596.78
+	Default after reset is for UART4 to be clocked by PCLK1 (APB1 clock) which is 62.5 MHz
+	So we need a divisor of 542.53
  */
-UART<32, 256> g_cliUART(&UART4, 597);
+UART<32, 256> g_cliUART(&UART4, 543);
 
 /**
 	@brief Digital temperature sensor
@@ -137,7 +137,7 @@ uint8_t g_basetLinkSpeed = 0;
 	@brief SPI bus to supervisor
 
 	SPI4 runs on spi 4/5 kernel clock domain
-	default after reset is APB2 clock which is 68.75 MHz, divide by 128 to get 537 kHz
+	default after reset is APB2 clock which is 62.5 MHz, divide by 128 to get 488 kHz
  */
 SPI<64, 64> g_superSPI(&SPI4, true, 128);
 

@@ -31,6 +31,7 @@
 #define triggercrossbar_h
 
 #include "stm32.h"
+#include <peripheral/CRC.h>
 #include <peripheral/DTS.h>
 #include <peripheral/Flash.h>
 #include <peripheral/GPIO.h>
