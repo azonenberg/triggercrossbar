@@ -32,6 +32,7 @@
 #include <microkvs/driver/STM32StorageBank.h>
 #include <algorithm>
 #include "../front/regids.h"
+#include "../../staticnet/util/CircularFIFO.h"
 
 ///@brief Logging UART
 ///USART2 is on APB1 (40 MHz), so we need a divisor of 347.22, round to 347
@@ -47,7 +48,7 @@ Timer g_logTimer(&TIM2, Timer::FEATURE_ADVANCED, 8000);
 GPIOPin* g_inmodeLED[4] = {nullptr};
 GPIOPin* g_outmodeLED[4] = {nullptr};
 
-SPI<1024, 64> g_fpgaSPI(&SPI1, true, 2, false);
+SPI<2048, 64> g_fpgaSPI(&SPI1, true, 2, false);
 GPIOPin* g_fpgaSPICS = nullptr;
 
 ///@brief Key-value store used for storing firmware version config etc
@@ -68,9 +69,6 @@ const char* g_imageVersionKey = "firmware.imageVersion";
 GPIOPin g_fpgaMiso(&GPIOB, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
 
 bool g_misoIsJtag = true;
-
-void SetMisoToSPIMode();
-void SetMisoToJTAGMode();
 
 void EraseFlash();
 
@@ -255,14 +253,45 @@ void __attribute__((noreturn)) FirmwareUpdateFlow()
 {
 	g_log("In DFU mode\n");
 
-	uint8_t nbyte = 0;
+	uint32_t nbyte = 0;
 	uint8_t cmd = 0;
 
 	const uint32_t* appVector  = reinterpret_cast<const uint32_t*>(0x8008000);
 
+	CircularFIFO<2048> writebuf;
+	uint32_t wraddr = 0;
+	uint32_t bytesSoFar = 0;
+	uint32_t bytesLastPrinted = 0;
+
 	while(1)
 	{
 		g_log.UpdateOffset(60000);
+
+		//If we have at least a full 8-byte block of data, push it to flash
+		if(cmd != FRONT_FLASH_WRITE)
+		{
+			while(writebuf.ReadSize() >= 8)
+			{
+				Flash::Write((uint8_t*)wraddr, writebuf.Rewind(), 8);
+				writebuf.Pop(8);
+				wraddr += 8;
+				bytesSoFar += 8;
+
+				if(bytesSoFar > (bytesLastPrinted + 4096))
+				{
+					g_log("[%08x] Wrote %d bytes, %u still in buffer, %u overflows, %u pending\n",
+						wraddr, bytesSoFar, writebuf.ReadSize(), g_spiRxFifoOverflows, g_fpgaSPI.GetEventCount());
+					bytesLastPrinted = bytesSoFar;
+				}
+
+				//If there's <8 bytes left and we're not still pushing new data, we're done
+				if( (writebuf.ReadSize() < 8) && (cmd != FRONT_FLASH_WRITE) )
+				{
+					g_fpgaSPI.NonblockingWriteDevice(0x01);
+					break;
+				}
+			}
+		}
 
 		//If CS# deasserted, go to JTAG mode
 		if(*g_fpgaSPICS)
@@ -296,6 +325,11 @@ void __attribute__((noreturn)) FirmwareUpdateFlow()
 						case 0x00:
 							break;
 
+						//Update write address but account for pending data not yet written
+						case FRONT_FLASH_WRITE:
+							wraddr -= writebuf.ReadSize();
+							break;
+
 						//Launch the application
 						case FRONT_BOOT_APP:
 							g_log("Attempting to boot application\n");
@@ -307,27 +341,75 @@ void __attribute__((noreturn)) FirmwareUpdateFlow()
 						//Start erasing flash
 						case FRONT_ERASE_APP:
 
+							//Tell client we're busy
 							if(g_misoIsJtag)
 								SetMisoToSPIMode();
-
-							//Tell client we're busy
 							g_fpgaSPI.NonblockingWriteDevice(0x00);
 
 							//Do the erase cycle
+							bytesSoFar = 0;
+							bytesLastPrinted = 0;
 							EraseFlash();
+
+							//Discard any SPI data events that showed up during erase
+							g_fpgaSPI.ClearEvents();
 
 							//We're now done
 							g_fpgaSPI.NonblockingWriteDevice(0x01);
+
 							break;
 
-						//Commands that produce SPI output
+						//Get the operating mode
 						case FRONT_GET_STATUS:
 							{
 								if(g_misoIsJtag)
 									SetMisoToSPIMode();
 
-								const uint8_t tmp = FRONT_BOOTLOADER;
-								g_fpgaSPI.NonblockingWriteFifo(&tmp, sizeof(tmp));
+								g_fpgaSPI.NonblockingWriteDevice(FRONT_BOOTLOADER);
+							}
+							break;
+
+						//Get write status
+						case FRONT_FLASH_STATUS:
+
+							//Tell client we're busy
+							if(g_misoIsJtag)
+								SetMisoToSPIMode();
+							g_fpgaSPI.NonblockingWriteDevice(0x00);
+
+							break;
+
+						//Synchronize to make sure we're not reading stale data
+						case FRONT_FLASH_SYNC:
+
+							//Tell client we're busy
+							if(g_misoIsJtag)
+								SetMisoToSPIMode();
+							g_fpgaSPI.NonblockingWriteDevice(0xcc);
+
+							break;
+
+						//Flush any remaining flash data (end of the block)
+						case FRONT_FLASH_FLUSH:
+							{
+								//Tell client we're busy
+								if(g_misoIsJtag)
+									SetMisoToSPIMode();
+								g_fpgaSPI.NonblockingWriteDevice(0x00);
+
+								//Flush any remaining data to flash
+								auto nbytes = writebuf.ReadSize();
+								if(nbytes > 0)
+								{
+									Flash::Write((uint8_t*)wraddr, writebuf.Rewind(), nbytes);
+									writebuf.Pop(nbytes);
+									wraddr += nbytes;
+								}
+
+								g_log("Flushed write buffer, total %u bytes so far\n", bytesSoFar);
+
+								//We're now done
+								g_fpgaSPI.NonblockingWriteDevice(0x01);
 							}
 							break;
 
@@ -347,8 +429,18 @@ void __attribute__((noreturn)) FirmwareUpdateFlow()
 						case FRONT_ERASE_APP:
 							break;
 
+						//Flash address (little endian)
+						case FRONT_FLASH_ADDR:
+							wraddr = (wraddr >> 8) | (data << 24);
+							break;
+
+						//Flash data
+						case FRONT_FLASH_WRITE:
+							writebuf.Push(data);
+							break;
+
 						default:
-							g_log("Unrecognized command %02x\n", cmd);
+							//g_log("Unrecognized command %02x\n", cmd);
 							break;
 
 					}
@@ -375,17 +467,16 @@ void EraseFlash()
 	auto start = g_logTimer.GetCount();
 	for(uint32_t i=0; i<nblocks; i++)
 	{
-		//Discard any SPI data events sent during this time
-		while(g_fpgaSPI.HasEvents())
-		{ g_fpgaSPI.GetEvent(); }
-
 		if( (i % 10) == 0)
 		{
 			auto dt = g_logTimer.GetCount() - start;
-			g_log("Block %u / %u (elapsed %d.%d ms)\n", i, nblocks, dt / 10, dt % 10);
+			g_log("Block %u / %u (elapsed %d.%d ms, %u overflows)\n", i, nblocks, dt / 10, dt % 10, g_spiRxFifoOverflows);
 		}
 
-		Flash::BlockErase(appStart + i*nblocks);
+		Flash::BlockErase(appStart + i*eraseBlockSize);
+
+		//Clear any SPI RX buffer content from status polling
+		g_fpgaSPI.ClearEvents();
 	}
 
 	auto dt = g_logTimer.GetCount() - start;
@@ -524,7 +615,7 @@ bool ValidateAppPartition(const uint32_t* appVector)
 
 	else
 	{
-		g_log(Logger::ERROR, "CRC mismatch, application partition flash corruption?");
+		g_log(Logger::ERROR, "CRC mismatch, application partition flash corruption?\n");
 		return false;
 	}
 }

@@ -103,32 +103,157 @@ void FrontPanelFirmwareUpdater::StartUpdate()
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_ERASE_APP);
 	g_logTimer->Sleep(1);
-	while(1)
+	while(ReadFrontPanelByte() == 0)
 	{
+		//time out after 5 sec
 		auto delta = g_logTimer->GetCount() - start;
-
-		auto status = ReadFrontPanelByte();
-		if(status == 1)
+		if(delta > 50000)
 		{
-			LogIndenter li(g_log);
-			g_log("Flash erase complete (in %d.%d ms)\n", delta / 10, delta % 10);
+			g_log(Logger::ERROR, "Timed out waiting for flash erase\n");
+			m_state = STATE_FAILED;
 			break;
 		}
+
+		g_logTimer->Sleep(1);
 	}
 	SetFrontPanelCS(1);
+
+	LogIndenter li2(g_log);
+	auto delta = g_logTimer->GetCount() - start;
+	g_log("Flash erase complete (in %d.%d ms)\n", delta / 10, delta % 10);
 }
 
 void FrontPanelFirmwareUpdater::OnWriteData(uint32_t physicalAddress, uint8_t* data, uint32_t len)
 {
-	g_log("OnWriteData phyaddr=0x%08x len=%x\n", physicalAddress, len);
+	//If the block is outside our application area, abort
+	uint32_t flashStart = 0x8008000;
+	uint32_t flashEnd = 0x803f000;
+	if( (physicalAddress < flashStart) || ( (physicalAddress + len) > flashEnd) )
+	{
+		g_log(Logger::ERROR,
+			"Physical address range (%08x, len %d) is not completely within application flash (0x%08x - 0x%08x)\n",
+			physicalAddress,
+			len,
+			flashStart,
+			flashEnd);
+		m_state = STATE_FAILED;
+		return;
+	}
+
+	//For now, require the first block to be at least 0x1e0 bytes (openssh always will do this)
+	if(physicalAddress == flashStart)
+	{
+		if(len < 0x1e0)
+		{
+			g_log(Logger::ERROR,
+				"We don't know how to parse initial blocks that are too small (version strings split)\n");
+			m_state = STATE_FAILED;
+			return;
+		}
+
+		if(data[0x1bf] != '\0')
+		{
+			g_log(Logger::ERROR, "Missing null terminator on firmware build string\n");
+			m_state = STATE_FAILED;
+			return;
+		}
+
+		if(data[0x1df] != '\0')
+		{
+			g_log(Logger::ERROR, "Missing null terminator on firmware ID string\n");
+			m_state = STATE_FAILED;
+			return;
+		}
+
+		auto fwBuild = reinterpret_cast<const char*>(data + 0x1a0);
+		auto fwID = reinterpret_cast<const char*>(data + 0x1c0);
+
+		g_log("Firmware build date: %s\n", fwBuild);
+		g_log("Firmware ID:         %s\n", fwID);
+
+		const char* expectedID = "trigger-crossbar-frontpanel";
+		if(0 != strcmp(fwID, expectedID))
+		{
+			g_log(
+				Logger::ERROR,
+				"Aborting flash (image is probably for the wrong device, expected ID %s)\n",
+				expectedID);
+			m_state = STATE_FAILED;
+			return;
+		}
+
+		//TODO: don't erase flash until we've confirmed the new image is actually valid for us?
+		//TODO: push build date to bootloader or just let it parse?
+	}
+
+	//Send the address to the bootloader
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_FLASH_ADDR);
+	SendFrontPanelByte(physicalAddress & 0xff);
+	SendFrontPanelByte((physicalAddress >> 8) & 0xff);
+	SendFrontPanelByte((physicalAddress >> 16) & 0xff);
+	SendFrontPanelByte((physicalAddress >> 24) & 0xff);
+	SetFrontPanelCS(1);
+
+	g_logTimer->Sleep(5);
+
+	//Send the data
+	//TODO: if more than 1-2 kB, chunk it
+	auto start = g_logTimer->GetCount();
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_FLASH_WRITE);
+	for(uint32_t i=0; i<len; i++)
+		SendFrontPanelByte(data[i]);
+	SetFrontPanelCS(1);
+
+	g_logTimer->Sleep(50);
+
+	//Poll until the write has completed
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_FLASH_STATUS);
+	g_logTimer->Sleep(20);
+	while(ReadFrontPanelByte() != 1)
+		g_logTimer->Sleep(50);
+	SetFrontPanelCS(1);
+
+	//Flush the SPI buffer to make sure we don't get false "done" values
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_FLASH_SYNC);
+	g_logTimer->Sleep(20);
+	while(ReadFrontPanelByte() != 0xcc)
+		g_logTimer->Sleep(50);
+	SetFrontPanelCS(1);
+
+	//1K bits / 1 sec =
+	//1 bits / 1 ms =
+	//0.1 bits / tick
+	auto delta = g_logTimer->GetCount() - start;
+	uint32_t kbps = 10 * len / delta;
+	g_log("Wrote %u bytes to 0x%08x in %d.%d ms (%u Kbps)\n", len, physicalAddress, delta / 10, delta % 10, kbps);
+}
+
+void FrontPanelFirmwareUpdater::FinishSegment()
+{
+	g_log("Segment complete\n");
+	LogIndenter li(g_log);
+
+	//Flush any remaining data to flash
+	g_log("Flushing remaining data to flash\n");
+	SetFrontPanelCS(0);
+	SendFrontPanelByte(FRONT_FLASH_FLUSH);
+	g_logTimer->Sleep(1);
+	while(ReadFrontPanelByte() == 0)
+	{}
+	SetFrontPanelCS(1);
 }
 
 void FrontPanelFirmwareUpdater::FinishUpdate()
 {
-	g_log("DFU complete, rebooting MCU\n");
+	g_log("DFU complete\n");
 	LogIndenter li(g_log);
 
 	//Request booting the app
+	g_log("Booting application\n");
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_BOOT_APP);
 	SetFrontPanelCS(1);
@@ -154,4 +279,7 @@ void FrontPanelFirmwareUpdater::FinishUpdate()
 			g_log(Logger::ERROR, "Front panel is not in a valid mode (got %02x)\n", mode);
 			break;
 	}
+
+	//Send another command to return to jtag mode
+	SendFrontPanelByte(FRONT_REFRESH_FAST);
 }

@@ -374,6 +374,8 @@ void ELFFirmwareUpdater::ProcessSegmentData()
 	//Are we at the end of the segment?
 	if(m_offset >= (m_loadableSegments[m_currentSegment].m_fileoff + m_loadableSegments[m_currentSegment].m_size) )
 	{
+		FinishSegment();
+
 		//Was this the last loadable segment?
 		if(m_currentSegment >= m_numLoadableSegments)
 			m_state = STATE_DONE;

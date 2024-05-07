@@ -59,12 +59,17 @@ void InitSPI();
 extern UART<16, 256> g_uart;
 extern Logger g_log;
 extern Timer g_logTimer;
-extern SPI<1024, 64> g_fpgaSPI;
+extern SPI<2048, 64> g_fpgaSPI;
 extern GPIOPin* g_fpgaSPICS;
 
 extern GPIOPin* g_inmodeLED[4];
 extern GPIOPin* g_outmodeLED[4];
 
 extern KVS* g_kvs;
+
+void SetMisoToSPIMode();
+void SetMisoToJTAGMode();
+
+extern uint32_t g_spiRxFifoOverflows;
 
 #endif

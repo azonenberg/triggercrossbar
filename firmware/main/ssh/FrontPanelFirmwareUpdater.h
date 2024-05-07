@@ -44,6 +44,7 @@ public:
 protected:
 	virtual void StartUpdate() override;
 	virtual void OnWriteData(uint32_t physicalAddress, uint8_t* data, uint32_t len) override;
+	virtual void FinishSegment() override;
 	virtual void FinishUpdate() override;
 };
 

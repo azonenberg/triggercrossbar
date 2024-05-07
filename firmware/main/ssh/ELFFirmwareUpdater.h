@@ -86,6 +86,7 @@ protected:
 	virtual void StartUpdate() =0;
 	virtual void OnWriteData(uint32_t physicalAddress, uint8_t* data, uint32_t len) =0;
 	virtual void FinishUpdate() =0;
+	virtual void FinishSegment() =0;
 
 	///@brief Parser state machine
 	enum

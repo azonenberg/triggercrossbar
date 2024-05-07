@@ -85,7 +85,14 @@ enum front_regid_t
 	FRONT_GET_STATUS	= 0x81,	//Return 0x55 in normal mode
 								//or 0xaa in bootloader mode
 	FRONT_BOOT_APP		= 0x82,	//reboot in application mode
-	FRONT_ERASE_APP		= 0x83	//erase application partition of flash
+	FRONT_ERASE_APP		= 0x83,	//erase application partition of flash
+								//returns 0s until complete, then 1
+	FRONT_FLASH_ADDR	= 0x84,	//32-bit flash destination address
+	FRONT_FLASH_WRITE	= 0x85,	//data to be written to FLASH_ADDR
+	FRONT_FLASH_STATUS	= 0x86,	//read status of a flash write
+								//returns 0s until complete, then 1
+	FRONT_FLASH_FLUSH	= 0x87,	//flush pending writes
+	FRONT_FLASH_SYNC	= 0x88	//return constant 0xcc
 };
 
 #endif

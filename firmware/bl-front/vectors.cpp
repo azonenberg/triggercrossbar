@@ -48,6 +48,8 @@ void SPI_CSHandler();
 void SPI1_Handler();
 void USART2_Handler();
 
+uint32_t g_spiRxFifoOverflows = 0;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Interrupt vector table
 
@@ -161,6 +163,9 @@ fnptr __attribute__((section(".vector"))) vectorTable[] =
 
 void defaultISR()
 {
+	//make sure we can gdb the crash
+	SetMisoToJTAGMode();
+
 	while(1)
 	{}
 }
@@ -170,30 +175,48 @@ void defaultISR()
 
 void NMI_Handler()
 {
+	//make sure we can gdb the crash
+	SetMisoToJTAGMode();
+
 	while(1)
 	{}
 }
 
 void HardFault_Handler()
 {
+	//make sure we can gdb the crash
+	SetMisoToJTAGMode();
+
+	//print any pending log messages so we can diagnose
+	g_uart.BlockingFlush();
+
 	while(1)
 	{}
 }
 
 void BusFault_Handler()
 {
+	//make sure we can gdb the crash
+	SetMisoToJTAGMode();
+
 	while(1)
 	{}
 }
 
 void UsageFault_Handler()
 {
+	//make sure we can gdb the crash
+	SetMisoToJTAGMode();
+
 	while(1)
 	{}
 }
 
 void MMUFault_Handler()
 {
+	//make sure we can gdb the crash
+	SetMisoToJTAGMode();
+
 	while(1)
 	{}
 }
@@ -213,11 +236,16 @@ void __attribute__((isr)) SPI_CSHandler()
 /**
 	@brief SPI data interrupt
  */
-void __attribute__((isr)) SPI1_Handler()
+[[gnu::isr]]
+void SPI1_Handler()
 {
-	if(SPI1.SR & SPI_RX_NOT_EMPTY)
-		g_fpgaSPI.OnIRQRxData(SPI1.DR);
-	if(SPI1.SR & SPI_TX_EMPTY)
+	auto sr = SPI1.SR;
+	if(sr & SPI_RX_NOT_EMPTY)
+	{
+		if(!g_fpgaSPI.OnIRQRxData(SPI1.DR))
+			g_spiRxFifoOverflows ++;
+	}
+	if(sr & SPI_TX_EMPTY)
 	{
 		if(g_fpgaSPI.HasNextTxByte())
 			SPI1.DR = g_fpgaSPI.GetNextTxByte();
