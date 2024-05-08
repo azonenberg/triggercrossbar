@@ -29,8 +29,8 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-`include "EthernetBus.svh"
-`include "GmiiBus.svh"
+import EthernetBus::*;
+
 `include "CrossbarTypes.svh"
 `include "BERTConfig.svh"
 

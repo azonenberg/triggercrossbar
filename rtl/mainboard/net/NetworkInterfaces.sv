@@ -29,8 +29,7 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-`include "GmiiBus.svh"
-`include "EthernetBus.svh"
+import EthernetBus::*;
 
 /**
 	@file
@@ -119,9 +118,6 @@ module NetworkInterfaces(
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// 10G SFP+ uplink (xg0)
-
-	`include "GmiiBus.svh"
-	`include "EthernetBus.svh"
 
 	wire			xg0_rx_clk;
 	wire			xg0_tx_clk;

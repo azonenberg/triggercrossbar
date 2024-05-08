@@ -29,6 +29,8 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
+import EthernetBus::*;
+
 module top(
 	input wire			clk_200mhz_p,
 	input wire			clk_200mhz_n,
@@ -365,9 +367,6 @@ module top(
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Network interfaces
-
-	`include "GmiiBus.svh"
-	`include "EthernetBus.svh"
 
 	wire					mgmt0_rx_clk_buf;
 	EthernetRxBus			mgmt0_rx_bus;

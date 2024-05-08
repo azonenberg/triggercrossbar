@@ -29,10 +29,10 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-`include "EthernetBus.svh"
-`include "GmiiBus.svh"
 `include "CrossbarTypes.svh"
 `include "BERTConfig.svh"
+
+import EthernetBus::*;
 
 /**
 	@file
@@ -215,7 +215,7 @@ module ManagementSubsystem(
 	);
 
 	wire		xg0_link_up_txclk;
-	ThreeStageSynchronizer xg0_link_up_txclk(
+	ThreeStageSynchronizer sync_xg0_link_up_txclk(
 		.clk_in(xg0_rx_clk),
 		.din(xg0_link_up),
 		.clk_out(xg0_tx_clk),

@@ -29,7 +29,7 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-`include "EthernetBus.svh"
+import EthernetBus::*;
 
 module NetworkRxMuxing(
 	input wire					clk_250mhz,

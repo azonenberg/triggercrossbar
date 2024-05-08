@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="APBTest_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="APBTest" />
+            <top_module name="glbl" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="977.941 ns"></ZoomStartTime>
+      <ZoomEndTime time="1,004.412 ns"></ZoomEndTime>
+      <Cursor1Time time="1,000.000 ns"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="319"></NameColumnWidth>
+      <ValueColumnWidth column_width="201"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="17" />
+   <wvobject type="logic" fp_name="/APBTest/clk">
+      <obj_property name="ElementShortName">clk</obj_property>
+      <obj_property name="ObjectShortName">clk</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/APBTest/regval">
+      <obj_property name="ElementShortName">regval[63:0]</obj_property>
+      <obj_property name="ObjectShortName">regval[63:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/APBTest/updated">
+      <obj_property name="ElementShortName">updated</obj_property>
+      <obj_property name="ObjectShortName">updated</obj_property>
+   </wvobject>
+   <wvobject fp_name="divider284" type="divider">
+   </wvobject>
+   <wvobject type="logic" fp_name="/APBTest/apb/pclk">
+      <obj_property name="ElementShortName">pclk</obj_property>
+      <obj_property name="ObjectShortName">pclk</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/APBTest/apb/preset_n">
+      <obj_property name="ElementShortName">preset_n</obj_property>
+      <obj_property name="ObjectShortName">preset_n</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/APBTest/apb/paddr">
+      <obj_property name="ElementShortName">paddr[31:0]</obj_property>
+      <obj_property name="ObjectShortName">paddr[31:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/APBTest/apb/psel">
+      <obj_property name="ElementShortName">psel</obj_property>
+      <obj_property name="ObjectShortName">psel</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/APBTest/apb/penable">
+      <obj_property name="ElementShortName">penable</obj_property>
+      <obj_property name="ObjectShortName">penable</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/APBTest/apb/pwrite">
+      <obj_property name="ElementShortName">pwrite</obj_property>
+      <obj_property name="ObjectShortName">pwrite</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/APBTest/apb/pwdata">
+      <obj_property name="ElementShortName">pwdata[15:0]</obj_property>
+      <obj_property name="ObjectShortName">pwdata[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/APBTest/apb/pready">
+      <obj_property name="ElementShortName">pready</obj_property>
+      <obj_property name="ObjectShortName">pready</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/APBTest/apb/prdata">
+      <obj_property name="ElementShortName">prdata[15:0]</obj_property>
+      <obj_property name="ObjectShortName">prdata[15:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/APBTest/apb/pprot">
+      <obj_property name="ElementShortName">pprot[2:0]</obj_property>
+      <obj_property name="ObjectShortName">pprot[2:0]</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/APBTest/apb/pstrb">
+      <obj_property name="ElementShortName">pstrb[1:0]</obj_property>
+      <obj_property name="ObjectShortName">pstrb[1:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/APBTest/apb/pslverr">
+      <obj_property name="ElementShortName">pslverr</obj_property>
+      <obj_property name="ObjectShortName">pslverr</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/APBTest/apb/pwakeup">
+      <obj_property name="ElementShortName">pwakeup</obj_property>
+      <obj_property name="ObjectShortName">pwakeup</obj_property>
+   </wvobject>
+</wave_config>

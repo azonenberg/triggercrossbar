@@ -4,3 +4,4 @@
 *.gen
 *.ip_user_files
 ip_upgrade.log
+*.sim
