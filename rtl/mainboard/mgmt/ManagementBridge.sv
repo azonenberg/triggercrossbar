@@ -29,6 +29,8 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
+`include "../../../antikernel-ipcores/amba/apb/APBTypes.sv"
+
 /**
 	@file
 	@author	Andrew D. Zonenberg
@@ -59,12 +61,20 @@ module ManagementBridge(
 
 	output logic		wr_en,
 	output logic[15:0]	wr_addr	= 0,
-	output wire[7:0]	wr_data
+	output wire[7:0]	wr_data,
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Top level APB bus to the rest of the chip
+
+	APB.requester		apb
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// QSPI interface
+	// Mux readback data
+
+	logic		rd_valid_muxed;
+	logic[7:0]	rd_data_muxed;
+	logic		rd_is_apb = 0;
 
 	wire		start;
 	wire		insn_valid;
@@ -75,6 +85,41 @@ module ManagementBridge(
 
 	wire		wr_en_raw;
 	wire		rd_en_raw;
+
+	logic[7:0]	rd_data_hi = 0;
+
+	always_ff @(posedge clk) begin
+
+		rd_valid_muxed	<= 0;
+		rd_data_muxed	<= 0;
+
+		//APB reads
+		if(rd_is_apb) begin
+
+			//Even half
+			if(apb.pready) begin
+				rd_valid_muxed	<= 1;
+				rd_data_muxed	<= apb.prdata[7:0];
+			end
+
+			//Odd half
+			else if(rd_en_raw && rd_addr[0]) begin
+				rd_valid_muxed	<= 1;
+				rd_data_muxed	<= rd_data_hi;
+			end
+
+		end
+
+		//legacy bus reads
+		else begin
+			rd_valid_muxed	<= rd_valid;
+			rd_data_muxed	<= rd_data;
+		end
+
+	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// QSPI interface
 
 	typedef enum logic[7:0]
 	{
@@ -102,8 +147,8 @@ module ManagementBridge(
 
 		.rd_mode(rd_mode),
 		.rd_ready(rd_en_raw),
-		.rd_valid(rd_valid),
-		.rd_data(rd_data)
+		.rd_valid(rd_valid_muxed),
+		.rd_data(rd_data_muxed)
 	);
 
 	always_comb begin
@@ -125,9 +170,9 @@ module ManagementBridge(
 		wr_addr			= wr_addr_ff;
 
 		//Increment if reading/writing
-		if(rd_en)
+		if(rd_en_raw)
 			rd_addr		= rd_addr_ff + 1;
-		if(wr_en && !first)
+		if(wr_en_raw && !first)
 			wr_addr		= wr_addr_ff + 1;
 
 		//Start a new transaction
@@ -144,8 +189,10 @@ module ManagementBridge(
 		rd_addr_ff		<= rd_addr;
 
 		//Process instruction
-		if(insn_valid)
-			rd_mode		<= (opcode == OP_LEGACY_READ);
+		if(insn_valid) begin
+			rd_mode		<= (opcode == OP_LEGACY_READ) || (opcode == OP_APB_READ);
+			rd_is_apb	<= (opcode == OP_APB_READ);
+		end
 
 		//Reset anything we need on CS# falling edge
 		if(start) begin
@@ -155,6 +202,54 @@ module ManagementBridge(
 
 		if(wr_en)
 			first		<= 0;
+
+	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// APB interfacing
+
+	//Hook up clock
+	assign apb.pclk = clk;
+
+	//Tie off unused signals
+	//TODO: enable soft reset?
+	assign apb.preset_n = 1;
+	assign apb.pwakeup = 0;
+	assign apb.pprot = 0;
+	assign apb.pstrb = 2'b11;
+
+	logic	apb_psel_ff	= 0;
+
+	always_comb begin
+
+		//Default to not writing and pushing registered state
+		apb.psel	= apb_psel_ff;
+		apb.paddr	= rd_addr;
+		apb.pwrite	= 0;
+
+		//Dispatch APB reads on even address alignment
+		if(rd_en_raw && (opcode == OP_APB_READ) && (rd_addr[0] == 0) )
+			apb.psel	= 1;
+
+		//enable one cycle after select
+		apb.penable = apb_psel_ff;
+
+	end
+
+	always_ff @(posedge clk) begin
+
+		//Register combinatorially generated flags
+		apb_psel_ff	<= apb.psel;
+
+		//clear pending request when it completes
+		if(apb.pready)
+			apb_psel_ff	<= 0;
+
+		//TODO: APB writes need to wait until we have two bytes of data to send?
+
+		//Save high half of read data
+		if(apb.pready && !apb.pwrite)
+			rd_data_hi	<= apb.prdata[15:8];
 
 	end
 
@@ -174,11 +269,28 @@ module ManagementBridge(
 		.probe8(rd_en),
 		.probe9(rd_data),
 		.probe10(rd_valid),
-
 		.probe11(qspi_cs_n),
 		.probe12(qspi.dq_in_sync),
 		.probe13(qspi_sck),
-		.probe14(qspi.dq_out)
+		.probe14(qspi.dq_out),
+		.probe15(apb.psel),
+		.probe16(apb.pwrite),
+		.probe17(apb.paddr),
+		.probe18(apb.penable),
+		.probe19(apb.pready),
+		.probe20(apb.prdata),
+		.probe21(first),
+		.probe22(rd_mode),
+		.probe23(rd_addr),
+		.probe24(rd_valid_muxed),
+		.probe25(rd_data_muxed),
+		.probe26(rd_is_apb),
+		.probe27(rd_data_hi),
+
+		.probe28(qspi.state),
+		.probe29(qspi.rd_data_next),
+		.probe30(qspi.sck_rising),
+		.probe31(qspi.sck_sync)
 		);
 
 endmodule

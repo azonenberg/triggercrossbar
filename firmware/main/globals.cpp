@@ -55,9 +55,14 @@ Logger g_log;
 Timer* g_logTimer = nullptr;
 
 /**
-	@brief Interface to the FPGA
+	@brief Interface to the FPGA via legacy bus protocol
  */
 FPGAInterface* g_fpga = nullptr;
+
+/**
+	@brief Interface to the FPGA via APB
+ */
+APBFPGAInterface g_apbfpga;
 
 /**
 	@brief Our MAC address

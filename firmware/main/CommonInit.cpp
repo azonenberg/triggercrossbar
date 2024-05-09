@@ -95,10 +95,8 @@ void InitFPGA()
 	//Retry until we get a nonzero result indicating FPGA is up
 	while(true)
 	{
-		uint8_t buf[8];
-		g_fpga->BlockingRead(REG_FPGA_IDCODE, buf, 4);
-		uint32_t idcode = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
-		g_fpga->BlockingRead(REG_FPGA_SERIAL, g_fpgaSerial, 8);
+		uint32_t idcode = g_apbfpga.BlockingRead32(BASE_SYSINFO + REG_FPGA_IDCODE);
+		g_apbfpga.BlockingRead(BASE_SYSINFO + REG_FPGA_SERIAL, g_fpgaSerial, 8);
 
 		//If IDCODE is all zeroes, poll again
 		if(idcode == 0)
@@ -120,14 +118,14 @@ void InitFPGA()
 				break;
 		}
 		g_log("Serial: %02x%02x%02x%02x%02x%02x%02x%02x\n",
-			g_fpgaSerial[0], g_fpgaSerial[1], g_fpgaSerial[2], g_fpgaSerial[3],
-			g_fpgaSerial[4], g_fpgaSerial[5], g_fpgaSerial[6], g_fpgaSerial[7]);
+			g_fpgaSerial[7], g_fpgaSerial[6], g_fpgaSerial[5], g_fpgaSerial[4],
+			g_fpgaSerial[3], g_fpgaSerial[2], g_fpgaSerial[1], g_fpgaSerial[0]);
 
 		break;
 	}
 
 	//Read USERCODE
-	g_usercode = g_fpga->BlockingRead32(REG_USERCODE);
+	g_usercode = g_apbfpga.BlockingRead32(BASE_SYSINFO + REG_USERCODE);
 	g_log("Usercode: %08x\n", g_usercode);
 	{
 		LogIndenter li(g_log);

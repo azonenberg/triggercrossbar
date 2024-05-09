@@ -60,6 +60,7 @@
 #include "net/ManagementTCPProtocol.h"
 #include "net/ManagementUDPProtocol.h"
 #include "FPGAInterface.h"
+#include "APBFPGAInterface.h"
 #include "OctalDAC.h"
 
 #include "ssh/CrossbarSSHKeyManager.h"
@@ -70,6 +71,7 @@ extern KVS* g_kvs;
 extern LogSink<MAX_LOG_SINKS>* g_logSink;
 extern Logger g_log;
 extern FPGAInterface* g_fpga;
+extern APBFPGAInterface g_apbfpga;
 extern Timer* g_logTimer;
 extern EthernetInterface* g_ethIface;
 extern MACAddress g_macAddress;

@@ -372,6 +372,7 @@ void UpdateFrontPanelDisplay()
 
 		But if front panel is reflashed, it won't show version strings until we reset the main MCU.
 		This probably isn't a huge deal?
+		TODO: allow forcing a full refresh or something
 	 */
 	if(firstRefresh)
 	{
@@ -381,7 +382,7 @@ void UpdateFrontPanelDisplay()
 		SetFrontPanelCS(0);
 		SendFrontPanelByte(FRONT_SERIAL);
 		for(size_t i=0; i<8; i++)
-			SendFrontPanelByte(g_fpgaSerial[i]);
+			SendFrontPanelByte(g_fpgaSerial[7-i]);
 		SetFrontPanelCS(1);
 
 		//Our firmware version number

@@ -370,11 +370,10 @@ void InitQSPI()
 	static GPIOPin qspi_dq3(&GPIOA, 1, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_VERYFAST, 9);
 
 	//Clock divider value
-	//Default is for AHB3 bus clock to be used as kernel clock (275 MHz for us)
+	//Default is for AHB3 bus clock to be used as kernel clock (250 MHz for us)
 	//With 3.3V Vdd, we can go up to 140 MHz.
-	//Dividing by 4 gives 68.75 MHz and a transfer rate of 275 Mbps.
 	//FPGA currently requires <= 62.5 MHz due to the RX oversampling used (4x in 250 MHz clock domain)
-	//Dividing by 5 gives 55 MHz and a transfer rate of 220 Mbps
+	//Dividing by 5 gives 50 MHz and a transfer rate of 200 Mbps
 	uint8_t prescale = 5;
 
 	//Configure the OCTOSPI itself
@@ -526,11 +525,11 @@ void InitSensors()
 
 	//Read FPGA voltage sensors
 	int volt = GetFPGAVCCINT();
-	g_log("FPGA VCCINT:                           %uhk V\n", volt);
+	g_log("FPGA VCCINT:                            %uhk V\n", volt);
 	volt = GetFPGAVCCBRAM();
-	g_log("FPGA VCCBRAM:                          %uhk V\n", volt);
+	g_log("FPGA VCCBRAM:                           %uhk V\n", volt);
 	volt = GetFPGAVCCAUX();
-	g_log("FPGA VCCAUX:                           %uhk V\n", volt);
+	g_log("FPGA VCCAUX:                            %uhk V\n", volt);
 
 	InitDTS();
 }

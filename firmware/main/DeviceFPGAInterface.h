@@ -50,9 +50,6 @@ public:
 	{
 		OP_LEGACY_READ	= 0x20,
 		OP_LEGACY_WRITE	= 0x21
-
-	//	OP_APB_READ		= 0x40,
-	//	OP_APB_WRITE	= 0x41,
 	};
 
 protected:

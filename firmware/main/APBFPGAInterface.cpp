@@ -28,66 +28,36 @@
 ***********************************************************************************************************************/
 
 #include "triggercrossbar.h"
+#include "APBFPGAInterface.h"
 
-/**
-	@brief Reads the RPM of the requested fan
- */
-uint16_t GetFanRPM(uint8_t channel)
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Construction / destruction
+
+APBFPGAInterface::APBFPGAInterface()
 {
-	switch(channel)
-	{
-		case 0:
-			return g_apbfpga.BlockingRead16(BASE_SYSINFO + REG_FAN0_RPM);
-
-		case 1:
-			return g_apbfpga.BlockingRead16(BASE_SYSINFO + REG_FAN1_RPM);
-
-		default:
-			return 0;
-	}
 }
 
-/**
-	@brief Gets the temperature of the FPGA (in 8.8 fixed point format)
- */
-uint16_t GetFPGATemperature()
+APBFPGAInterface::~APBFPGAInterface()
 {
-	return g_apbfpga.BlockingRead16(BASE_SYSINFO + REG_DIE_TEMP);
 }
 
-/**
-	@brief Gets the VCCINT voltage of the FPGA (in 8.8 fixed point format)
- */
-uint16_t GetFPGAVCCINT()
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Data I/O
+
+void APBFPGAInterface::Nop()
 {
-	return g_apbfpga.BlockingRead16(BASE_SYSINFO + REG_VOLT_CORE);
 }
 
-/**
-	@brief Gets the VCCBRAM voltage of the FPGA (in 8.8 fixed point format)
- */
-uint16_t GetFPGAVCCBRAM()
+void APBFPGAInterface::BlockingRead(uint32_t addr, uint8_t* data, uint32_t len)
 {
-	return g_apbfpga.BlockingRead16(BASE_SYSINFO + REG_VOLT_RAM);
+	g_qspi->BlockingRead(OP_APB_READ, addr, data, len);
 }
 
-/**
-	@brief Gets the VCCAUX voltage of the FPGA (in 8.8 fixed point format)
- */
-uint16_t GetFPGAVCCAUX()
+void APBFPGAInterface::BlockingWrite(uint32_t addr, const uint8_t* data, uint32_t len)
 {
-	return g_apbfpga.BlockingRead16(BASE_SYSINFO + REG_VOLT_AUX);
+	g_qspi->BlockingWrite(OP_APB_WRITE, addr, data, len);
 }
 
-/**
-	@brief Gets the temperature of the SFP+
- */
-uint16_t GetSFPTemperature()
+void APBFPGAInterface::CryptoEngineBlock()
 {
-	//FIXME: assumes internally calibrated
-
-	g_sfpI2C->BlockingWrite8(0xa2, 96);
-	uint16_t temp = 0;
-	g_sfpI2C->BlockingRead16(0xa2, temp);
-	return temp;
 }

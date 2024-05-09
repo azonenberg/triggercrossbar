@@ -251,7 +251,7 @@ module ManagementSubsystem(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// QSPI device bridge
+	// QSPI device bridge to internal legacy bus plus APB
 
 	wire		mgmt_rd_en;
 	wire[15:0]	mgmt_rd_addr;
@@ -267,6 +267,9 @@ module ManagementSubsystem(
 
 	//(* retiming_backward = 1 *)
 	logic[7:0]	mgmt_rd_data_out	= 0;
+
+	//The top level APB bus from the QSPI bridge to everything else
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(24), .USER_WIDTH(0)) processorBus();
 
 	//Prevent any logic from the rest of this module from being optimized into the bridge
 	(* keep_hierarchy = "yes" *)
@@ -284,39 +287,47 @@ module ManagementSubsystem(
 
 		.wr_en(mgmt_wr_en),
 		.wr_addr(mgmt_wr_addr),
-		.wr_data(mgmt_wr_data)
+		.wr_data(mgmt_wr_data),
+
+		.apb(processorBus)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Optionally pipeline read data by one cycle
+	// USERCODE register
 
-	always_comb begin
-	//always_ff @(posedge sys_clk) begin
-		mgmt_rd_valid_out	= mgmt_rd_valid;
-		mgmt_rd_data_out	= mgmt_rd_data;
-	end
+	wire[31:0] usercode;
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Pipeline register on write data plus read address bus
-
-	logic		mgmt_rd_en_ff	= 0;
-	logic[15:0]	mgmt_rd_addr_ff	= 0;
-
-	logic		mgmt_wr_en_ff	= 0;
-	logic[15:0]	mgmt_wr_addr_ff	= 0;
-	logic[7:0]	mgmt_wr_data_ff	= 0;
-
-	always_ff @(posedge sys_clk) begin
-		mgmt_wr_en_ff	<= mgmt_wr_en;
-		mgmt_wr_addr_ff	<= mgmt_wr_addr;
-		mgmt_wr_data_ff	<= mgmt_wr_data;
-
-		mgmt_rd_en_ff	<= mgmt_rd_en;
-		mgmt_rd_addr_ff	<= mgmt_rd_addr;
-	end
+	USR_ACCESSE2 user(
+		.DATA(usercode),
+		.CFGCLK(),
+		.DATAVALID()
+		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Device information
+	// Pipeline register on APB before the bridge
+
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(24), .USER_WIDTH(0)) bridgeUpstreamBus();
+	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(1))
+		apb_regslice_root( .upstream(processorBus), .downstream(bridgeUpstreamBus) );
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Top level APB interconnect bridge
+
+	localparam DEVICE_ADDR_WIDTH = 10;
+
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) bridgeDownstreamBus[3:0]();
+
+	APBBridge #(
+		.BASE_ADDR(24'h000_000),
+		.BLOCK_SIZE(32'h400),
+		.NUM_PORTS(4)
+	) apb_bridge (
+		.upstream(bridgeUpstreamBus),
+		.downstream(bridgeDownstreamBus)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// System health + information (0x000_000)
 
 	wire[63:0]	die_serial;
 	wire		die_serial_valid;
@@ -354,6 +365,55 @@ module ManagementSubsystem(
 		.ext_update(),
 		.die_temp_native()
 	);
+
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) sysinfoBus();
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_sysinfo( .upstream(bridgeDownstreamBus[0]), .downstream(sysinfoBus) );
+
+	APB_SystemInfo sysinfo(
+		.apb(sysinfoBus),
+
+		.fan0_rpm(fan0_rpm),
+		.fan1_rpm(fan1_rpm),
+		.die_temp(die_temp),
+		.volt_core(volt_core),
+		.volt_ram(volt_ram),
+		.volt_aux(volt_aux),
+
+		.die_serial_valid(die_serial_valid),
+		.die_serial(die_serial),
+		.idcode_valid(idcode_valid),
+		.idcode(idcode),
+		.usercode(usercode)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Optionally pipeline read data by one cycle
+
+	always_comb begin
+	//always_ff @(posedge sys_clk) begin
+		mgmt_rd_valid_out	= mgmt_rd_valid;
+		mgmt_rd_data_out	= mgmt_rd_data;
+	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Pipeline register on write data plus read address bus
+
+	logic		mgmt_rd_en_ff	= 0;
+	logic[15:0]	mgmt_rd_addr_ff	= 0;
+
+	logic		mgmt_wr_en_ff	= 0;
+	logic[15:0]	mgmt_wr_addr_ff	= 0;
+	logic[7:0]	mgmt_wr_data_ff	= 0;
+
+	always_ff @(posedge sys_clk) begin
+		mgmt_wr_en_ff	<= mgmt_wr_en;
+		mgmt_wr_addr_ff	<= mgmt_wr_addr;
+		mgmt_wr_data_ff	<= mgmt_wr_data;
+
+		mgmt_rd_en_ff	<= mgmt_rd_en;
+		mgmt_rd_addr_ff	<= mgmt_rd_addr;
+	end
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Front panel SPI interface
@@ -394,19 +454,7 @@ module ManagementSubsystem(
 		.wr_addr(mgmt_wr_addr_ff),
 		.wr_data(mgmt_wr_data_ff),
 
-		//Control registers (device info clock domain)
-		.die_serial_valid(die_serial_valid),
-		.die_serial(die_serial),
-		.idcode_valid(idcode_valid),
-		.idcode(idcode),
-
 		//Control registers (core clock domain)
-		.fan0_rpm(fan0_rpm),
-		.fan1_rpm(fan1_rpm),
-		.die_temp(die_temp),
-		.volt_core(volt_core),
-		.volt_ram(volt_ram),
-		.volt_aux(volt_aux),
 		.mgmt0_mdio_busy(mgmt0_mdio_busy),
 		.mgmt0_phy_reg_addr(mgmt0_phy_reg_addr),
 		.mgmt0_phy_wr_data(mgmt0_phy_wr_data),

@@ -57,24 +57,11 @@ module ManagementRegisterInterface(
 	input wire[15:0]				wr_addr,
 	input wire[7:0]					wr_data,
 
-	//Device information bus
-	//Must be divided down from core clock, but phase aligned
-	input wire						die_serial_valid,
-	input wire[63:0]				die_serial,
-	input wire						idcode_valid,
-	input wire[31:0]				idcode,
-
 	//Configuration registers in port RX clock domains
 	input wire						xg0_rx_clk,
 	input wire						xg0_link_up,
 
 	//Configuration registers in core clock domain
-	input wire[15:0]				fan0_rpm,
-	input wire[15:0]				fan1_rpm,
-	input wire[15:0]				die_temp,
-	input wire[15:0]				volt_core,
-	input wire[15:0]				volt_ram,
-	input wire[15:0]				volt_aux,
 	input wire						mgmt0_mdio_busy,
 	output logic[4:0]				mgmt0_phy_reg_addr = 0,
 	output logic[15:0]				mgmt0_phy_wr_data = 0,
@@ -144,17 +131,6 @@ module ManagementRegisterInterface(
 	input wire						crypt_dsa_done,
 	output wire[1:0]				crypt_dsa_addr
 	);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// USERCODE register
-
-	wire[31:0] usercode;
-
-	USR_ACCESSE2 user(
-		.DATA(usercode),
-		.CFGCLK(),
-		.DATAVALID()
-		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Pipeline registers for some external flags
@@ -274,40 +250,6 @@ module ManagementRegisterInterface(
 	//must match ManagementRegisterInterface in FPGAInterface.h
 	typedef enum logic[15:0]
 	{
-		//FPGA die information
-		REG_FPGA_IDCODE		= 16'h0000,		//4 bytes of IDCODE
-		REG_FPGA_IDCODE_1	= 16'h0001,
-		REG_FPGA_IDCODE_2	= 16'h0002,
-		REG_FPGA_IDCODE_3	= 16'h0003,
-		REG_FPGA_SERIAL		= 16'h0004,		//8 bytes of die serial
-		REG_FPGA_SERIAL_1	= 16'h0005,
-		REG_FPGA_SERIAL_2	= 16'h0006,
-		REG_FPGA_SERIAL_3	= 16'h0007,
-		REG_FPGA_SERIAL_4	= 16'h0008,
-		REG_FPGA_SERIAL_5	= 16'h0009,
-		REG_FPGA_SERIAL_6	= 16'h000a,
-		REG_FPGA_SERIAL_7	= 16'h000b,
-
-		//Sensors
-		REG_FAN0_RPM		= 16'h0010,
-		REG_FAN0_RPM_1		= 16'h0011,
-		REG_FAN1_RPM		= 16'h0012,
-		REG_FAN1_RPM_1		= 16'h0013,
-		REG_DIE_TEMP		= 16'h0014,
-		REG_DIE_TEMP_1		= 16'h0015,
-		REG_VOLT_CORE		= 16'h0016,
-		REG_VOLT_CORE_1		= 16'h0017,
-		REG_VOLT_RAM		= 16'h0018,
-		REG_VOLT_RAM_1		= 16'h0019,
-		REG_VOLT_AUX		= 16'h001a,
-		REG_VOLT_AUX_1		= 16'h001b,
-
-		//Bitstream IDCODE
-		REG_USERCODE		= 16'h001c,		//bitstream usercode
-		REG_USERCODE_1		= 16'h001d,
-		REG_USERCODE_2		= 16'h001e,
-		REG_USERCODE_3		= 16'h001f,
-
 		//Reasons for an IRQ
 		REG_FPGA_IRQSTAT	= 16'h0020,		//
 		REG_FPGA_IRQSTAT_1	= 16'h0021,		//
@@ -534,20 +476,8 @@ module ManagementRegisterInterface(
 
 		//Continue a read
 		if(rd_en || reading) begin
-
-			//Data not ready? Wait
-			if( (rd_addr >= REG_FPGA_IDCODE) && (rd_addr <= REG_FPGA_IDCODE_3) && !idcode_valid) begin
-			end
-			else if( (rd_addr >= REG_FPGA_SERIAL) && (rd_addr <= REG_FPGA_SERIAL_7) && !die_serial_valid) begin
-			end
-
-			//Data is ready
-			else begin
-
-				rd_valid	<= 1;
-				reading		<= 0;
-
-			end
+			rd_valid	<= 1;
+			reading		<= 0;
 
 			//Crypto registers are decoded separately
 			if(rd_addr >= REG_CRYPT_BASE) begin
@@ -588,39 +518,6 @@ module ManagementRegisterInterface(
 			else begin
 
 				case(rd_addr)
-
-					REG_FPGA_IDCODE:	rd_data <= idcode[3*8 +: 8];
-					REG_FPGA_IDCODE_1:	rd_data <= idcode[2*8 +: 8];
-					REG_FPGA_IDCODE_2:	rd_data <= idcode[1*8 +: 8];
-					REG_FPGA_IDCODE_3:	rd_data <= idcode[0*8 +: 8];
-
-					REG_FPGA_SERIAL:	rd_data <= die_serial[7*8 +: 8];
-					REG_FPGA_SERIAL_1:	rd_data <= die_serial[6*8 +: 8];
-					REG_FPGA_SERIAL_2:	rd_data <= die_serial[5*8 +: 8];
-					REG_FPGA_SERIAL_3:	rd_data <= die_serial[4*8 +: 8];
-					REG_FPGA_SERIAL_4:	rd_data <= die_serial[3*8 +: 8];
-					REG_FPGA_SERIAL_5:	rd_data <= die_serial[2*8 +: 8];
-					REG_FPGA_SERIAL_6:	rd_data <= die_serial[1*8 +: 8];
-					REG_FPGA_SERIAL_7:	rd_data <= die_serial[0*8 +: 8];
-
-					REG_FAN0_RPM:		rd_data	<= fan0_rpm[7:0];
-					REG_FAN0_RPM_1:		rd_data	<= fan0_rpm[15:8];
-					REG_FAN1_RPM:		rd_data	<= fan1_rpm[7:0];
-					REG_FAN1_RPM_1:		rd_data	<= fan1_rpm[15:8];
-
-					REG_DIE_TEMP:		rd_data	<= die_temp[7:0];
-					REG_DIE_TEMP_1:		rd_data	<= die_temp[15:8];
-					REG_VOLT_CORE:		rd_data	<= volt_core[7:0];
-					REG_VOLT_CORE_1:	rd_data	<= volt_core[15:8];
-					REG_VOLT_RAM:		rd_data	<= volt_ram[7:0];
-					REG_VOLT_RAM_1:		rd_data	<= volt_ram[15:8];
-					REG_VOLT_AUX:		rd_data	<= volt_aux[7:0];
-					REG_VOLT_AUX_1:		rd_data	<= volt_aux[15:8];
-
-					REG_USERCODE:		rd_data	<= usercode[7:0];
-					REG_USERCODE_1:		rd_data	<= usercode[15:8];
-					REG_USERCODE_2:		rd_data	<= usercode[23:16];
-					REG_USERCODE_3:		rd_data	<= usercode[31:24];
 
 					REG_FRONT_STAT:		rd_data <= {7'b0, front_busy };
 					REG_FRONT_DATA:		rd_data	<= front_rx_data;

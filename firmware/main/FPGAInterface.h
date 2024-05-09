@@ -81,9 +81,17 @@ public:
 	{ BlockingWrite(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
 };
 
-//must match regid_t in ManagementRegisterInterface.sv
+enum baseaddr_t
+{
+	BASE_SYSINFO		= 0x00000000,		//APB_SystemInfo
+	BASE_MDIO			= 0x00000400
+};
+
 enum regid_t
 {
+	//This block is now on APB
+
+	//APB_SystemInfo
 	REG_FPGA_IDCODE		= 0x0000,
 	REG_FPGA_SERIAL		= 0x0004,
 	REG_FAN0_RPM		= 0x0010,
@@ -92,9 +100,20 @@ enum regid_t
 	REG_VOLT_CORE		= 0x0016,
 	REG_VOLT_RAM		= 0x0018,
 	REG_VOLT_AUX		= 0x001a,
-
 	REG_USERCODE		= 0x001c,
 
+	//APB_MDIO
+
+	/*
+			REG_MGMT0_MDIO		= 16'h0048,		//31    = busy flag (R)
+		REG_MGMT0_MDIO_1	= 16'h0049,		//30    = write enable (W)
+		REG_MGMT0_MDIO_2	= 16'h004a,		//29    = read enable (W)
+		REG_MGMT0_MDIO_3	= 16'h004b,		//25:21 = phy addr (W)
+											//20:16 = register addr (W)
+											//15:0	= register data (RW)*/
+
+	//everything below here is still on the legacy bus
+	//must match regid_t in ManagementRegisterInterface.sv
 	REG_FPGA_IRQSTAT	= 0x0020,
 	REG_EMAC_RXLEN		= 0x0024,
 	REG_EMAC_COMMIT		= 0x0028,
