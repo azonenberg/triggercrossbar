@@ -11,79 +11,230 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="977.941 ns"></ZoomStartTime>
-      <ZoomEndTime time="1,004.412 ns"></ZoomEndTime>
+      <ZoomStartTime time="0.000 ns"></ZoomStartTime>
+      <ZoomEndTime time="122.201 ns"></ZoomEndTime>
       <Cursor1Time time="1,000.000 ns"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="319"></NameColumnWidth>
-      <ValueColumnWidth column_width="201"></ValueColumnWidth>
+      <ValueColumnWidth column_width="197"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="17" />
+   <WVObjectSize size="16" />
    <wvobject type="logic" fp_name="/APBTest/clk">
       <obj_property name="ElementShortName">clk</obj_property>
       <obj_property name="ObjectShortName">clk</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/APBTest/regval">
-      <obj_property name="ElementShortName">regval[63:0]</obj_property>
-      <obj_property name="ObjectShortName">regval[63:0]</obj_property>
+   <wvobject type="array" fp_name="/APBTest/gen/state">
+      <obj_property name="ElementShortName">state[7:0]</obj_property>
+      <obj_property name="ObjectShortName">state[7:0]</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/APBTest/updated">
-      <obj_property name="ElementShortName">updated</obj_property>
-      <obj_property name="ObjectShortName">updated</obj_property>
+   <wvobject type="array" fp_name="/APBTest/regvalA">
+      <obj_property name="ElementShortName">regvalA[63:0]</obj_property>
+      <obj_property name="ObjectShortName">regvalA[63:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/APBTest/updatedA">
+      <obj_property name="ElementShortName">updatedA</obj_property>
+      <obj_property name="ObjectShortName">updatedA</obj_property>
+   </wvobject>
+   <wvobject type="array" fp_name="/APBTest/regvalB">
+      <obj_property name="ElementShortName">regvalB[63:0]</obj_property>
+      <obj_property name="ObjectShortName">regvalB[63:0]</obj_property>
+   </wvobject>
+   <wvobject type="logic" fp_name="/APBTest/updatedB">
+      <obj_property name="ElementShortName">updatedB</obj_property>
+      <obj_property name="ObjectShortName">updatedB</obj_property>
    </wvobject>
    <wvobject fp_name="divider284" type="divider">
    </wvobject>
-   <wvobject type="logic" fp_name="/APBTest/apb/pclk">
-      <obj_property name="ElementShortName">pclk</obj_property>
-      <obj_property name="ObjectShortName">pclk</obj_property>
+   <wvobject type="group" fp_name="group305">
+      <obj_property name="label">top bus</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+      <wvobject type="logic" fp_name="/APBTest/processorBus/pclk">
+         <obj_property name="ElementShortName">pclk</obj_property>
+         <obj_property name="ObjectShortName">pclk</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/processorBus/preset_n">
+         <obj_property name="ElementShortName">preset_n</obj_property>
+         <obj_property name="ObjectShortName">preset_n</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/processorBus/paddr">
+         <obj_property name="ElementShortName">paddr[31:0]</obj_property>
+         <obj_property name="ObjectShortName">paddr[31:0]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/processorBus/psel">
+         <obj_property name="ElementShortName">psel</obj_property>
+         <obj_property name="ObjectShortName">psel</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/processorBus/penable">
+         <obj_property name="ElementShortName">penable</obj_property>
+         <obj_property name="ObjectShortName">penable</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/processorBus/pwrite">
+         <obj_property name="ElementShortName">pwrite</obj_property>
+         <obj_property name="ObjectShortName">pwrite</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/processorBus/pwdata">
+         <obj_property name="ElementShortName">pwdata[15:0]</obj_property>
+         <obj_property name="ObjectShortName">pwdata[15:0]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/processorBus/pready">
+         <obj_property name="ElementShortName">pready</obj_property>
+         <obj_property name="ObjectShortName">pready</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/processorBus/prdata">
+         <obj_property name="ElementShortName">prdata[15:0]</obj_property>
+         <obj_property name="ObjectShortName">prdata[15:0]</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/processorBus/pprot">
+         <obj_property name="ElementShortName">pprot[2:0]</obj_property>
+         <obj_property name="ObjectShortName">pprot[2:0]</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/processorBus/pstrb">
+         <obj_property name="ElementShortName">pstrb[1:0]</obj_property>
+         <obj_property name="ObjectShortName">pstrb[1:0]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/processorBus/pslverr">
+         <obj_property name="ElementShortName">pslverr</obj_property>
+         <obj_property name="ObjectShortName">pslverr</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/processorBus/pwakeup">
+         <obj_property name="ElementShortName">pwakeup</obj_property>
+         <obj_property name="ObjectShortName">pwakeup</obj_property>
+      </wvobject>
    </wvobject>
-   <wvobject type="logic" fp_name="/APBTest/apb/preset_n">
-      <obj_property name="ElementShortName">preset_n</obj_property>
-      <obj_property name="ObjectShortName">preset_n</obj_property>
+   <wvobject fp_name="divider306" type="divider">
    </wvobject>
-   <wvobject type="array" fp_name="/APBTest/apb/paddr">
-      <obj_property name="ElementShortName">paddr[31:0]</obj_property>
-      <obj_property name="ObjectShortName">paddr[31:0]</obj_property>
+   <wvobject type="group" fp_name="group346">
+      <obj_property name="label">peripheral 0</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[0] /pclk">
+         <obj_property name="ElementShortName">pclk</obj_property>
+         <obj_property name="ObjectShortName">pclk</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[0] /preset_n">
+         <obj_property name="ElementShortName">preset_n</obj_property>
+         <obj_property name="ObjectShortName">preset_n</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/\peripheralBus[0] /paddr">
+         <obj_property name="ElementShortName">paddr[11:0]</obj_property>
+         <obj_property name="ObjectShortName">paddr[11:0]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[0] /psel">
+         <obj_property name="ElementShortName">psel</obj_property>
+         <obj_property name="ObjectShortName">psel</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[0] /penable">
+         <obj_property name="ElementShortName">penable</obj_property>
+         <obj_property name="ObjectShortName">penable</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[0] /pwrite">
+         <obj_property name="ElementShortName">pwrite</obj_property>
+         <obj_property name="ObjectShortName">pwrite</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/\peripheralBus[0] /pwdata">
+         <obj_property name="ElementShortName">pwdata[15:0]</obj_property>
+         <obj_property name="ObjectShortName">pwdata[15:0]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[0] /pready">
+         <obj_property name="ElementShortName">pready</obj_property>
+         <obj_property name="ObjectShortName">pready</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/\peripheralBus[0] /prdata">
+         <obj_property name="ElementShortName">prdata[15:0]</obj_property>
+         <obj_property name="ObjectShortName">prdata[15:0]</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/\peripheralBus[0] /pprot">
+         <obj_property name="ElementShortName">pprot[2:0]</obj_property>
+         <obj_property name="ObjectShortName">pprot[2:0]</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/\peripheralBus[0] /pstrb">
+         <obj_property name="ElementShortName">pstrb[1:0]</obj_property>
+         <obj_property name="ObjectShortName">pstrb[1:0]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[0] /pslverr">
+         <obj_property name="ElementShortName">pslverr</obj_property>
+         <obj_property name="ObjectShortName">pslverr</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[0] /pwakeup">
+         <obj_property name="ElementShortName">pwakeup</obj_property>
+         <obj_property name="ObjectShortName">pwakeup</obj_property>
+      </wvobject>
    </wvobject>
-   <wvobject type="logic" fp_name="/APBTest/apb/psel">
-      <obj_property name="ElementShortName">psel</obj_property>
-      <obj_property name="ObjectShortName">psel</obj_property>
+   <wvobject type="group" fp_name="group367">
+      <obj_property name="label">peripheral 1</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[1] /pclk">
+         <obj_property name="ElementShortName">pclk</obj_property>
+         <obj_property name="ObjectShortName">pclk</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[1] /preset_n">
+         <obj_property name="ElementShortName">preset_n</obj_property>
+         <obj_property name="ObjectShortName">preset_n</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/\peripheralBus[1] /paddr">
+         <obj_property name="ElementShortName">paddr[11:0]</obj_property>
+         <obj_property name="ObjectShortName">paddr[11:0]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[1] /psel">
+         <obj_property name="ElementShortName">psel</obj_property>
+         <obj_property name="ObjectShortName">psel</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[1] /penable">
+         <obj_property name="ElementShortName">penable</obj_property>
+         <obj_property name="ObjectShortName">penable</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[1] /pwrite">
+         <obj_property name="ElementShortName">pwrite</obj_property>
+         <obj_property name="ObjectShortName">pwrite</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/\peripheralBus[1] /pwdata">
+         <obj_property name="ElementShortName">pwdata[15:0]</obj_property>
+         <obj_property name="ObjectShortName">pwdata[15:0]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[1] /pready">
+         <obj_property name="ElementShortName">pready</obj_property>
+         <obj_property name="ObjectShortName">pready</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/\peripheralBus[1] /prdata">
+         <obj_property name="ElementShortName">prdata[15:0]</obj_property>
+         <obj_property name="ObjectShortName">prdata[15:0]</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/\peripheralBus[1] /pprot">
+         <obj_property name="ElementShortName">pprot[2:0]</obj_property>
+         <obj_property name="ObjectShortName">pprot[2:0]</obj_property>
+      </wvobject>
+      <wvobject type="array" fp_name="/APBTest/\peripheralBus[1] /pstrb">
+         <obj_property name="ElementShortName">pstrb[1:0]</obj_property>
+         <obj_property name="ObjectShortName">pstrb[1:0]</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[1] /pslverr">
+         <obj_property name="ElementShortName">pslverr</obj_property>
+         <obj_property name="ObjectShortName">pslverr</obj_property>
+      </wvobject>
+      <wvobject type="logic" fp_name="/APBTest/\peripheralBus[1] /pwakeup">
+         <obj_property name="ElementShortName">pwakeup</obj_property>
+         <obj_property name="ObjectShortName">pwakeup</obj_property>
+      </wvobject>
    </wvobject>
-   <wvobject type="logic" fp_name="/APBTest/apb/penable">
-      <obj_property name="ElementShortName">penable</obj_property>
-      <obj_property name="ObjectShortName">penable</obj_property>
+   <wvobject fp_name="divider393" type="divider">
    </wvobject>
-   <wvobject type="logic" fp_name="/APBTest/apb/pwrite">
-      <obj_property name="ElementShortName">pwrite</obj_property>
-      <obj_property name="ObjectShortName">pwrite</obj_property>
+   <wvobject type="array" fp_name="/APBTest/bridge/block_addr">
+      <obj_property name="ElementShortName">block_addr[20:0]</obj_property>
+      <obj_property name="ObjectShortName">block_addr[20:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/APBTest/apb/pwdata">
-      <obj_property name="ElementShortName">pwdata[15:0]</obj_property>
-      <obj_property name="ObjectShortName">pwdata[15:0]</obj_property>
+   <wvobject type="array" fp_name="/APBTest/bridge/BASE_BLOCK">
+      <obj_property name="ElementShortName">BASE_BLOCK[20:0]</obj_property>
+      <obj_property name="ObjectShortName">BASE_BLOCK[20:0]</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/APBTest/apb/pready">
-      <obj_property name="ElementShortName">pready</obj_property>
-      <obj_property name="ObjectShortName">pready</obj_property>
+   <wvobject type="logic" fp_name="/APBTest/bridge/range_match">
+      <obj_property name="ElementShortName">range_match</obj_property>
+      <obj_property name="ObjectShortName">range_match</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/APBTest/apb/prdata">
-      <obj_property name="ElementShortName">prdata[15:0]</obj_property>
-      <obj_property name="ObjectShortName">prdata[15:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/APBTest/apb/pprot">
-      <obj_property name="ElementShortName">pprot[2:0]</obj_property>
-      <obj_property name="ObjectShortName">pprot[2:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/APBTest/apb/pstrb">
-      <obj_property name="ElementShortName">pstrb[1:0]</obj_property>
-      <obj_property name="ObjectShortName">pstrb[1:0]</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/APBTest/apb/pslverr">
-      <obj_property name="ElementShortName">pslverr</obj_property>
-      <obj_property name="ObjectShortName">pslverr</obj_property>
-   </wvobject>
-   <wvobject type="logic" fp_name="/APBTest/apb/pwakeup">
-      <obj_property name="ElementShortName">pwakeup</obj_property>
-      <obj_property name="ObjectShortName">pwakeup</obj_property>
+   <wvobject type="array" fp_name="/APBTest/bridge/devid">
+      <obj_property name="ElementShortName">devid[1:0]</obj_property>
+      <obj_property name="ObjectShortName">devid[1:0]</obj_property>
    </wvobject>
 </wave_config>
