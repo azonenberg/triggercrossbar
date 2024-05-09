@@ -381,8 +381,8 @@ void InitQSPI()
 	//Original code used "instruction", but we want "address" to enable memory mapping
 	static OctoSPI qspi(&OCTOSPI1, 0x02000000, prescale);
 	qspi.SetDoubleRateMode(false);
-	qspi.SetInstructionMode(OctoSPI::MODE_NONE);
-	qspi.SetAddressMode(OctoSPI::MODE_QUAD, 2);
+	qspi.SetInstructionMode(OctoSPI::MODE_QUAD, 1);
+	qspi.SetAddressMode(OctoSPI::MODE_QUAD, 3);
 	qspi.SetAltBytesMode(OctoSPI::MODE_NONE);
 	qspi.SetDataMode(OctoSPI::MODE_QUAD);
 	qspi.SetDummyCycleCount(1);

@@ -50,12 +50,12 @@ void DeviceFPGAInterface::Nop()
 
 void DeviceFPGAInterface::BlockingRead(uint32_t addr, uint8_t* data, uint32_t len)
 {
-	g_qspi->BlockingRead(0, addr, data, len);
+	g_qspi->BlockingRead(OP_LEGACY_READ, addr, data, len);
 }
 
 void DeviceFPGAInterface::BlockingWrite(uint32_t addr, const uint8_t* data, uint32_t len)
 {
-	g_qspi->BlockingWrite(0, addr | 0x8000, data, len);
+	g_qspi->BlockingWrite(OP_LEGACY_WRITE, addr, data, len);
 }
 
 void DeviceFPGAInterface::CryptoEngineBlock()

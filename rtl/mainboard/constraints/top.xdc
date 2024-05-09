@@ -167,23 +167,21 @@ set_property IOSTANDARD LVCMOS33 [get_ports frontpanel_cs_n]
 set_property IOSTANDARD LVCMOS33 [get_ports frontpanel_miso]
 set_property IOSTANDARD LVCMOS33 [get_ports frontpanel_mosi]
 set_property IOSTANDARD LVCMOS33 [get_ports frontpanel_sck]
-set_property PULLUP true [get_ports frontpanel_miso]
+set_property PULLTYPE PULLUP [get_ports frontpanel_miso]
 set_property PACKAGE_PIN N22 [get_ports frontpanel_cs_n]
 set_property PACKAGE_PIN K21 [get_ports frontpanel_miso]
 set_property PACKAGE_PIN L21 [get_ports frontpanel_mosi]
 set_property PACKAGE_PIN K22 [get_ports frontpanel_sck]
 
 set_property DRIVE 8 [get_ports frontpanel_cs_n]
-set_property DRIVE 8 [get_ports frontpanel_miso]
 set_property DRIVE 8 [get_ports frontpanel_mosi]
 set_property DRIVE 8 [get_ports frontpanel_sck]
 set_property SLEW SLOW [get_ports frontpanel_cs_n]
-set_property SLEW SLOW [get_ports frontpanel_miso]
 set_property SLEW SLOW [get_ports frontpanel_mosi]
 set_property SLEW SLOW [get_ports frontpanel_sck]
 
-set_property PULLUP true [get_ports {fan_tach[1]}]
-set_property PULLUP true [get_ports {fan_tach[0]}]
+set_property PULLTYPE PULLUP [get_ports {fan_tach[1]}]
+set_property PULLTYPE PULLUP [get_ports {fan_tach[0]}]
 
 set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[7]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {pmod_dq[6]}]
@@ -310,7 +308,7 @@ set_property IS_SOFT FALSE [get_pblocks pblock_port_mgmt0]
 
 create_pblock pblock_qspi
 add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/tach0 mgmt/tach1]]
-resize_pblock [get_pblocks pblock_qspi] -add {SLICE_X0Y50:SLICE_X11Y99}
+resize_pblock [get_pblocks pblock_qspi] -add {SLICE_X0Y50:SLICE_X19Y99}
 resize_pblock [get_pblocks pblock_qspi] -add {DSP48_X0Y20:DSP48_X0Y39}
 resize_pblock [get_pblocks pblock_qspi] -add {RAMB18_X0Y20:RAMB18_X0Y39}
 resize_pblock [get_pblocks pblock_qspi] -add {RAMB36_X0Y10:RAMB36_X0Y19}
@@ -356,6 +354,7 @@ resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {DSP48_X2Y60:DSP48_X2
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB18_X2Y60:RAMB18_X2Y73}
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB36_X2Y30:RAMB36_X2Y36}
 set_property IS_SOFT FALSE [get_pblocks pblock_cdtrtrig_gearboxes]
+
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
 set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
 set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]

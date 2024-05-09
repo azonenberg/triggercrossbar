@@ -29,7 +29,9 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
+import BERTConfig::*;
 import EthernetBus::*;
+import CrossbarTypes::*;
 
 module top(
 	input wire			clk_200mhz_p,
@@ -298,8 +300,6 @@ module top(
 
 	wire		serdes_config_updated;
 
-	`include "BERTConfig.svh"
-
 	bert_txconfig_t	tx0_config;
 	bert_txconfig_t	tx1_config;
 
@@ -505,8 +505,6 @@ module top(
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// The actual crossbar itself
-
-	`include "CrossbarTypes.svh"
 
 	muxsel_t[11:0]	muxsel;
 	wire[11:0]		trig_in_led;

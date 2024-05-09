@@ -29,9 +29,8 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-`include "CrossbarTypes.svh"
-`include "BERTConfig.svh"
-
+import BERTConfig::*;
+import CrossbarTypes::*;
 import EthernetBus::*;
 
 /**
@@ -474,27 +473,5 @@ module ManagementSubsystem(
 		.crypt_dsa_done(crypt_dsa_done),
 		.crypt_dsa_addr(crypt_dsa_addr)
 	);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Debug ILA
-
-	ila_1 ila(
-		.clk(sys_clk),
-		.probe0(front_shift_en),
-		.probe1(front_shift_done),
-		.probe2(front_shift_data),
-		.probe3(front_rx_data),
-		.probe4(frontpanel_sck),
-		.probe5(frontpanel_mosi),
-		.probe6(frontpanel_miso),
-		.probe7(frontpanel_cs_n),
-
-		.probe8(mgmt_wr_en_ff),
-		.probe9(mgmt_wr_addr_ff),
-		.probe10(mgmt_wr_data_ff),
-
-		.probe11(mgmt_rd_en_ff),
-		.probe12(mgmt_rd_addr_ff)
-		);
 
 endmodule

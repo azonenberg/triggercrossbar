@@ -46,6 +46,15 @@ public:
 	virtual void BlockingWrite(uint32_t addr, const uint8_t* data, uint32_t len);
 	virtual void CryptoEngineBlock();
 
+	enum op_t
+	{
+		OP_LEGACY_READ	= 0x20,
+		OP_LEGACY_WRITE	= 0x21
+
+	//	OP_APB_READ		= 0x40,
+	//	OP_APB_WRITE	= 0x41,
+	};
+
 protected:
 };
 

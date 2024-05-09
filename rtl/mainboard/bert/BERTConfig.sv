@@ -27,8 +27,7 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-`ifndef BERTConfig_svh
-`define BERTConfig_svh
+package BERTConfig;
 
 typedef struct packed
 {
@@ -148,4 +147,4 @@ typedef struct packed
 	logic		rx_reset;
 } bert_rxconfig_t;
 
-`endif
+endpackage

@@ -29,10 +29,9 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
+import BERTConfig::*;
+import CrossbarTypes::*;
 import EthernetBus::*;
-
-`include "CrossbarTypes.svh"
-`include "BERTConfig.svh"
 
 /**
 	@file

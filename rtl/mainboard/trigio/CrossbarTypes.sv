@@ -27,9 +27,8 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-`ifndef CrossbarTypes_svh
-`define CrossbarTypes_svh
+package CrossbarTypes;
 
 typedef logic[3:0]	muxsel_t;
 
-`endif
+endpackage

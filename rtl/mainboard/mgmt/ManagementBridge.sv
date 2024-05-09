@@ -57,7 +57,7 @@ module ManagementBridge(
 	input wire			rd_valid,
 	input wire[7:0]		rd_data,
 
-	output wire			wr_en,
+	output logic		wr_en,
 	output logic[15:0]	wr_addr	= 0,
 	output wire[7:0]	wr_data
 
@@ -68,15 +68,26 @@ module ManagementBridge(
 
 	wire		start;
 	wire		insn_valid;
-	wire[15:0]	insn;
+	wire[7:0]	opcode;
+	wire[23:0]	addr;
 	logic		rd_mode		= 0;
 	wire		rd_ready;
 
+	wire		wr_en_raw;
 	wire		rd_en_raw;
+
+	typedef enum logic[7:0]
+	{
+		OP_LEGACY_READ		= 8'h20,
+		OP_LEGACY_WRITE		= 8'h21,
+
+		OP_APB_READ			= 8'h40,
+		OP_APB_WRITE		= 8'h41
+	} opcode_t;
 
 	(* keep_hierarchy = "yes" *)
 	QSPIDeviceInterface #(
-		.INSN_BYTES(2)
+		.INSN_BYTES(4)
 	) qspi (
 		.clk(clk),
 		.sck(qspi_sck),
@@ -85,8 +96,8 @@ module ManagementBridge(
 
 		.start(start),
 		.insn_valid(insn_valid),
-		.insn(insn),
-		.wr_valid(wr_en),
+		.insn({opcode, addr}),
+		.wr_valid(wr_en_raw),
 		.wr_data(wr_data),
 
 		.rd_mode(rd_mode),
@@ -96,7 +107,8 @@ module ManagementBridge(
 	);
 
 	always_comb begin
-		rd_en	= rd_en_raw && !insn[15];
+		rd_en	= rd_en_raw && (opcode == OP_LEGACY_READ);
+		wr_en	= wr_en_raw && (opcode == OP_LEGACY_WRITE);
 	end
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -120,8 +132,8 @@ module ManagementBridge(
 
 		//Start a new transaction
 		if(insn_valid) begin
-			rd_addr		= {1'b0, insn[14:0]};
-			wr_addr		= {1'b0, insn[14:0]};
+			rd_addr		= {1'b0, addr[14:0]};
+			wr_addr		= {1'b0, addr[14:0]};
 		end
 
 	end
@@ -132,9 +144,8 @@ module ManagementBridge(
 		rd_addr_ff		<= rd_addr;
 
 		//Process instruction
-		//MSB of opcode is read flag (0=read, 1=write)
 		if(insn_valid)
-			rd_mode		<= !insn[15];
+			rd_mode		<= (opcode == OP_LEGACY_READ);
 
 		//Reset anything we need on CS# falling edge
 		if(start) begin
@@ -146,5 +157,28 @@ module ManagementBridge(
 			first		<= 0;
 
 	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Debug ILA
+
+	ila_1 ila(
+		.clk(clk),
+		.probe0(start),
+		.probe1(insn_valid),
+		.probe2(opcode),
+		.probe3(addr),
+		.probe4(wr_en_raw),
+		.probe5(wr_en),
+		.probe6(wr_data),
+		.probe7(rd_en_raw),
+		.probe8(rd_en),
+		.probe9(rd_data),
+		.probe10(rd_valid),
+
+		.probe11(qspi_cs_n),
+		.probe12(qspi.dq_in_sync),
+		.probe13(qspi_sck),
+		.probe14(qspi.dq_out)
+		);
 
 endmodule
