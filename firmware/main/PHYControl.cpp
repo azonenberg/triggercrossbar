@@ -52,27 +52,30 @@ static const char* g_linkSpeedNamesLong[] =
 uint16_t ManagementPHYRead(uint8_t regid)
 {
 	//Request the read
-	g_fpga->BlockingWrite32(REG_MGMT0_MDIO, (regid << 16) | 0x20000000);
+	g_apbfpga.BlockingWrite16(BASE_MDIO + REG_MDIO_CMD_ADDR, regid << 8);
 
 	//Poll until busy flag is cleared
+	//TODO: need to be careful WRT caching here when we memory map
 	while(true)
 	{
-		auto reply = g_fpga->BlockingRead32(REG_MGMT0_MDIO);
-		if( (reply & 0x80000000) == 0)
-			return reply & 0xffff;
+		auto reply = g_apbfpga.BlockingRead16(BASE_MDIO + REG_MDIO_STATUS);
+		if(reply != 1)
+			return g_apbfpga.BlockingRead16(BASE_MDIO + REG_MDIO_DATA);
 	}
 }
 
 void ManagementPHYWrite(uint8_t regid, uint16_t regval)
 {
 	//Request the write
-	g_fpga->BlockingWrite32(REG_MGMT0_MDIO, (regid << 16) | 0x40000000 | regval );
+	g_apbfpga.BlockingWrite16(BASE_MDIO + REG_MDIO_CMD_ADDR, (regid << 8) | 0x8000);
+	g_apbfpga.BlockingWrite16(BASE_MDIO + REG_MDIO_DATA, regval);
 
 	//Poll until busy flag is cleared
+	//TODO: need to be careful WRT caching here when we memory map
 	while(true)
 	{
-		auto reply = g_fpga->BlockingRead32(REG_MGMT0_MDIO);
-		if( (reply & 0x80000000) == 0)
+		auto reply = g_apbfpga.BlockingRead16(BASE_MDIO + REG_MDIO_STATUS);
+		if(reply != 1)
 			return;
 	}
 }

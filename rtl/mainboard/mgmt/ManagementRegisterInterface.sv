@@ -62,14 +62,6 @@ module ManagementRegisterInterface(
 	input wire						xg0_link_up,
 
 	//Configuration registers in core clock domain
-	input wire						mgmt0_mdio_busy,
-	output logic[4:0]				mgmt0_phy_reg_addr = 0,
-	output logic[15:0]				mgmt0_phy_wr_data = 0,
-	input wire[15:0]				mgmt0_phy_rd_data,
-	output logic					mgmt0_phy_reg_wr = 0,
-	output logic					mgmt0_phy_reg_rd = 0,
-	output logic[4:0]				mgmt0_phy_md_addr = 0,
-
 	output logic					relay_en = 0,
 	output logic					relay_dir = 0,
 	output logic[1:0]				relay_channel = 0,
@@ -131,14 +123,6 @@ module ManagementRegisterInterface(
 	input wire						crypt_dsa_done,
 	output wire[1:0]				crypt_dsa_addr
 	);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Pipeline registers for some external flags
-
-	logic	mgmt0_mdio_busy_ff = 0;
-	always_ff @(posedge clk) begin
-		mgmt0_mdio_busy_ff	<= mgmt0_mdio_busy;
-	end
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Synchronizers for crypto stuff
@@ -261,14 +245,6 @@ module ManagementRegisterInterface(
 		REG_EMAC_COMMIT		= 16'h0028,		//write any value to end the active packet
 		REG_XG_COMMIT		= 16'h002c,		//write any value to end the active packet
 
-		//MDIO controllers
-		REG_MGMT0_MDIO		= 16'h0048,		//31    = busy flag (R)
-		REG_MGMT0_MDIO_1	= 16'h0049,		//30    = write enable (W)
-		REG_MGMT0_MDIO_2	= 16'h004a,		//29    = read enable (W)
-		REG_MGMT0_MDIO_3	= 16'h004b,		//25:21 = phy addr (W)
-											//20:16 = register addr (W)
-											//15:0	= register data (RW)
-
 		//Front panel SPI interface
 		REG_FRONT_CTRL		= 16'h0050,		//0 = CS# value
 		REG_FRONT_DATA		= 16'h0051,		//byte of data to send
@@ -372,10 +348,6 @@ module ManagementRegisterInterface(
 	logic 					reading					= 0;
 	logic					crypto_active			= 0;
 
-	logic					mgmt0_mdio_busy_latched = 0;
-	logic					dp_mdio_busy_latched	= 0;
-	logic					vsc_mdio_busy_latched	= 0;
-
 	logic					relay_busy	= 0;
 	logic[1:0]				drp_busy	= 0;
 	logic					front_busy	= 0;
@@ -408,8 +380,6 @@ module ManagementRegisterInterface(
 		//Clear single cycle flags
 		rd_valid				<= 0;
 		crypt_in_updated		<= 0;
-		mgmt0_phy_reg_wr		<= 0;
-		mgmt0_phy_reg_rd		<= 0;
 		rxfifo_rd_en			<= 0;
 		rxheader_rd_en			<= 0;
 		rxfifo_rd_pop_single	<= 0;
@@ -539,14 +509,6 @@ module ManagementRegisterInterface(
 							rxfifo_rd_en	<= 1;
 					end
 
-					REG_MGMT0_MDIO: begin
-						rd_data					<= mgmt0_phy_rd_data[7:0];
-						mgmt0_mdio_busy_latched	<= mgmt0_mdio_busy_ff;
-					end
-					REG_MGMT0_MDIO_1:	rd_data	<= mgmt0_phy_rd_data[15:8];
-					REG_MGMT0_MDIO_2:	rd_data	<= 0;
-					REG_MGMT0_MDIO_3:	rd_data <= {mgmt0_mdio_busy_latched, 7'b0};
-
 					REG_XG0_STAT:		rd_data <= {7'b0, xg0_link_up_sync };
 
 					REG_RELAY_STAT:		rd_data	<= 8'h0;
@@ -657,18 +619,6 @@ module ManagementRegisterInterface(
 			else begin
 
 				case(wr_addr[7:0])
-
-					REG_MGMT0_MDIO:		mgmt0_phy_wr_data[7:0]	<= wr_data;
-					REG_MGMT0_MDIO_1:	mgmt0_phy_wr_data[15:8]	<= wr_data;
-					REG_MGMT0_MDIO_2: begin
-						mgmt0_phy_reg_addr			<= wr_data[4:0];
-						mgmt0_phy_md_addr[2:0]		<= wr_data[7:5];
-					end
-					REG_MGMT0_MDIO_3: begin
-						mgmt0_phy_md_addr[4:3]		<= wr_data[1:0];
-						mgmt0_phy_reg_rd			<= wr_data[5];
-						mgmt0_phy_reg_wr			<= wr_data[6];
-					end
 
 					REG_RELAY_TOGGLE: begin
 						relay_channel				<= wr_data[1:0];

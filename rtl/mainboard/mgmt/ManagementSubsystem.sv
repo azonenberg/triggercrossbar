@@ -113,6 +113,7 @@ module ManagementSubsystem(
 	output wire[1:0]				crypt_dsa_addr
 );
 
+	/*
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// MDIO transceivers
 
@@ -155,6 +156,7 @@ module ManagementSubsystem(
 		.phy_reg_wr(mgmt0_phy_reg_wr),
 		.phy_reg_rd(mgmt0_phy_reg_rd)
 	);
+	*/
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tachometer
@@ -293,17 +295,6 @@ module ManagementSubsystem(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// USERCODE register
-
-	wire[31:0] usercode;
-
-	USR_ACCESSE2 user(
-		.DATA(usercode),
-		.CFGCLK(),
-		.DATAVALID()
-		);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Pipeline register on APB before the bridge
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(24), .USER_WIDTH(0)) bridgeUpstreamBus();
@@ -367,6 +358,7 @@ module ManagementSubsystem(
 	);
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) sysinfoBus();
+
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_sysinfo( .upstream(bridgeDownstreamBus[0]), .downstream(sysinfoBus) );
 
@@ -383,8 +375,24 @@ module ManagementSubsystem(
 		.die_serial_valid(die_serial_valid),
 		.die_serial(die_serial),
 		.idcode_valid(idcode_valid),
-		.idcode(idcode),
-		.usercode(usercode)
+		.idcode(idcode)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// MDIO (0x000_400)
+
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) mdioBus();
+
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_mdio( .upstream(bridgeDownstreamBus[1]), .downstream(mdioBus) );
+
+	APB_MDIO #(
+		.CLK_DIV(75)
+	) mdio (
+		.apb(mdioBus),
+
+		.mdio(mgmt0_mdio),
+		.mdc(mgmt0_mdc)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -455,13 +463,6 @@ module ManagementSubsystem(
 		.wr_data(mgmt_wr_data_ff),
 
 		//Control registers (core clock domain)
-		.mgmt0_mdio_busy(mgmt0_mdio_busy),
-		.mgmt0_phy_reg_addr(mgmt0_phy_reg_addr),
-		.mgmt0_phy_wr_data(mgmt0_phy_wr_data),
-		.mgmt0_phy_rd_data(mgmt0_phy_rd_data),
-		.mgmt0_phy_reg_wr(mgmt0_phy_reg_wr),
-		.mgmt0_phy_reg_rd(mgmt0_phy_reg_rd),
-		.mgmt0_phy_md_addr(mgmt0_phy_md_addr),
 		.rxfifo_rd_en(rxfifo_rd_en),
 		.rxfifo_rd_pop_single(rxfifo_rd_pop_single),
 		.rxfifo_rd_data(rxfifo_rd_data),
@@ -520,6 +521,27 @@ module ManagementSubsystem(
 		.crypt_dsa_rd(crypt_dsa_rd),
 		.crypt_dsa_done(crypt_dsa_done),
 		.crypt_dsa_addr(crypt_dsa_addr)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Debug ILA
+
+	ila_2 ila(
+		.clk(sys_clk),
+		.probe0(bridge.rd_en_raw),
+		.probe1(bridge.wr_en_raw),
+		.probe2(bridge.opcode),
+		.probe3(mgmt_wr_addr),
+		.probe4(mgmt_rd_addr),
+		.probe5(bridge.addr),
+		.probe6(processorBus.psel),
+		.probe7(processorBus.pwrite),
+		.probe8(processorBus.pwdata),
+		.probe9(processorBus.prdata),
+		.probe10(processorBus.penable),
+		.probe11(bridge.first),
+		.probe12(processorBus.pready),
+		.probe13(mgmt_wr_data)
 	);
 
 endmodule

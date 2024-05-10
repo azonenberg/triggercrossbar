@@ -200,7 +200,7 @@ module ManagementBridge(
 			first		<= 1;
 		end
 
-		if(wr_en)
+		if(wr_en_raw)
 			first		<= 0;
 
 	end
@@ -218,18 +218,29 @@ module ManagementBridge(
 	assign apb.pprot = 0;
 	assign apb.pstrb = 2'b11;
 
-	logic	apb_psel_ff	= 0;
+	logic		apb_psel_ff		= 0;
+	logic		apb_pwrite_ff	= 0;
+	logic[7:0]	apb_pwdata_lo	= 0;
 
 	always_comb begin
 
 		//Default to not writing and pushing registered state
 		apb.psel	= apb_psel_ff;
 		apb.paddr	= rd_addr;
-		apb.pwrite	= 0;
+		apb.pwrite	= apb_pwrite_ff;
 
 		//Dispatch APB reads on even address alignment
-		if(rd_en_raw && (opcode == OP_APB_READ) && (rd_addr[0] == 0) )
+		if(rd_en_raw && (opcode == OP_APB_READ) && (rd_addr[0] == 0) ) begin
 			apb.psel	= 1;
+			apb.pwrite	= 0;
+		end
+
+		//Dispatch APB writes on odd address alignment
+		if(wr_en_raw && (opcode == OP_APB_WRITE) && (wr_addr[0] == 1) ) begin
+			apb.psel	= 1;
+			apb.pwrite	= 1;
+			apb.pwdata	= { wr_data, apb_pwdata_lo };
+		end
 
 		//enable one cycle after select
 		apb.penable = apb_psel_ff;
@@ -239,58 +250,21 @@ module ManagementBridge(
 	always_ff @(posedge clk) begin
 
 		//Register combinatorially generated flags
-		apb_psel_ff	<= apb.psel;
+		apb_psel_ff		<= apb.psel;
+		apb_pwrite_ff	<= apb.pwrite;
 
 		//clear pending request when it completes
 		if(apb.pready)
 			apb_psel_ff	<= 0;
 
-		//TODO: APB writes need to wait until we have two bytes of data to send?
+		//Save low half of write data
+		if(wr_en_raw && (wr_addr[0] == 0) )
+			apb_pwdata_lo	<= wr_data;
 
 		//Save high half of read data
 		if(apb.pready && !apb.pwrite)
 			rd_data_hi	<= apb.prdata[15:8];
 
 	end
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Debug ILA
-
-	ila_1 ila(
-		.clk(clk),
-		.probe0(start),
-		.probe1(insn_valid),
-		.probe2(opcode),
-		.probe3(addr),
-		.probe4(wr_en_raw),
-		.probe5(wr_en),
-		.probe6(wr_data),
-		.probe7(rd_en_raw),
-		.probe8(rd_en),
-		.probe9(rd_data),
-		.probe10(rd_valid),
-		.probe11(qspi_cs_n),
-		.probe12(qspi.dq_in_sync),
-		.probe13(qspi_sck),
-		.probe14(qspi.dq_out),
-		.probe15(apb.psel),
-		.probe16(apb.pwrite),
-		.probe17(apb.paddr),
-		.probe18(apb.penable),
-		.probe19(apb.pready),
-		.probe20(apb.prdata),
-		.probe21(first),
-		.probe22(rd_mode),
-		.probe23(rd_addr),
-		.probe24(rd_valid_muxed),
-		.probe25(rd_data_muxed),
-		.probe26(rd_is_apb),
-		.probe27(rd_data_hi),
-
-		.probe28(qspi.state),
-		.probe29(qspi.rd_data_next),
-		.probe30(qspi.sck_rising),
-		.probe31(qspi.sck_sync)
-		);
 
 endmodule

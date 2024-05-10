@@ -34,36 +34,31 @@
 /**
 	@file
 	@author	Andrew D. Zonenberg
-	@brief	APB register access to system health sensors
+	@brief	APB register access wrapper around a MDIO controller
 
-	Register map:
-		0x0000		idcode[31:0]
-		0x0004		serial[63:0]
-		0x0010		fan0_rpm
-		0x0012		fan1_rpm
-		0x0014		die_temp
-		0x0016		volt_core
-		0x0018		volt_ram
-		0x001a		volt_aux
-		0x001c		usercode[31:0]
+	Write process:
+	* verify STATUS is zero
+	* write register / PHY ID to CMD_ADDR and set write bit
+	* write register value to DATA
+
+	Read process:
+	* verify STATUS is zero
+	* write register / PHY ID to CMD_ADDR
+	* wait for STATUS to be zero
+	* read register value from DATA
+
+	Reads from DATA may return stale or garbage data if BUSY is set, but will not stall the bus.
  */
-module APB_SystemInfo(
+module APB_MDIO #(
+	parameter CLK_DIV				= 16	//clock divider from PCLK to MDIO clock domain
+) (
 
 	//The APB bus
 	APB.completer 					apb,
 
-	//Sensor values
-	input wire[15:0]				fan0_rpm,
-	input wire[15:0]				fan1_rpm,
-	input wire[15:0]				die_temp,
-	input wire[15:0]				volt_core,
-	input wire[15:0]				volt_ram,
-	input wire[15:0]				volt_aux,
-
-	input wire						die_serial_valid,
-	input wire[63:0]				die_serial,
-	input wire						idcode_valid,
-	input wire[31:0]				idcode
+	//The MDIO bus
+	inout wire						mdio,
+	output wire						mdc
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -73,60 +68,164 @@ module APB_SystemInfo(
 		apb_bus_width_is_invalid();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// USERCODE register
+	// Register map
 
-	wire[31:0] usercode;
+	typedef enum logic[apb.ADDR_WIDTH-1:0]
+	{
+		CMD_ADDR	= 'h00,		//15	1=write, 0=read (always RAZ)
+								//12:8	Register address
+								//4:0	PHY address
 
-	USR_ACCESSE2 user(
-		.DATA(usercode),
-		.CFGCLK(),
-		.DATAVALID()
-		);
+		DATA		= 'h02,		//Read/write data
+
+		STATUS		= 'h20,		//Busy flag
+
+		STATUS2		= 'h40		//Duplicate of STATUS at 0x20, 32 bytes offset
+								//(workaround for inability to disable prefetch cache on STM32H7)
+
+	} regid_t;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Readback logic (all combinatorial)
+	// The MDIO transceiver itself
+
+	wire		mdio_tx_data;
+	wire		mdio_tx_en;
+	wire		mdio_rx_data;
+
+	BidirectionalBuffer mdio_obuf(
+		.fabric_in(mdio_rx_data),
+		.fabric_out(mdio_tx_data),
+		.pad(mdio),
+		.oe(mdio_tx_en)
+	);
+
+	logic[4:0]	phy_reg_addr;
+	logic[15:0]	phy_wr_data;
+	wire[15:0]	phy_rd_data;
+	logic		phy_reg_wr;
+	logic		phy_reg_rd;
+	logic[4:0]	phy_md_addr;
+
+	wire		mdio_busy;
+
+	EthernetMDIOTransceiver #(
+		.CLK_DIV(CLK_DIV)
+	)  mdio_txvr (
+		.clk(apb.pclk),
+		.phy_md_addr(phy_md_addr),
+
+		.mdio_tx_data(mdio_tx_data),
+		.mdio_tx_en(mdio_tx_en),
+		.mdio_rx_data(mdio_rx_data),
+		.mdc(mdc),
+
+		.mgmt_busy_fwd(mdio_busy),
+		.phy_reg_addr(phy_reg_addr),
+		.phy_wr_data(phy_wr_data),
+		.phy_rd_data(phy_rd_data),
+		.phy_reg_wr(phy_reg_wr),
+		.phy_reg_rd(phy_reg_rd)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// APB interface logic
+
+	logic[4:0]	phy_reg_addr_ff	= 0;
+	logic[4:0]	phy_md_addr_ff	= 0;
+	logic[15:0]	phy_wr_data_ff	= 0;
 
 	always_comb begin
 
-		//Always ready immediately when selected
+		//Combinatorially assert PREADY when selected
 		apb.pready	= apb.psel && apb.penable;
 
-		//By default: reads OK with all-zero data, writes give error since we're read only
-		apb.pslverr	= apb.pwrite;
+		//Default to no errors and no read data
 		apb.prdata	= 0;
+		apb.pslverr	= 0;
 
-		//Mux read data
-		case(apb.paddr)
+		//Clear MDIO control signals
+		phy_reg_wr		= 0;
+		phy_reg_rd		= 0;
+		phy_reg_addr	= phy_reg_addr_ff;
+		phy_md_addr		= phy_md_addr_ff;
+		phy_wr_data		= phy_wr_data_ff;
 
-			8'h00:		apb.prdata = idcode[15:0];
-			8'h02:		apb.prdata = idcode[31:16];
-			8'h04:		apb.prdata = die_serial[15:0];
-			8'h06:		apb.prdata = die_serial[31:16];
-			8'h08:		apb.prdata = die_serial[47:32];
-			8'h0a:		apb.prdata = die_serial[63:48];
-			8'h10:		apb.prdata = fan0_rpm;
-			8'h12:		apb.prdata = fan1_rpm;
-			8'h14:		apb.prdata = die_temp;
-			8'h16:		apb.prdata = volt_core;
-			8'h18:		apb.prdata = volt_ram;
-			8'h1a:		apb.prdata = volt_aux;
-			8'h1c:		apb.prdata = usercode[15:0];
-			8'h1e:		apb.prdata = usercode[31:16];
+		if(apb.pready) begin
 
-			//Invalid / out of range
-			default:	apb.pslverr = 1;
+			//Write path
+			if(apb.pwrite) begin
 
-		endcase
+				case(apb.paddr)
 
-		//Throw error if serial or idcode aren't valid
-		if( (apb.paddr < 8'h04) && !idcode_valid)
-			apb.pslverr = 1;
-		if( (apb.paddr < 8'h10) && (apb.paddr >= 8'h04) && !die_serial_valid)
-			apb.pslverr = 1;
+					//Command and address
+					CMD_ADDR: begin
 
-		//Throw error on unaligned register access
-		if(apb.paddr[0] != 0)
-			apb.pslverr	= 1;
+						//start read operation on write with MSB clear
+						if(!apb.pwdata[15])
+							phy_reg_rd	= 1;
+
+						//extract address
+						phy_reg_addr	= apb.pwdata[12:8];
+						phy_md_addr		= apb.pwdata[4:0];
+
+					end
+
+					DATA: begin
+
+						//start write operation
+						phy_reg_wr		= 1;
+						phy_wr_data		= apb.pwdata;
+
+					end
+
+					//invalid address
+					default:	apb.pslverr = 1;
+
+				endcase
+
+			end
+
+			//Read data muxing
+			else begin
+				case(apb.paddr)
+
+					CMD_ADDR:	apb.prdata	= {4'h0, phy_reg_addr, 3'h0, phy_md_addr};
+					DATA:		apb.prdata	= phy_rd_data;
+
+					STATUS:		apb.prdata	= { 15'h0, mdio_busy };
+					STATUS2:	apb.prdata	= { 15'h0, mdio_busy };
+
+					//unmapped address, error
+					default:	apb.pslverr	= 1;
+
+				endcase
+
+			end
+		end
+
+	end
+
+	always_ff @(posedge apb.pclk or negedge apb.preset_n) begin
+
+		//Reset
+		if(!apb.preset_n) begin
+			phy_reg_addr_ff		<= 0;
+			phy_md_addr_ff		<= 0;
+			phy_wr_data_ff		<= 0;
+		end
+
+		//Normal path
+		else begin
+
+			if(phy_reg_wr || phy_reg_rd) begin
+				phy_md_addr_ff	<= phy_md_addr;
+				phy_reg_addr_ff	<= phy_reg_addr;
+			end
+
+			if(phy_reg_wr)
+				phy_wr_data_ff	<= phy_wr_data;
+
+		end
 
 	end
 

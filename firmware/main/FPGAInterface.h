@@ -103,14 +103,10 @@ enum regid_t
 	REG_USERCODE		= 0x001c,
 
 	//APB_MDIO
-
-	/*
-			REG_MGMT0_MDIO		= 16'h0048,		//31    = busy flag (R)
-		REG_MGMT0_MDIO_1	= 16'h0049,		//30    = write enable (W)
-		REG_MGMT0_MDIO_2	= 16'h004a,		//29    = read enable (W)
-		REG_MGMT0_MDIO_3	= 16'h004b,		//25:21 = phy addr (W)
-											//20:16 = register addr (W)
-											//15:0	= register data (RW)*/
+	REG_MDIO_CMD_ADDR	= 0x0000,
+	REG_MDIO_DATA		= 0x0002,
+	REG_MDIO_STATUS		= 0x0020,
+	REG_MDIO_STATUS2	= 0x0040,
 
 	//everything below here is still on the legacy bus
 	//must match regid_t in ManagementRegisterInterface.sv
