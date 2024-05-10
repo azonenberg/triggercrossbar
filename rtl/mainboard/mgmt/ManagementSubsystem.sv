@@ -56,13 +56,14 @@ module ManagementSubsystem(
 	input wire						mgmt0_tx_ready,
 	input wire						eth_link_up,
 
-	inout wire						mgmt0_mdio,
-	output wire						mgmt0_mdc,
-
 	input wire						xg0_rx_clk,
 	input wire						xg0_link_up,
 	input wire						xg0_tx_clk,
 	output EthernetTxBus			xg0_tx_bus,
+
+	//APB to external components
+	APB.requester					mdioBus,
+	APB.requester					relayBus,
 
 	//Tachometers for fans
 	input wire[1:0]					fan_tach,
@@ -76,10 +77,7 @@ module ManagementSubsystem(
 	//Configuration registers in core clock domain
 	input wire[11:0]				trig_in_led,
 	input wire[11:0]				trig_out_led,
-	output wire						relay_en,
-	output wire						relay_dir,
-	output wire[1:0]				relay_channel,
-	input wire						relay_done,
+	input wire[3:0]					relay_state,
 	output muxsel_t[11:0]			muxsel,
 	output wire						serdes_config_updated,
 	output bert_txconfig_t			tx0_config,
@@ -112,51 +110,6 @@ module ManagementSubsystem(
 	input wire						crypt_dsa_done,
 	output wire[1:0]				crypt_dsa_addr
 );
-
-	/*
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// MDIO transceivers
-
-	wire		mgmt0_mdio_tx_data;
-	wire		mgmt0_mdio_tx_en;
-	wire		mgmt0_mdio_rx_data;
-
-	BidirectionalBuffer mgmt0_mdio_obuf(
-		.fabric_in(mgmt0_mdio_rx_data),
-		.fabric_out(mgmt0_mdio_tx_data),
-		.pad(mgmt0_mdio),
-		.oe(mgmt0_mdio_tx_en)
-	);
-
-	wire		mgmt0_mdio_busy;
-	wire[4:0]	mgmt0_phy_reg_addr;
-	wire[15:0]	mgmt0_phy_wr_data;
-	wire[15:0]	mgmt0_phy_rd_data;
-	wire		mgmt0_phy_reg_wr;
-	wire		mgmt0_phy_reg_rd;
-	wire[4:0]	mgmt0_phy_md_addr;
-
-	//Prevent any logic from the rest of this module from being optimized into the bridge
-	(* keep_hierarchy = "yes" *)
-	EthernetMDIOTransceiver #(
-		.CLK_DIV(75)
-	)  mgmt0_mdio_txvr (
-		.clk(sys_clk),
-		.phy_md_addr(mgmt0_phy_md_addr),
-
-		.mdio_tx_data(mgmt0_mdio_tx_data),
-		.mdio_tx_en(mgmt0_mdio_tx_en),
-		.mdio_rx_data(mgmt0_mdio_rx_data),
-		.mdc(mgmt0_mdc),
-
-		.mgmt_busy_fwd(mgmt0_mdio_busy),
-		.phy_reg_addr(mgmt0_phy_reg_addr),
-		.phy_wr_data(mgmt0_phy_wr_data),
-		.phy_rd_data(mgmt0_phy_rd_data),
-		.phy_reg_wr(mgmt0_phy_reg_wr),
-		.phy_reg_rd(mgmt0_phy_reg_rd)
-	);
-	*/
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tachometer
@@ -320,43 +273,6 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// System health + information (0x000_000)
 
-	wire[63:0]	die_serial;
-	wire		die_serial_valid;
-
-	wire[31:0]	idcode;
-	wire		idcode_valid;
-
-	DeviceInfo_7series info(
-		.clk(clk_sysinfo),
-
-		.die_serial(die_serial),
-		.die_serial_valid(die_serial_valid),
-		.idcode(idcode),
-		.idcode_valid(idcode_valid)
-	);
-
-	wire[15:0]	die_temp;
-	wire[15:0]	volt_core;
-	wire[15:0]	volt_ram;
-	wire[15:0]	volt_aux;
-
-	OnDieSensors_7series #(
-		.EXT_IN_ENABLE(16'h0)
-	) sensors (
-		.clk(sys_clk),
-		.vin_p(),
-		.vin_n(),
-		.die_temp(die_temp),
-		.volt_core(volt_core),
-		.volt_ram(volt_ram),
-		.volt_aux(volt_aux),
-		.sensors_update(),
-
-		.ext_in(),
-		.ext_update(),
-		.die_temp_native()
-	);
-
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) sysinfoBus();
 
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
@@ -365,35 +281,22 @@ module ManagementSubsystem(
 	APB_SystemInfo sysinfo(
 		.apb(sysinfoBus),
 
-		.fan0_rpm(fan0_rpm),
-		.fan1_rpm(fan1_rpm),
-		.die_temp(die_temp),
-		.volt_core(volt_core),
-		.volt_ram(volt_ram),
-		.volt_aux(volt_aux),
+		.clk_sysinfo(clk_sysinfo),
 
-		.die_serial_valid(die_serial_valid),
-		.die_serial(die_serial),
-		.idcode_valid(idcode_valid),
-		.idcode(idcode)
+		.fan0_rpm(fan0_rpm),
+		.fan1_rpm(fan1_rpm)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// MDIO (0x000_400)
+	// Pipeline registers for external APB endpoints
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) mdioBus();
-
+	//MDIO (0x000_400)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_mdio( .upstream(bridgeDownstreamBus[1]), .downstream(mdioBus) );
 
-	APB_MDIO #(
-		.CLK_DIV(75)
-	) mdio (
-		.apb(mdioBus),
-
-		.mdio(mgmt0_mdio),
-		.mdc(mgmt0_mdc)
-	);
+	//Relay controller (0x000_800)
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_relay( .upstream(bridgeDownstreamBus[2]), .downstream(relayBus) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Optionally pipeline read data by one cycle
@@ -475,10 +378,7 @@ module ManagementSubsystem(
 		.xg_txfifo_wr_en(xg_txfifo_wr_en),
 		.xg_txfifo_wr_data(xg_txfifo_wr_data),
 		.xg_txfifo_wr_commit(xg_txfifo_wr_commit),
-		.relay_en(relay_en),
-		.relay_dir(relay_dir),
-		.relay_channel(relay_channel),
-		.relay_done(relay_done),
+		.relay_state(relay_state),
 		.muxsel(muxsel),
 		.serdes_config_updated(serdes_config_updated),
 		.rx0_config(rx0_config),

@@ -62,11 +62,7 @@ module ManagementRegisterInterface(
 	input wire						xg0_link_up,
 
 	//Configuration registers in core clock domain
-	output logic					relay_en = 0,
-	output logic					relay_dir = 0,
-	output logic[1:0]				relay_channel = 0,
-	input wire						relay_done,
-
+	input wire[3:0]					relay_state,
 	input wire[11:0]				trig_in_led,
 	input wire[11:0]				trig_out_led,
 
@@ -256,15 +252,6 @@ module ManagementRegisterInterface(
 		//10G interface
 		REG_XG0_STAT		= 16'h0060,		//0 = link up
 
-		//Relay controller
-		REG_RELAY_TOGGLE	= 16'h0070,		//15	= direction (1 = in, 0 = out)
-		REG_RELAY_TOGGLE_1	= 16'h0071,		//1:0	= channel number
-											//Writes are self timed
-
-		REG_RELAY_STAT		= 16'h0072,		//0		= relay busy flag
-		REG_RELAY_STAT_1	= 16'h0073,
-											//If set, no new relay commands are allowed
-
 		//BERT configuration
 		REG_BERT_LANE0_PRBS	= 16'h0080,		//6:4  = TX PRBS mode (GTX TXPRBSSEL see table 3-22 of UG476)
 											//2:0  = RX PRBS mode (GTX RXPRBSSEL see table 4-30 of UG476)
@@ -348,17 +335,14 @@ module ManagementRegisterInterface(
 	logic 					reading					= 0;
 	logic					crypto_active			= 0;
 
-	logic					relay_busy	= 0;
 	logic[1:0]				drp_busy	= 0;
 	logic					front_busy	= 0;
-
 
 	logic[8:0]				packetWordsRead = 0;
 	logic[8:0]				packetWordLength = 0;
 	logic					rxheader_rd_en_ff = 0;
 
 	//Front panel LED indicator state
-	logic[3:0]				relay_state = 0;
 	logic[23:0]				front_led_state;
 	always_comb begin
 		for(integer i=0; i<12; i=i+1)
@@ -387,15 +371,10 @@ module ManagementRegisterInterface(
 		txfifo_wr_commit		<= 0;
 		xg_txfifo_wr_en			<= 0;
 		xg_txfifo_wr_commit		<= 0;
-		relay_en				<= 0;
 		serdes_config_updated	<= 0;
 		mgmt_lane0_en			<= 0;
 		mgmt_lane1_en			<= 0;
 		front_shift_en			<= 0;
-
-		//Track relay state
-		if(relay_en)
-			relay_state[relay_channel]	<= relay_dir;
 
 		//Start a new read
 		if(rd_en)
@@ -408,12 +387,6 @@ module ManagementRegisterInterface(
 		//Set interrupt line if something's changed
 		if(!rxheader_rd_empty)
 			irq					<= 1;
-
-		//Manage relay states
-		if(relay_done)
-			relay_busy			<= 0;
-		if(relay_en)
-			relay_busy			<= 1;
 
 		//Manage DRP states
 		if(mgmt_lane0_en)
@@ -510,9 +483,6 @@ module ManagementRegisterInterface(
 					end
 
 					REG_XG0_STAT:		rd_data <= {7'b0, xg0_link_up_sync };
-
-					REG_RELAY_STAT:		rd_data	<= 8'h0;
-					REG_RELAY_STAT_1:	rd_data	<= {7'b0, relay_busy};
 
 					REG_BERT_LANE0_RD:		rd_data	<= mgmt_lane0_rdata[7:0];
 					REG_BERT_LANE0_RD_1:	rd_data	<= mgmt_lane0_rdata[15:8];
@@ -619,14 +589,6 @@ module ManagementRegisterInterface(
 			else begin
 
 				case(wr_addr[7:0])
-
-					REG_RELAY_TOGGLE: begin
-						relay_channel				<= wr_data[1:0];
-					end
-					REG_RELAY_TOGGLE_1: begin
-						relay_dir					<= wr_data[7];
-						relay_en					<= 1;
-					end
 
 					REG_FRONT_CTRL: front_cs_n		<= wr_data[0];
 					REG_FRONT_DATA: begin

@@ -52,13 +52,12 @@ module APB_SystemInfo(
 	//The APB bus
 	APB.completer 					apb,
 
+	//Divided clock for device ID stuff
+	input wire						clk_sysinfo,
+
 	//Sensor values
 	input wire[15:0]				fan0_rpm,
 	input wire[15:0]				fan1_rpm,
-	input wire[15:0]				die_temp,
-	input wire[15:0]				volt_core,
-	input wire[15:0]				volt_ram,
-	input wire[15:0]				volt_aux,
 
 	input wire						die_serial_valid,
 	input wire[63:0]				die_serial,
@@ -82,6 +81,49 @@ module APB_SystemInfo(
 		.CFGCLK(),
 		.DATAVALID()
 		);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Device ID
+
+	wire[63:0]	die_serial;
+	wire		die_serial_valid;
+
+	wire[31:0]	idcode;
+	wire		idcode_valid;
+
+	DeviceInfo_7series info(
+		.clk(clk_sysinfo),
+
+		.die_serial(die_serial),
+		.die_serial_valid(die_serial_valid),
+		.idcode(idcode),
+		.idcode_valid(idcode_valid)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// XADC sensors
+
+	wire[15:0]	die_temp;
+	wire[15:0]	volt_core;
+	wire[15:0]	volt_ram;
+	wire[15:0]	volt_aux;
+
+	OnDieSensors_7series #(
+		.EXT_IN_ENABLE(16'h0)
+	) sensors (
+		.clk(apb.pclk),
+		.vin_p(),
+		.vin_n(),
+		.die_temp(die_temp),
+		.volt_core(volt_core),
+		.volt_ram(volt_ram),
+		.volt_aux(volt_aux),
+		.sensors_update(),
+
+		.ext_in(),
+		.ext_update(),
+		.die_temp_native()
+	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Readback logic (all combinatorial)

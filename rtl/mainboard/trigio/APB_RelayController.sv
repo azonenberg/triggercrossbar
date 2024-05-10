@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+`default_nettype none
 /***********************************************************************************************************************
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
@@ -27,148 +29,144 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef fpgainterface_h
-#define fpgainterface_h
+`include "../../../antikernel-ipcores/amba/apb/APBTypes.sv"
 
-class FPGAInterface
-{
-public:
-	virtual ~FPGAInterface()
-	{}
+/**
+	@file
+	@author	Andrew D. Zonenberg
+	@brief	APB register access wrapper around the relay controller
+ */
+module APB_RelayController(
+	//The APB bus
+	APB.completer 		apb,
 
-	virtual void Nop()
-	{};
+	output logic[3:0]	relay_state	= 0,
 
-	#ifdef SIMULATION
-	/**
-		@brief Advance simulation time until the crypto engine has finished
-	 */
-	virtual void CryptoEngineBlock()
-	{}
-	#endif
+	//Outputs to relay driver
+	output wire[3:0]	relay_a,
+	output wire[3:0]	relay_b
+);
 
-	virtual void BlockingRead(uint32_t addr, uint8_t* data, uint32_t len) = 0;
-	virtual void BlockingWrite(uint32_t addr, const uint8_t* data, uint32_t len) = 0;
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Native relay controller
 
-	uint32_t BlockingRead32(uint32_t addr)
+	logic			toggle_en;
+	logic			toggle_dir;
+	logic[1:0]		toggle_channel;
+	wire			toggle_done;
+
+	RelayController ctrl(
+		.clk_250mhz(apb.pclk),
+
+		.toggle_en(toggle_en),
+		.toggle_dir(toggle_dir),
+		.toggle_channel(toggle_channel),
+		.toggle_done(toggle_done),
+
+		.relay_a(relay_a),
+		.relay_b(relay_b)
+		);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// We only support 16-bit APB, throw synthesis error for anything else
+
+	if(apb.DATA_WIDTH != 16)
+		apb_bus_width_is_invalid();
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Register map
+
+	typedef enum logic[apb.ADDR_WIDTH-1:0]
 	{
-		uint32_t data;
-		BlockingRead(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+		REG_RELAY_TOGGLE	= 16'h0000,		//15	= direction (1 = in, 0 = out)
+											//1:0	= channel number
+											//Writes are self timed
 
-	uint8_t BlockingRead8(uint32_t addr)
-	{
-		uint8_t data;
-		BlockingRead(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+		REG_RELAY_STAT		= 16'h0020,		//0 = busy flag
+		REG_RELAY_STAT2		= 16'h0040		//duplicate of RELAY_STAT
+	} regid_t;
 
-	uint16_t BlockingRead16(uint32_t addr)
-	{
-		uint16_t data;
-		BlockingRead(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Keep track of what position each relay is in
 
-	void BlockingWrite8(uint32_t addr, uint8_t data)
-	{ BlockingWrite(addr, &data, sizeof(data)); }
+	//(TODO: allow readback?)
 
-	void BlockingWrite16(uint32_t addr, uint16_t data)
-	{ BlockingWrite(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
+	logic	relay_busy	= 0;
 
-	void BlockingWrite32(uint32_t addr, uint32_t data)
-	{ BlockingWrite(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
-};
+	always_ff @(posedge apb.pclk or negedge apb.preset_n) begin
 
-enum baseaddr_t
-{
-	BASE_SYSINFO		= 0x00000000,		//APB_SystemInfo
-	BASE_MDIO			= 0x00000400,		//APB_MDIO
-	BASE_RELAY			= 0x00000800		//APB_RelayController
-};
+		//Reset
+		if(!apb.preset_n) begin
+			relay_state						<= 0;
+			relay_busy						<= 0;
+		end
 
-enum regid_t
-{
-	//This block is now on APB
+		//Normal path
+		else begin
 
-	//APB_SystemInfo
-	REG_FPGA_IDCODE		= 0x0000,
-	REG_FPGA_SERIAL		= 0x0004,
-	REG_FAN0_RPM		= 0x0010,
-	REG_FAN1_RPM		= 0x0012,
-	REG_DIE_TEMP		= 0x0014,
-	REG_VOLT_CORE		= 0x0016,
-	REG_VOLT_RAM		= 0x0018,
-	REG_VOLT_AUX		= 0x001a,
-	REG_USERCODE		= 0x001c,
+			//Manage relay states
+			if(toggle_done)
+				relay_busy					<= 0;
+			if(toggle_en) begin
+				relay_busy					<= 1;
+				relay_state[toggle_channel]	<= toggle_dir;
+			end
 
-	//APB_MDIO
-	REG_MDIO_CMD_ADDR	= 0x0000,
-	REG_MDIO_DATA		= 0x0002,
-	REG_MDIO_STATUS		= 0x0020,
-	REG_MDIO_STATUS2	= 0x0040,
+		end
 
-	//APB_RelayController
-	REG_RELAY_TOGGLE	= 0x0000,
-	REG_RELAY_STAT		= 0x0020,
-	REG_RELAY_STAT2		= 0x0040,
+	end
 
-	//everything below here is still on the legacy bus
-	//must match regid_t in ManagementRegisterInterface.sv
-	REG_FPGA_IRQSTAT	= 0x0020,
-	REG_EMAC_RXLEN		= 0x0024,
-	REG_EMAC_COMMIT		= 0x0028,
-	REG_XG_COMMIT		= 0x002c,
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// APB interface logic
 
-	REG_FRONT_CTRL		= 0x0050,
-	REG_FRONT_DATA		= 0x0051,
-	REG_FRONT_STAT		= 0x0052,
-	REG_FRONT_LED_0		= 0x0053,
-	REG_FRONT_LED_1		= 0x0054,
-	REG_FRONT_LED_2		= 0x0055,
+	always_comb begin
 
-	REG_XG0_STAT		= 0x0060,
+		//Combinatorially assert PREADY when selected
+		apb.pready		= apb.psel && apb.penable;
 
-	REG_BERT_LANE0_PRBS	= 0x0080,
-	REG_BERT_LANE0_TX	= 0x0082,
-	REG_BERT_LANE0_WD	= 0x0084,
-	REG_BERT_LANE0_AD	= 0x0086,
-	REG_BERT_LANE0_RD	= 0x0088,
-	REG_BERT_LANE0_STAT	= 0x008a,
-	REG_BERT_LANE0_CLK	= 0x008c,
-	REG_BERT_LANE0_RST	= 0x008e,
-	REG_BERT_LANE0_RX	= 0x0090,
+		//Default to no errors and no read data
+		apb.prdata		= 0;
+		apb.pslverr		= 0;
 
-	REG_BERT_LANE1_PRBS	= 0x00a0,
-	REG_BERT_LANE1_TX	= 0x00a2,
-	REG_BERT_LANE1_WD	= 0x00a4,
-	REG_BERT_LANE1_AD	= 0x00a6,
-	REG_BERT_LANE1_RD	= 0x00a8,
-	REG_BERT_LANE1_STAT	= 0x00aa,
-	REG_BERT_LANE1_CLK	= 0x00ac,
-	REG_BERT_LANE1_RST	= 0x00ae,
-	REG_BERT_LANE1_RX	= 0x00b0,
+		//Clear control signals
+		toggle_en		= 0;
+		toggle_channel	= 0;
+		toggle_dir		= 0;
 
-	REG_MUXSEL_BASE		= 0x00f0,
+		if(apb.pready) begin
 
-	REG_EMAC_BUFFER		= 0x1000,
+			if(apb.pwrite) begin
 
-	REG_XG_TX_BUFFER	= 0x2000,
+				case(apb.paddr)
 
-	REG_CRYPT_BASE		= 0x3800,
-};
+					REG_RELAY_TOGGLE: begin
+						toggle_channel	= apb.pwdata[1:0];
+						toggle_dir		= apb.pwdata[15];
+						toggle_en		= 1;
+					end
 
-#define BERT_LANE_STRIDE 0x20
+					//unmapped address
+					default:	apb.pslverr		= 1;
 
-enum cryptreg_t
-{
-	REG_WORK			= 0x0000,
-	REG_E				= 0x0020,
-	REG_CRYPT_STATUS	= 0x0040,
-	REG_WORK_OUT		= 0x0060,
-	REG_DSA_IN			= 0x0080,
-	REG_DSA_BASE		= 0x0100
-};
+				endcase
 
-#endif
+			end
+
+			else begin
+
+				case(apb.paddr)
+
+					REG_RELAY_STAT:		apb.prdata	= { 15'h0, relay_busy };
+
+					//unmapped address
+					default:	apb.pslverr		= 1;
+
+				endcase
+
+			end
+
+		end
+
+	end
+
+endmodule

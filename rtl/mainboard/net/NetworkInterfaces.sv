@@ -71,7 +71,6 @@ module NetworkInterfaces(
 
 	output logic[1:0]			sfp_led,
 
-
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// RGMII PHY
 
@@ -101,7 +100,15 @@ module NetworkInterfaces(
 	input EthernetTxBus			mgmt0_tx_bus,
 	output wire					mgmt0_tx_ready,
 	output wire					mgmt0_link_up,
-	output lspeed_t				mgmt0_link_speed
+	output lspeed_t				mgmt0_link_speed,
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Register interfaces for controlling stuff
+
+	APB.completer				mdioBus,
+
+	inout wire					mgmt0_mdio,
+	output wire					mgmt0_mdc
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -300,5 +307,17 @@ module NetworkInterfaces(
 		.link_up(mgmt0_link_up),
 		.link_speed(mgmt0_link_speed)
 		);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// MDIO interface to mgmt0
+
+	APB_MDIO #(
+		.CLK_DIV(75)
+	) mdio (
+		.apb(mdioBus),
+
+		.mdio(mgmt0_mdio),
+		.mdc(mgmt0_mdc)
+	);
 
 endmodule

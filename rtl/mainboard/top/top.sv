@@ -381,6 +381,9 @@ module top(
 	EthernetTxBus			xg0_mac_tx_bus;
 	wire					xg0_link_up;
 
+	localparam DEVICE_ADDR_WIDTH = 10;
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) mdioBus();
+
 	NetworkInterfaces network(
 		.clk_125mhz(clk_125mhz),
 		.clk_250mhz(clk_250mhz),
@@ -421,7 +424,13 @@ module top(
 		.mgmt0_tx_bus(mgmt0_tx_bus),
 		.mgmt0_tx_ready(mgmt0_tx_ready),
 		.mgmt0_link_up(mgmt0_link_up),
-		.mgmt0_link_speed(mgmt0_link_speed)
+		.mgmt0_link_speed(mgmt0_link_speed),
+
+		.mgmt0_mdio(rgmii_mdio),
+		.mgmt0_mdc(rgmii_mdc),
+
+		//APB connections
+		.mdioBus(mdioBus)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -484,24 +493,20 @@ module top(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Relays
+	// Relays for bidirectional IOs
 
-	wire			toggle_en;
-	wire			toggle_dir;
-	wire[1:0]		toggle_channel;
-	wire			toggle_done;
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) relayBus();
 
-	RelayController relays(
-		.clk_250mhz(clk_250mhz),
+	wire[3:0]	relay_state;
 
-		.toggle_en(toggle_en),
-		.toggle_dir(toggle_dir),
-		.toggle_channel(toggle_channel),
-		.toggle_done(toggle_done),
+	APB_RelayController relays(
+		.apb(relayBus),
+
+		.relay_state(relay_state),
 
 		.relay_a(relay_a),
 		.relay_b(relay_b)
-		);
+	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// The actual crossbar itself
@@ -542,8 +547,10 @@ module top(
 		.mgmt0_tx_bus(mgmt0_tx_bus),
 		.mgmt0_tx_ready(mgmt0_tx_ready),
 
-		.mgmt0_mdio(rgmii_mdio),
-		.mgmt0_mdc(rgmii_mdc),
+		.relayBus(relayBus),
+		.mdioBus(mdioBus),
+
+		.relay_state(relay_state),
 
 		.xg0_rx_clk(xg0_mac_rx_clk),
 		.xg0_link_up(xg0_link_up),
@@ -551,11 +558,6 @@ module top(
 		.xg0_tx_bus(xg0_mac_tx_bus),
 
 		.fan_tach(fan_tach),
-
-		.relay_en(toggle_en),
-		.relay_dir(toggle_dir),
-		.relay_channel(toggle_channel),
-		.relay_done(toggle_done),
 
 		.frontpanel_sck(frontpanel_sck),
 		.frontpanel_mosi(frontpanel_mosi),

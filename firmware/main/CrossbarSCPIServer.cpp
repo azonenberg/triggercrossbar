@@ -600,17 +600,17 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 
 		if(!strcmp(args, "IN"))
 		{
-			g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x8000 | chan);
+			g_apbfpga.BlockingWrite16(BASE_RELAY + REG_RELAY_TOGGLE, 0x8000 | chan);
 			g_bidirOut[chan] = false;
 		}
 		else
 		{
-			g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x0000 | chan);
+			g_apbfpga.BlockingWrite16(BASE_RELAY + REG_RELAY_TOGGLE, 0x0000 | chan);
 			g_bidirOut[chan] = true;
 		}
 
 		//Poll until not busy
-		while(g_fpga->BlockingRead16(REG_RELAY_STAT) != 0)
+		while(g_apbfpga.BlockingRead16(BASE_RELAY + REG_RELAY_STAT) != 0)
 		{}
 
 		//Update direction LEDs

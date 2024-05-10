@@ -283,7 +283,7 @@ resize_pblock [get_pblocks pblock_crypt25519] -add {RAMB36_X0Y0:RAMB36_X2Y9}
 set_property IS_SOFT FALSE [get_pblocks pblock_crypt25519]
 
 create_pblock pblock_port_xg0
-add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/port_xg0/fcs_pending_0_i_1 network/port_xg0/fcs_pending_1_i_1 network/port_xg0/mac {network/port_xg0/rx_bus[drop]_i_1} network/port_xg0/rx_s2_control_i_1 {network/port_xg0/rx_s2_data[31]_i_1} network/port_xg0/tx_pause_inv_i_1]]
+add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/port_xg0/mac network/port_xg0/rx_s2_control_i_1]]
 resize_pblock [get_pblocks pblock_port_xg0] -add {SLICE_X36Y75:SLICE_X53Y99}
 resize_pblock [get_pblocks pblock_port_xg0] -add {DSP48_X2Y30:DSP48_X2Y39}
 resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB18_X2Y30:RAMB18_X2Y39}
@@ -299,7 +299,7 @@ resize_pblock [get_pblocks pblock_xg0_pcs] -add {RAMB36_X2Y18:RAMB36_X3Y19}
 set_property IS_SOFT FALSE [get_pblocks pblock_xg0_pcs]
 
 create_pblock pblock_port_mgmt0
-add_cells_to_pblock [get_pblocks pblock_port_mgmt0] [get_cells -quiet [list mgmt/mgmt0_mdio_obuf mgmt/mgmt0_mdio_txvr mgmt/sync_link_up_txclk network/port_mgmt0]]
+add_cells_to_pblock [get_pblocks pblock_port_mgmt0] [get_cells -quiet [list mgmt/sync_link_up_txclk network/mdio network/port_mgmt0]]
 resize_pblock [get_pblocks pblock_port_mgmt0] -add {SLICE_X0Y150:SLICE_X11Y178}
 resize_pblock [get_pblocks pblock_port_mgmt0] -add {DSP48_X0Y60:DSP48_X0Y69}
 resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB18_X0Y60:RAMB18_X0Y69}
@@ -354,6 +354,7 @@ resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {DSP48_X2Y60:DSP48_X2
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB18_X2Y60:RAMB18_X2Y73}
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB36_X2Y30:RAMB36_X2Y36}
 set_property IS_SOFT FALSE [get_pblocks pblock_cdtrtrig_gearboxes]
+
 
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
 set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]

@@ -150,7 +150,14 @@ void InitFPGA()
 	//Set all bidir ports to input so we know what state they're in
 	g_log("Setting all relays to input mode\n");
 	for(int chan=0; chan<4; chan++)
-		g_fpga->BlockingWrite16(REG_RELAY_TOGGLE, 0x8000 | chan);
+	{
+		//Set the relay mode
+		g_apbfpga.BlockingWrite16(BASE_RELAY + REG_RELAY_TOGGLE, 0x8000 | chan);
+
+		//Block until it's not busy anymore
+		while(0 != g_apbfpga.BlockingRead16(BASE_RELAY + REG_RELAY_STAT))
+		{}
+	}
 }
 
 /**
