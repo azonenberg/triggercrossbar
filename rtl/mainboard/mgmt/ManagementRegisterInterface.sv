@@ -93,11 +93,10 @@ module ManagementRegisterInterface(
 	input wire						mgmt_lane0_rx_rstdone,
 	input wire						mgmt_lane1_rx_rstdone,
 
-	//Configuration registers in crypto clock domain
-	input wire						clk_crypt,
+	//Configuration registers for crypto IP
 	output logic					crypt_en = 0,
-	output wire[255:0]				crypt_work_in,
-	output wire[255:0]				crypt_e,
+	output logic[255:0]				crypt_work_in = 0,
+	output logic[255:0]				crypt_e = 0,
 	input wire						crypt_out_valid,
 	input wire[255:0]				crypt_work_out,
 	output logic					crypt_dsa_en = 0,
@@ -105,16 +104,13 @@ module ManagementRegisterInterface(
 	output logic					crypt_dsa_load = 0,
 	output logic					crypt_dsa_rd = 0,
 	input wire						crypt_dsa_done,
-	output wire[1:0]				crypt_dsa_addr
+	output logic[1:0]				crypt_dsa_addr = 0
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Synchronizers for crypto stuff
 
 	logic			crypt_in_updated	= 0;
-	logic[255:0]	crypt_work_in_mgmt	= 0;
-	logic[255:0]	crypt_e_mgmt		= 0;
-	logic[1:0]		crypt_addr			= 0;
 
 	typedef enum logic[2:0]
 	{
@@ -128,12 +124,8 @@ module ManagementRegisterInterface(
 
 	crypt_mode_t crypt_mode = CRYPT_DH;
 
-	//Ignore toggles on updated_b for first few clocks after reset
-	//seems sync glitches, at least in sim?
-	wire			crypt_updated_sync;
-	crypt_mode_t 	crypt_mode_sync;
-	logic[3:0]		rst_count 			= 1;
-	always_ff @(posedge clk_crypt) begin
+	//Decode crypto register modes
+	always_ff @(posedge clk) begin
 
 		crypt_en			<= 0;
 		crypt_dsa_en		<= 0;
@@ -141,56 +133,20 @@ module ManagementRegisterInterface(
 		crypt_dsa_rd		<= 0;
 		crypt_dsa_base_en	<= 0;
 
-		if(rst_count)
-			rst_count		<= rst_count + 1;
-		else begin
+		if(crypt_in_updated) begin
 
-			if(crypt_updated_sync) begin
-
-				case(crypt_mode_sync)
-					CRYPT_DH:			crypt_en 			<= 1;
-					CRYPT_DSA_LOWREG:	crypt_dsa_load		<= 1;
-					CRYPT_DSA_BASE:		crypt_dsa_load		<= 1;
-					CRYPT_DSA_FINAL: 	crypt_dsa_en		<= 1;
-					CRYPT_DSA_RD:		crypt_dsa_rd		<= 1;
-					CRYPT_DSA_BASEFIN: 	crypt_dsa_base_en	<= 1;
-				endcase
-
-			end
+			case(crypt_mode)
+				CRYPT_DH:			crypt_en 			<= 1;
+				CRYPT_DSA_LOWREG:	crypt_dsa_load		<= 1;
+				CRYPT_DSA_BASE:		crypt_dsa_load		<= 1;
+				CRYPT_DSA_FINAL: 	crypt_dsa_en		<= 1;
+				CRYPT_DSA_RD:		crypt_dsa_rd		<= 1;
+				CRYPT_DSA_BASEFIN: 	crypt_dsa_base_en	<= 1;
+			endcase
 
 		end
+
 	end
-
-	RegisterSynchronizer #(
-		.WIDTH(517)
-	) sync_crypt_inputs (
-		.clk_a(clk),
-		.en_a(crypt_in_updated),
-		.ack_a(),
-		.reg_a({crypt_work_in_mgmt, crypt_e_mgmt, crypt_mode, crypt_addr}),
-
-		.clk_b(clk_crypt),
-		.updated_b(crypt_updated_sync),
-		.reset_b(1'b0),
-		.reg_b({crypt_work_in, crypt_e, crypt_mode_sync, crypt_dsa_addr})
-	);
-
-	wire			crypt_out_updated;
-	wire[255:0]		crypt_work_out_mgmt;
-
-	RegisterSynchronizer #(
-		.WIDTH(256)
-	) sync_crypt_outputs (
-		.clk_a(clk_crypt),
-		.en_a(crypt_out_valid),
-		.ack_a(),
-		.reg_a(crypt_work_out),
-
-		.clk_b(clk),
-		.updated_b(crypt_out_updated),
-		.reset_b(1'b0),
-		.reg_b(crypt_work_out_mgmt)
-	);
 
 	wire	xg0_link_up_sync;
 
@@ -199,14 +155,6 @@ module ManagementRegisterInterface(
 		.din(xg0_link_up),
 		.clk_out(clk),
 		.dout(xg0_link_up_sync)
-	);
-
-	wire	crypt_dsa_done_sync;
-	PulseSynchronizer sync_dsa_done(
-		.clk_a(clk_crypt),
-		.pulse_a(crypt_dsa_done),
-		.clk_b(clk),
-		.pulse_b(crypt_dsa_done_sync)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -339,7 +287,7 @@ module ManagementRegisterInterface(
 			reading	<= 1;
 
 		//Finish a crypto operation
-		if(crypt_out_updated || crypt_dsa_done_sync)
+		if(crypt_out_valid || crypt_dsa_done)
 			crypto_active		<= 0;
 
 		//Set interrupt line if something's changed
@@ -380,7 +328,7 @@ module ManagementRegisterInterface(
 				if(rd_addr[7:0] == REG_CRYPT_STATUS)
 					rd_data	<= {7'b0, crypto_active};
 				else if(rd_addr[7:0] >= REG_WORK_OUT)
-					rd_data <= crypt_work_out_mgmt[rd_addr[4:0]*8 +: 8];
+					rd_data <= crypt_work_out[rd_addr[4:0]*8 +: 8];
 
 				//unmapped address
 				else
@@ -458,9 +406,9 @@ module ManagementRegisterInterface(
 			if(wr_addr >= REG_CRYPT_BASE) begin
 
 				if(wr_addr[8:0] >= REG_DSA_BASE) begin
-					crypt_mode								<= CRYPT_DSA_BASE;
-					crypt_addr								<= wr_addr[6:5];
-					crypt_work_in_mgmt[wr_addr[4:0]*8 +: 8]	<= wr_data;
+					crypt_mode							<= CRYPT_DSA_BASE;
+					crypt_dsa_addr						<= wr_addr[6:5];
+					crypt_work_in[wr_addr[4:0]*8 +: 8]	<= wr_data;
 
 					//Push the write onto the bus every 32 bytes
 					if(wr_addr[4:0] == 5'h1f) begin
@@ -474,12 +422,12 @@ module ManagementRegisterInterface(
 				//DSA input
 				else if(wr_addr[8:0] >= REG_DSA_IN) begin
 					crypt_mode								<= CRYPT_DSA_LOWREG;
-					crypt_addr								<= wr_addr[6:5];
-					crypt_work_in_mgmt[wr_addr[4:0]*8 +: 8]	<= wr_data;
+					crypt_dsa_addr							<= wr_addr[6:5];
+					crypt_work_in[wr_addr[4:0]*8 +: 8]		<= wr_data;
 
 					//Push the write onto the bus every 32 bytes
 					if(wr_addr[4:0] == 5'h1f) begin
-						crypt_in_updated				<= 1;
+						crypt_in_updated					<= 1;
 						if(wr_addr[6:5] == 1)
 							crypto_active					<= 1;
 					end
@@ -489,7 +437,7 @@ module ManagementRegisterInterface(
 				//write to status to read from the output buffer
 				else if(wr_addr[8:0] == REG_CRYPT_STATUS) begin
 					crypt_mode			<= CRYPT_DSA_RD;
-					crypt_addr			<= wr_data[1:0];
+					crypt_dsa_addr		<= wr_data[1:0];
 					crypt_in_updated	<= 1;
 				end
 
@@ -501,7 +449,7 @@ module ManagementRegisterInterface(
 					else if(crypt_mode == CRYPT_DSA_BASE)
 						crypt_mode						<= CRYPT_DSA_BASEFIN;
 
-					crypt_e_mgmt[wr_addr[4:0]*8 +: 8]	<= wr_data;
+					crypt_e[wr_addr[4:0]*8 +: 8]		<= wr_data;
 
 					if(wr_addr[4:0] == 5'h1f) begin
 						crypt_in_updated				<= 1;
@@ -513,7 +461,7 @@ module ManagementRegisterInterface(
 				//work_in register
 				else if(wr_addr[8:0] >= REG_WORK) begin
 					crypt_mode								<= CRYPT_DH;
-					crypt_work_in_mgmt[wr_addr[4:0]*8 +: 8]	<= wr_data;
+					crypt_work_in[wr_addr[4:0]*8 +: 8]		<= wr_data;
 				end
 
 			end

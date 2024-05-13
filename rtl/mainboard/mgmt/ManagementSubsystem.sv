@@ -449,8 +449,7 @@ module ManagementSubsystem(
 		.xg0_rx_clk(xg0_rx_clk),
 		.xg0_link_up(xg0_link_up),
 
-		//Control registers (crypto clock domain)
-		.clk_crypt(clk_crypt),
+		//Crypto control registers (core clock domain)
 		.crypt_en(crypt_en),
 		.crypt_work_in(crypt_work_in),
 		.crypt_e(crypt_e),

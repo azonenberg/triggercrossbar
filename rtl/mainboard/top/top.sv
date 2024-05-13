@@ -583,7 +583,6 @@ module top(
 		.mgmt_lane0_rx_rstdone(mgmt_lane0_rx_rstdone),
 		.mgmt_lane1_rx_rstdone(mgmt_lane1_rx_rstdone),
 
-		.clk_crypt(clk_250mhz),
 		.crypt_en(crypt_en),
 		.crypt_work_in(crypt_work_in),
 		.crypt_work_out(crypt_work_out),
