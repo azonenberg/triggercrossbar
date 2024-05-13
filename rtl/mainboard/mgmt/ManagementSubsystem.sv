@@ -257,14 +257,15 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Top level APB interconnect bridge
 
-	localparam DEVICE_ADDR_WIDTH = 10;
+	localparam DEVICE_ADDR_WIDTH	= 10;
+	localparam NUM_APB_DEVS			= 6;
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) bridgeDownstreamBus[3:0]();
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) bridgeDownstreamBus[NUM_APB_DEVS-1:0]();
 
 	APBBridge #(
 		.BASE_ADDR(24'h000_000),
 		.BLOCK_SIZE(32'h400),
-		.NUM_PORTS(4)
+		.NUM_PORTS(NUM_APB_DEVS)
 	) apb_bridge (
 		.upstream(bridgeUpstreamBus),
 		.downstream(bridgeDownstreamBus)
@@ -288,6 +289,68 @@ module ManagementSubsystem(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//Front panel LED indicator state
+
+	//Virtual GPIO bank 0 (input LEDs, 0x001_000)
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) ledBus0();
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_gpio_0( .upstream(bridgeDownstreamBus[4]), .downstream(ledBus0) );
+
+	logic[11:0]	 trig_in_led_flipped;
+	APB_GPIO #(
+		.OUT_INIT(0),
+		.TRIS_INIT(16'h0fff)
+	) gpio_led0 (
+		.apb(ledBus0),
+
+		.gpio_out(),
+		.gpio_tris(),
+		.gpio_in({4'h0, trig_in_led_flipped})
+	);
+
+	//flip MSB to LSB to match expander pinout
+	always_comb begin
+		for(integer i=0; i<12; i=i+1)
+			trig_in_led_flipped[i]	= trig_in_led[11-i];
+	end
+
+	//Virtual GPIO bank 1 (output LEDs, 0x001_400)
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) ledBus1();
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_gpio_1( .upstream(bridgeDownstreamBus[5]), .downstream(ledBus1) );
+
+	logic[11:0]	trig_out_led_gated;
+	APB_GPIO #(
+		.OUT_INIT(0),
+		.TRIS_INIT(16'h0fff)
+	) gpio_led1 (
+		.apb(ledBus1),
+
+		.gpio_out(),
+		.gpio_tris(),
+		.gpio_in({4'h0, trig_out_led_gated})
+	);
+
+	always_comb begin
+		trig_out_led_gated[7:0]		= trig_out_led[7:0];
+		trig_out_led_gated[11:8]	= trig_out_led[11:8] & ~relay_state;
+	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Front panel SPI interface
+
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) frontSpiBus();
+
+	APB_SPIHostInterface iface(
+		.apb(frontSpiBus),
+
+		.spi_sck(frontpanel_sck),
+		.spi_mosi(frontpanel_mosi),
+		.spi_miso(frontpanel_miso),
+		.spi_cs_n(frontpanel_cs_n)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Pipeline registers for external APB endpoints
 
 	//MDIO (0x000_400)
@@ -297,6 +360,10 @@ module ManagementSubsystem(
 	//Relay controller (0x000_800)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_relay( .upstream(bridgeDownstreamBus[2]), .downstream(relayBus) );
+
+	//SPI controller (0x000_c00)
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_frontspi( .upstream(bridgeDownstreamBus[3]), .downstream(frontSpiBus) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Optionally pipeline read data by one cycle
@@ -325,27 +392,6 @@ module ManagementSubsystem(
 		mgmt_rd_en_ff	<= mgmt_rd_en;
 		mgmt_rd_addr_ff	<= mgmt_rd_addr;
 	end
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Front panel SPI interface
-
-	wire		front_shift_en;
-	wire[7:0]	front_shift_data;
-	wire		front_shift_done;
-	wire[7:0]	front_rx_data;
-
-	SPIHostInterface spi(
-		.clk(sys_clk),
-		.clkdiv(100),		//2.5 MHz
-
-		.spi_sck(frontpanel_sck),
-		.spi_mosi(frontpanel_mosi),
-		.spi_miso(frontpanel_miso),
-
-		.shift_en(front_shift_en),
-		.shift_done(front_shift_done),
-		.tx_data(front_shift_data),
-		.rx_data(front_rx_data));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Register interface
@@ -378,7 +424,6 @@ module ManagementSubsystem(
 		.xg_txfifo_wr_en(xg_txfifo_wr_en),
 		.xg_txfifo_wr_data(xg_txfifo_wr_data),
 		.xg_txfifo_wr_commit(xg_txfifo_wr_commit),
-		.relay_state(relay_state),
 		.muxsel(muxsel),
 		.serdes_config_updated(serdes_config_updated),
 		.rx0_config(rx0_config),
@@ -396,13 +441,6 @@ module ManagementSubsystem(
 		.mgmt_lane1_done(mgmt_lane1_done),
 		.mgmt_lane0_rx_rstdone(mgmt_lane0_rx_rstdone),
 		.mgmt_lane1_rx_rstdone(mgmt_lane1_rx_rstdone),
-		.front_shift_en(front_shift_en),
-		.front_shift_done(front_shift_done),
-		.front_shift_data(front_shift_data),
-		.front_rx_data(front_rx_data),
-		.front_cs_n(frontpanel_cs_n),
-		.trig_in_led(trig_in_led),
-		.trig_out_led(trig_out_led),
 
 		//Control registers (port RX clock domain)
 		.xg0_rx_clk(xg0_rx_clk),

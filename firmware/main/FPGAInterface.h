@@ -85,12 +85,16 @@ enum baseaddr_t
 {
 	BASE_SYSINFO		= 0x00000000,		//APB_SystemInfo
 	BASE_MDIO			= 0x00000400,		//APB_MDIO
-	BASE_RELAY			= 0x00000800		//APB_RelayController
+	BASE_RELAY			= 0x00000800,		//APB_RelayController
+	BASE_FRONT_SPI		= 0x00000c00,		//APB_SPIHostInterface
+	BASE_IN_LED_GPIO	= 0x00001000,		//APB_GPIO
+	BASE_OUT_LED_GPIO	= 0x00001400		//APB_GPIO
 };
 
 enum regid_t
 {
-	//This block is now on APB
+	//This section is now on APB
+	//(must match register IDs in corresponding module)
 
 	//APB_SystemInfo
 	REG_FPGA_IDCODE		= 0x0000,
@@ -114,19 +118,24 @@ enum regid_t
 	REG_RELAY_STAT		= 0x0020,
 	REG_RELAY_STAT2		= 0x0040,
 
+	//APB_SPIHostInterface
+	REG_SPI_CLK_DIV		= 0x0000,
+	REG_SPI_DATA		= 0x0002,
+	REG_SPI_CS_N		= 0x0004,
+	REG_SPI_STATUS		= 0x0020,
+	REG_SPI_STATUS2		= 0x0040,
+
+	//APB_GPIO
+	REG_GPIO_OUT		= 0x0000,
+	REG_GPIO_IN			= 0x0004,
+	REG_GPIO_TRIS		= 0x0008,
+
 	//everything below here is still on the legacy bus
 	//must match regid_t in ManagementRegisterInterface.sv
 	REG_FPGA_IRQSTAT	= 0x0020,
 	REG_EMAC_RXLEN		= 0x0024,
 	REG_EMAC_COMMIT		= 0x0028,
 	REG_XG_COMMIT		= 0x002c,
-
-	REG_FRONT_CTRL		= 0x0050,
-	REG_FRONT_DATA		= 0x0051,
-	REG_FRONT_STAT		= 0x0052,
-	REG_FRONT_LED_0		= 0x0053,
-	REG_FRONT_LED_1		= 0x0054,
-	REG_FRONT_LED_2		= 0x0055,
 
 	REG_XG0_STAT		= 0x0060,
 

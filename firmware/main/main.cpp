@@ -256,30 +256,29 @@ uint8_t GetFrontPanelMode()
 
 void SetFrontPanelCS(bool b)
 {
-	g_fpga->BlockingWrite8(REG_FRONT_CTRL, b);
+	g_apbfpga.BlockingWrite16(BASE_FRONT_SPI + REG_SPI_CS_N, b);
 }
 
 void SendFrontPanelByte(uint8_t data)
 {
-	//Send the data byte
-	g_fpga->BlockingWrite8(REG_FRONT_DATA, data);
+	g_apbfpga.BlockingWrite16(BASE_FRONT_SPI + REG_SPI_DATA, data);
 
 	//Block until not busy
-	while(0 != g_fpga->BlockingRead8(REG_FRONT_STAT))
+	while(0 != g_apbfpga.BlockingRead16(BASE_FRONT_SPI + REG_SPI_STATUS))
 	{}
 }
 
 uint8_t ReadFrontPanelByte()
 {
 	//Send the data byte
-	g_fpga->BlockingWrite8(REG_FRONT_DATA, 0x00);
+	g_apbfpga.BlockingWrite16(BASE_FRONT_SPI + REG_SPI_DATA, 0x00);
 
 	//Block until not busy
-	while(0 != g_fpga->BlockingRead8(REG_FRONT_STAT))
+	while(0 != g_apbfpga.BlockingRead16(BASE_FRONT_SPI + REG_SPI_STATUS))
 	{}
 
 	//Return the response
-	return g_fpga->BlockingRead8(REG_FRONT_DATA);
+	return g_apbfpga.BlockingRead16(BASE_FRONT_SPI + REG_SPI_DATA);
 }
 
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value)
@@ -307,16 +306,16 @@ void UpdateFrontPanelActivityLEDs()
 	if(IsFrontPanelDFU())
 		return;
 
+	//Read LED state
+	uint16_t dinval = g_apbfpga.BlockingRead16(BASE_IN_LED_GPIO + REG_GPIO_IN);
+	uint16_t doutval = g_apbfpga.BlockingRead16(BASE_OUT_LED_GPIO + REG_GPIO_IN);
+
+	//Convert to bytes and send
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_PORT_LEDS);
-
-	for(int i=0; i<3; i++)
-	{
-		g_fpga->BlockingWrite8(REG_FRONT_LED_0 + i, 0x00);
-		while(0 != g_fpga->BlockingRead8(REG_FRONT_STAT))
-		{}
-	}
-
+	SendFrontPanelByte(doutval & 0xff);
+	SendFrontPanelByte( ((dinval & 0xf) << 4) | ( (doutval >> 8) & 0xf) );
+	SendFrontPanelByte(dinval >> 4);
 	SetFrontPanelCS(1);
 }
 

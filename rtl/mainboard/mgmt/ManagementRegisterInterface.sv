@@ -62,10 +62,6 @@ module ManagementRegisterInterface(
 	input wire						xg0_link_up,
 
 	//Configuration registers in core clock domain
-	input wire[3:0]					relay_state,
-	input wire[11:0]				trig_in_led,
-	input wire[11:0]				trig_out_led,
-
 	output muxsel_t[11:0]			muxsel = 0,
 
 	output logic					rxfifo_rd_en = 0,
@@ -80,12 +76,6 @@ module ManagementRegisterInterface(
 	output logic 					xg_txfifo_wr_en = 0,
 	output logic[7:0] 				xg_txfifo_wr_data = 0,
 	output logic	 				xg_txfifo_wr_commit = 0,
-
-	output logic					front_shift_en = 0,
-	output logic[7:0]				front_shift_data = 0,
-	input wire						front_shift_done,
-	input wire[7:0]					front_rx_data,
-	output logic					front_cs_n = 1,
 
 	//still in core clock domain, synchronizer in serdes module
 	output logic					serdes_config_updated = 0,
@@ -241,14 +231,6 @@ module ManagementRegisterInterface(
 		REG_EMAC_COMMIT		= 16'h0028,		//write any value to end the active packet
 		REG_XG_COMMIT		= 16'h002c,		//write any value to end the active packet
 
-		//Front panel SPI interface
-		REG_FRONT_CTRL		= 16'h0050,		//0 = CS# value
-		REG_FRONT_DATA		= 16'h0051,		//byte of data to send
-		REG_FRONT_STAT		= 16'h0052,		//0 = transmitter busy
-		REG_FRONT_LED_0		= 16'h0053,
-		REG_FRONT_LED_1		= 16'h0054,
-		REG_FRONT_LED_2		= 16'h0055,
-
 		//10G interface
 		REG_XG0_STAT		= 16'h0060,		//0 = link up
 
@@ -336,28 +318,11 @@ module ManagementRegisterInterface(
 	logic					crypto_active			= 0;
 
 	logic[1:0]				drp_busy	= 0;
-	logic					front_busy	= 0;
+
 
 	logic[8:0]				packetWordsRead = 0;
 	logic[8:0]				packetWordLength = 0;
 	logic					rxheader_rd_en_ff = 0;
-
-	//Front panel LED indicator state
-	logic[23:0]				front_led_state;
-	always_comb begin
-		for(integer i=0; i<12; i=i+1)
-			front_led_state[i+12]	<= trig_in_led[11-i];
-		front_led_state[11:0]	<= trig_out_led[11:0];
-
-		//If relays are in input mode, never light up the output port indicator
-		for(integer i=0; i<12; i=i+1) begin
-			if(i >= 8) begin
-				if(relay_state[i-8])
-					front_led_state[i]	= 0;
-			end
-		end
-
-	end
 
 	always_ff @(posedge clk) begin
 
@@ -374,7 +339,6 @@ module ManagementRegisterInterface(
 		serdes_config_updated	<= 0;
 		mgmt_lane0_en			<= 0;
 		mgmt_lane1_en			<= 0;
-		front_shift_en			<= 0;
 
 		//Start a new read
 		if(rd_en)
@@ -397,12 +361,6 @@ module ManagementRegisterInterface(
 			drp_busy[0]			<= 0;
 		if(mgmt_lane1_done)
 			drp_busy[1]			<= 0;
-
-		//Manage SPI bus state
-		if(front_shift_en)
-			front_busy			<= 1;
-		if(front_shift_done)
-			front_busy			<= 0;
 
 		//Track expected length of a packet being read
 		rxheader_rd_en_ff	<= rxheader_rd_en;
@@ -461,9 +419,6 @@ module ManagementRegisterInterface(
 			else begin
 
 				case(rd_addr)
-
-					REG_FRONT_STAT:		rd_data <= {7'b0, front_busy };
-					REG_FRONT_DATA:		rd_data	<= front_rx_data;
 
 					REG_FPGA_IRQSTAT: begin
 						rd_data		<= {7'b0, !rxheader_rd_empty };
@@ -589,26 +544,6 @@ module ManagementRegisterInterface(
 			else begin
 
 				case(wr_addr[7:0])
-
-					REG_FRONT_CTRL: front_cs_n		<= wr_data[0];
-					REG_FRONT_DATA: begin
-						front_shift_en				<= 1;
-						front_shift_data			<= wr_data;
-					end
-
-					//Special registers for saying "push front panel LED state
-					REG_FRONT_LED_0: begin
-						front_shift_en				<= 1;
-						front_shift_data			<= front_led_state[7:0];
-					end
-					REG_FRONT_LED_1: begin
-						front_shift_en				<= 1;
-						front_shift_data			<= front_led_state[15:8];
-					end
-					REG_FRONT_LED_2: begin
-						front_shift_en				<= 1;
-						front_shift_data			<= front_led_state[23:16];
-					end
 
 					REG_BERT_LANE0_PRBS: begin
 						serdes_config_updated		<= 1;

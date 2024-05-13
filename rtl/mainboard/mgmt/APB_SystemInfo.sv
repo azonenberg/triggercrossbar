@@ -57,12 +57,7 @@ module APB_SystemInfo(
 
 	//Sensor values
 	input wire[15:0]				fan0_rpm,
-	input wire[15:0]				fan1_rpm,
-
-	input wire						die_serial_valid,
-	input wire[63:0]				die_serial,
-	input wire						idcode_valid,
-	input wire[31:0]				idcode
+	input wire[15:0]				fan1_rpm
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
