@@ -511,18 +511,17 @@ module top(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// The actual crossbar itself
 
-	muxsel_t[11:0]	muxsel;
 	wire[11:0]		trig_in_led;
 	wire[11:0]		trig_out_led;
 
-	(* keep_hierarchy = "yes" *)
-	CrossbarMatrix matrix(
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) crossbarBus();
+
+	APB_CrossbarMatrix matrix(
+		.apb(crossbarBus),
+
 		.trig_in(trig_in),
 		.trig_out(trig_out),
 
-		.muxsel(muxsel),
-
-		.clk_250mhz(clk_250mhz),
 		.trig_in_led(trig_in_led),
 		.trig_out_led(trig_out_led)
 	);
@@ -549,6 +548,7 @@ module top(
 
 		.relayBus(relayBus),
 		.mdioBus(mdioBus),
+		.crossbarBus(crossbarBus),
 
 		.relay_state(relay_state),
 
@@ -565,8 +565,6 @@ module top(
 		.frontpanel_cs_n(frontpanel_cs_n),
 		.trig_in_led(trig_in_led),
 		.trig_out_led(trig_out_led),
-
-		.muxsel(muxsel),
 
 		.serdes_config_updated(serdes_config_updated),
 		.rx0_config(rx0_config),

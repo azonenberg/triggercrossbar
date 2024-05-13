@@ -64,6 +64,7 @@ module ManagementSubsystem(
 	//APB to external components
 	APB.requester					mdioBus,
 	APB.requester					relayBus,
+	APB.requester					crossbarBus,
 
 	//Tachometers for fans
 	input wire[1:0]					fan_tach,
@@ -78,7 +79,6 @@ module ManagementSubsystem(
 	input wire[11:0]				trig_in_led,
 	input wire[11:0]				trig_out_led,
 	input wire[3:0]					relay_state,
-	output muxsel_t[11:0]			muxsel,
 	output wire						serdes_config_updated,
 	output bert_txconfig_t			tx0_config,
 	output bert_txconfig_t			tx1_config,
@@ -258,7 +258,7 @@ module ManagementSubsystem(
 	// Top level APB interconnect bridge
 
 	localparam DEVICE_ADDR_WIDTH	= 10;
-	localparam NUM_APB_DEVS			= 6;
+	localparam NUM_APB_DEVS			= 7;
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) bridgeDownstreamBus[NUM_APB_DEVS-1:0]();
 
@@ -365,6 +365,10 @@ module ManagementSubsystem(
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_frontspi( .upstream(bridgeDownstreamBus[3]), .downstream(frontSpiBus) );
 
+	//Crossbar mux selectors (0x001_800)
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_crossbari( .upstream(bridgeDownstreamBus[6]), .downstream(crossbarBus) );
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Optionally pipeline read data by one cycle
 
@@ -424,7 +428,6 @@ module ManagementSubsystem(
 		.xg_txfifo_wr_en(xg_txfifo_wr_en),
 		.xg_txfifo_wr_data(xg_txfifo_wr_data),
 		.xg_txfifo_wr_commit(xg_txfifo_wr_commit),
-		.muxsel(muxsel),
 		.serdes_config_updated(serdes_config_updated),
 		.rx0_config(rx0_config),
 		.rx1_config(rx1_config),
@@ -459,27 +462,6 @@ module ManagementSubsystem(
 		.crypt_dsa_rd(crypt_dsa_rd),
 		.crypt_dsa_done(crypt_dsa_done),
 		.crypt_dsa_addr(crypt_dsa_addr)
-	);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Debug ILA
-
-	ila_2 ila(
-		.clk(sys_clk),
-		.probe0(bridge.rd_en_raw),
-		.probe1(bridge.wr_en_raw),
-		.probe2(bridge.opcode),
-		.probe3(mgmt_wr_addr),
-		.probe4(mgmt_rd_addr),
-		.probe5(bridge.addr),
-		.probe6(processorBus.psel),
-		.probe7(processorBus.pwrite),
-		.probe8(processorBus.pwdata),
-		.probe9(processorBus.prdata),
-		.probe10(processorBus.penable),
-		.probe11(bridge.first),
-		.probe12(processorBus.pready),
-		.probe13(mgmt_wr_data)
 	);
 
 endmodule

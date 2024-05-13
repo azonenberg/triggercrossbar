@@ -62,8 +62,6 @@ module ManagementRegisterInterface(
 	input wire						xg0_link_up,
 
 	//Configuration registers in core clock domain
-	output muxsel_t[11:0]			muxsel = 0,
-
 	output logic					rxfifo_rd_en = 0,
 	output logic					rxfifo_rd_pop_single = 0,
 	input wire[31:0]				rxfifo_rd_data,
@@ -277,10 +275,6 @@ module ManagementRegisterInterface(
 		REG_BERT_LANE1_CLK	= 16'h00ac,
 		REG_BERT_LANE1_RST	= 16'h00ae,
 		REG_BERT_LANE1_RX	= 16'h00b0,
-
-		//Mux selectors
-		REG_MUXSEL_BASE		= 16'h00f0,		//3:0 = mux selector
-		//next 11 addresses are subsequent channels
 
 		//Ethernet MAC frame buffer
 		//Any address in this range will be treated as reading from the top of the buffer
@@ -534,11 +528,6 @@ module ManagementRegisterInterface(
 			else if(wr_addr >= REG_EMAC_BUFFER_LO) begin
 				txfifo_wr_en	<= 1;
 				txfifo_wr_data	<= wr_data;
-			end
-
-			//Mux selectors are decoded separately
-			else if(wr_addr >= REG_MUXSEL_BASE) begin
-				muxsel[wr_addr[3:0]]	<= wr_data[3:0];
 			end
 
 			else begin

@@ -29,73 +29,116 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-import BERTConfig::*;
+import CrossbarTypes::*;
 
 /**
 	@file
 	@author Andrew D. Zonenberg
-	@brief The actual switch crossbar
+	@brief	APB wrapper around the crossbar switch matrix
 
-	Completely combinatorial
+	Register map:
+		0000	muxsel0
+		0002	muxsel1
+		..
+		0016	muxsel11
  */
-module CrossbarMatrix(
-	input wire					clk,
+module APB_CrossbarMatrix #(
+	parameter NUM_PORTS = 12
+)(
 
-	input wire[11:0]			trig_in,
-	output logic[11:0]			trig_out,
+	//The APB bus
+	APB.completer 				apb,
 
-	input wire muxsel_t[11:0]	muxsel,
+	//Trigger signals
+	input wire[NUM_PORTS-1:0]	trig_in,
+	output wire[NUM_PORTS-1:0]	trig_out,
 
-	output wire[11:0]			trig_in_led,
-	output wire[11:0]			trig_out_led
+	//Indicator LEDs
+	output wire[NUM_PORTS-1:0]	trig_in_led,
+	output wire[NUM_PORTS-1:0]	trig_out_led
 );
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// We only support 16-bit APB, throw synthesis error for anything else
+
+	if(apb.DATA_WIDTH != 16)
+		apb_bus_width_is_invalid();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// The actual muxes
+	// Register logic
 
+	muxsel_t[NUM_PORTS-1:0] muxsel;
+
+	logic[apb.ADDR_WIDTH-1:0]	portidx;
+
+	initial begin
+		for(integer i=0; i<NUM_PORTS; i++)
+			muxsel[i] <= 0;
+	end
+
+	//Combinatorial readback
 	always_comb begin
 
-		for(integer i=0; i<12; i=i+1) begin
-			trig_out[i]	= trig_in[muxsel[i]];
+		apb.pready	= apb.psel && apb.penable;
+		apb.prdata	= 0;
+		apb.pslverr	= 0;
+
+		portidx		= apb.paddr[apb.ADDR_WIDTH-1:1];
+
+		if(apb.pready) begin
+
+			//Throw error on unaligned address for either read or write
+			if(apb.paddr[0])
+				apb.pslverr = 1;
+
+			//Throw error if port number is out of range
+			else if(portidx >= NUM_PORTS)
+				apb.pslverr = 1;
+
+			//read
+			else if(!apb.pwrite)
+				apb.prdata	= muxsel[portidx];
+
+			//write fails if we write an out-of-range value
+			else begin
+				if(apb.pwdata > NUM_PORTS)
+					apb.pslverr	 = 1;
+			end
+
+		end
+	end
+
+	always_ff @(posedge apb.pclk or negedge apb.preset_n) begin
+
+		//Reset
+		if(!apb.preset_n) begin
+			for(integer i=0; i<NUM_PORTS; i++)
+				muxsel[i] <= 0;
+		end
+
+		//Normal path
+		else begin
+
+			if(apb.pready && apb.pwrite)
+				muxsel[portidx]	<= apb.pwdata;
+
 		end
 
 	end
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Pulse stretching for LEDs
+	// The actual crossbar block
 
-	for(genvar g=0; g<12; g=g+1) begin : pstretch
+	(* keep_hierarchy = "yes" *)
+	CrossbarMatrix crossbar(
+		.clk(apb.pclk),
 
-		//Synchronize into local clock domain
-		wire	trig_in_sync;
-		ThreeStageSynchronizer #(
-			.IN_REG(0)
-		) sync_trig_in(
-			.clk_in(),
-			.din(trig_in[g]),
-			.clk_out(clk),
-			.dout(trig_in_sync));
+		.muxsel(muxsel),
 
-		wire	trig_out_sync;
-		ThreeStageSynchronizer #(
-			.IN_REG(0)
-		) sync_trig_out(
-			.clk_in(),
-			.din(trig_out[g]),
-			.clk_out(clk),
-			.dout(trig_out_sync));
+		.trig_in(trig_in),
+		.trig_out(trig_out),
 
-
-		PulseStretcher stretch_in(
-			.clk(clk),
-			.pulse(trig_in_sync),
-			.stretched(trig_in_led[g]));
-
-		PulseStretcher stretch_out(
-			.clk(clk),
-			.pulse(trig_out_sync),
-			.stretched(trig_out_led[g]));
-
-	end
+		.trig_in_led(trig_in_led),
+		.trig_out_led(trig_out_led)
+	);
 
 endmodule
