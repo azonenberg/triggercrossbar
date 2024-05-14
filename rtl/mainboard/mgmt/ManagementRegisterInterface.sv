@@ -76,11 +76,6 @@ module ManagementRegisterInterface(
 	output logic	 				xg_txfifo_wr_commit = 0,
 
 	//still in core clock domain, synchronizer in serdes module
-	output logic					serdes_config_updated = 0,
-	output bert_txconfig_t			tx0_config = 0,
-	output bert_txconfig_t			tx1_config = 0,
-	output bert_rxconfig_t			rx0_config = 0,
-	output bert_rxconfig_t			rx1_config = 0,
 	output logic					mgmt_lane0_en = 0,
 	output logic					mgmt_lane1_en = 0,
 	output logic					mgmt_we = 0,
@@ -181,15 +176,7 @@ module ManagementRegisterInterface(
 		REG_XG0_STAT		= 16'h0060,		//0 = link up
 
 		//BERT configuration
-		REG_BERT_LANE0_PRBS	= 16'h0080,		//6:4  = TX PRBS mode (GTX TXPRBSSEL see table 3-22 of UG476)
-											//2:0  = RX PRBS mode (GTX RXPRBSSEL see table 4-30 of UG476)
 
-		REG_BERT_LANE0_TX	= 16'h0082,		//15   = invert
-											//14   = tx enable
-											//13:9 = postcursor
-											//8:4  = precursor
-											//3:0  = swing
-		REG_BERT_LANE0_TX_1 = 16'h0083,
 		REG_BERT_LANE0_WD	= 16'h0084,		//DRP write data (must write before address)
 		REG_BERT_LANE0_WD_1	= 16'h0085,
 		REG_BERT_LANE0_AD	= 16'h0086,		//DRP address
@@ -200,19 +187,7 @@ module ManagementRegisterInterface(
 		REG_BERT_LANE0_RD_1	= 16'h0089,
 		REG_BERT_LANE0_STAT	= 16'h008a,		//0 = DRP busy
 											//1 = rx reset done
-		REG_BERT_LANE0_CLK	= 16'h008c,		//2:0 = TX clock divider
-											//3 = TX clock from QPLL (0 = CPLL)
-											//6:4 = RX clock divider
-											//7 = RX clock from QPLL (0 = CPLL)
-		REG_BERT_LANE0_RST	= 16'h008e,		//0 = RX PMA reset
-											//1 = TX soft reset
-											//2 = RX soft reset
 
-		REG_BERT_LANE0_RX	= 16'h0090,		//0 = invert
-
-		REG_BERT_LANE1_PRBS = 16'h00a0,		//same as LANE0
-		REG_BERT_LANE1_TX	= 16'h00a2,
-		REG_BERT_LANE1_TX_1 = 16'h00a3,
 		REG_BERT_LANE1_WD	= 16'h00a4,
 		REG_BERT_LANE1_WD_1	= 16'h00a5,
 		REG_BERT_LANE1_AD	= 16'h00a6,
@@ -220,9 +195,6 @@ module ManagementRegisterInterface(
 		REG_BERT_LANE1_RD	= 16'h00a8,
 		REG_BERT_LANE1_RD_1	= 16'h00a9,
 		REG_BERT_LANE1_STAT	= 16'h00aa,
-		REG_BERT_LANE1_CLK	= 16'h00ac,
-		REG_BERT_LANE1_RST	= 16'h00ae,
-		REG_BERT_LANE1_RX	= 16'h00b0,
 
 		//Ethernet MAC frame buffer
 		//Any address in this range will be treated as reading from the top of the buffer
@@ -278,7 +250,6 @@ module ManagementRegisterInterface(
 		txfifo_wr_commit		<= 0;
 		xg_txfifo_wr_en			<= 0;
 		xg_txfifo_wr_commit		<= 0;
-		serdes_config_updated	<= 0;
 		mgmt_lane0_en			<= 0;
 		mgmt_lane1_en			<= 0;
 
@@ -482,24 +453,6 @@ module ManagementRegisterInterface(
 
 				case(wr_addr[7:0])
 
-					REG_BERT_LANE0_PRBS: begin
-						serdes_config_updated		<= 1;
-						rx0_config.prbsmode			<= wr_data[2:0];
-						tx0_config.prbsmode			<= wr_data[6:4];
-					end
-
-					REG_BERT_LANE0_TX: begin
-						tx0_config.swing			<= wr_data[3:0];
-						tx0_config.precursor[3:0]	<= wr_data[7:4];
-					end
-					REG_BERT_LANE0_TX_1: begin
-						tx0_config.precursor[4]		<= wr_data[0];
-						tx0_config.postcursor		<= wr_data[5:1];
-						tx0_config.enable			<= wr_data[6];
-						tx0_config.invert			<= wr_data[7];
-						serdes_config_updated		<= 1;
-					end
-
 					REG_BERT_LANE0_WD:		mgmt_wdata[7:0]		<= wr_data;
 					REG_BERT_LANE0_WD_1:	mgmt_wdata[15:8]	<= wr_data;
 					REG_BERT_LANE0_AD: 		mgmt_addr[7:0]		<= wr_data;
@@ -510,44 +463,6 @@ module ManagementRegisterInterface(
 
 					end
 
-					REG_BERT_LANE0_CLK: begin
-						tx0_config.clkdiv			<= wr_data[2:0];
-						tx0_config.clk_from_qpll	<= wr_data[3];
-						rx0_config.clkdiv			<= wr_data[6:4];
-						rx0_config.clk_from_qpll	<= wr_data[7];
-						serdes_config_updated		<= 1;
-					end
-
-					REG_BERT_LANE0_RST: begin
-						rx0_config.pmareset			<= wr_data[0];
-						tx0_config.tx_reset			<= wr_data[1];
-						rx0_config.rx_reset			<= wr_data[2];
-						serdes_config_updated		<= 1;
-					end
-
-					REG_BERT_LANE0_RX: begin
-						rx0_config.invert			<= wr_data[0];
-						serdes_config_updated		<= 1;
-					end
-
-					REG_BERT_LANE1_PRBS: begin
-						rx1_config.prbsmode			<= wr_data[2:0];
-						tx1_config.prbsmode			<= wr_data[6:4];
-						serdes_config_updated		<= 1;
-					end
-
-					REG_BERT_LANE1_TX: begin
-						tx1_config.swing			<= wr_data[3:0];
-						tx1_config.precursor[3:0]	<= wr_data[7:4];
-					end
-					REG_BERT_LANE1_TX_1: begin
-						tx1_config.precursor[4]		<= wr_data[0];
-						tx1_config.postcursor		<= wr_data[5:1];
-						tx1_config.enable			<= wr_data[6];
-						tx1_config.invert			<= wr_data[7];
-						serdes_config_updated		<= 1;
-					end
-
 					REG_BERT_LANE1_WD:		mgmt_wdata[7:0]		<= wr_data;
 					REG_BERT_LANE1_WD_1:	mgmt_wdata[15:8]	<= wr_data;
 					REG_BERT_LANE1_AD:		mgmt_addr[7:0]		<= wr_data;
@@ -555,26 +470,6 @@ module ManagementRegisterInterface(
 						mgmt_lane1_en				<= 1;
 						mgmt_we						<= wr_data[7];
 						mgmt_addr[8]				<= wr_data[0];
-					end
-
-					REG_BERT_LANE1_CLK: begin
-						tx1_config.clkdiv			<= wr_data[2:0];
-						tx1_config.clk_from_qpll	<= wr_data[3];
-						rx1_config.clkdiv			<= wr_data[6:4];
-						rx1_config.clk_from_qpll	<= wr_data[7];
-						serdes_config_updated		<= 1;
-					end
-
-					REG_BERT_LANE1_RST: begin
-						rx1_config.pmareset			<= wr_data[0];
-						tx1_config.tx_reset			<= wr_data[1];
-						rx1_config.rx_reset			<= wr_data[2];
-						serdes_config_updated		<= 1;
-					end
-
-					REG_BERT_LANE1_RX: begin
-						rx1_config.invert			<= wr_data[0];
-						serdes_config_updated		<= 1;
 					end
 
 					REG_EMAC_COMMIT:	txfifo_wr_commit <= 1;

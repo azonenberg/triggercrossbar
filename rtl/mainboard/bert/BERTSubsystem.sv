@@ -60,15 +60,12 @@ module BERTSubsystem(
 	input wire					rx1_p,
 	input wire					rx1_n,
 
+	//Control buses (TODO put bridging internal here)
+	APB.completer 				lane0_apb,
+	APB.completer 				lane1_apb,
+
 	//Control registers (clk_250mhz domain, synchronized internally)
 	input wire					clk_250mhz,
-	input wire					config_updated,			//update strobe
-
-	input wire bert_txconfig_t	tx0_config,
-	input wire bert_txconfig_t	tx1_config,
-
-	input wire bert_rxconfig_t	rx0_config,
-	input wire bert_rxconfig_t	rx1_config,
 
 	input wire					mgmt_lane0_en,
 	input wire					mgmt_lane1_en,
@@ -108,6 +105,34 @@ module BERTSubsystem(
 	BUFH bufh_lane1_tx(.I(lane1_txclk_raw), .O(lane1_txclk));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// APB interface logic for SERDES configuration
+
+	//TODO: refactor synchronizers into these blocks to reduce duplicated code
+
+	wire		lane0_serdes_config_updated;
+	wire		lane1_serdes_config_updated;
+
+	bert_txconfig_t	tx0_config;
+	bert_txconfig_t	tx1_config;
+
+	bert_rxconfig_t	rx0_config;
+	bert_rxconfig_t	rx1_config;
+
+	APB_BertConfig lane0_config(
+		.apb(lane0_apb),
+
+		.tx_config(tx0_config),
+		.rx_config(rx0_config),
+		.config_updated(lane0_serdes_config_updated));
+
+	APB_BertConfig lane1_config(
+		.apb(lane1_apb),
+
+		.tx_config(tx1_config),
+		.rx_config(rx1_config),
+		.config_updated(lane1_serdes_config_updated));
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Synchronizers for control registers
 
 	bert_rxconfig_t		rx0_config_sync;
@@ -136,7 +161,7 @@ module BERTSubsystem(
 		.IN_REG(1)
 	) sync_rx0_config (
 		.clk_a(clk_250mhz),
-		.en_a(config_updated),
+		.en_a(lane0_serdes_config_updated),
 		.ack_a(),
 		.reg_a(rx0_config),
 		.clk_b(lane0_rxclk),
@@ -150,7 +175,7 @@ module BERTSubsystem(
 		.IN_REG(1)
 	) sync_tx0_config (
 		.clk_a(clk_250mhz),
-		.en_a(config_updated),
+		.en_a(lane0_serdes_config_updated),
 		.ack_a(),
 		.reg_a(tx0_config),
 		.clk_b(lane0_txclk),
@@ -164,7 +189,7 @@ module BERTSubsystem(
 		.IN_REG(1)
 	) sync_rx1_config (
 		.clk_a(clk_250mhz),
-		.en_a(config_updated),
+		.en_a(lane1_serdes_config_updated),
 		.ack_a(),
 		.reg_a(rx1_config),
 		.clk_b(lane1_rxclk),
@@ -178,7 +203,7 @@ module BERTSubsystem(
 		.IN_REG(1)
 	) sync_tx1_config (
 		.clk_a(clk_250mhz),
-		.en_a(config_updated),
+		.en_a(lane1_serdes_config_updated),
 		.ack_a(),
 		.reg_a(tx1_config),
 		.clk_b(lane1_txclk),

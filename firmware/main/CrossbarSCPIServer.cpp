@@ -501,26 +501,30 @@ void CrossbarSCPIServer::OnCommand(char* line, TCPTableEntry* socket)
 
 void CrossbarSCPIServer::UpdateClocks(int lane)
 {
-	uint8_t regval = g_bertTxClkDiv[lane] | (g_bertRxClkDiv[lane] << 4);
-	if(g_bertTxClkSelIsQpll[lane])
-		regval |= 0x8;
-	if(g_bertRxClkSelIsQpll[lane])
-		regval |= 0x80;
-
-	//Push to FPGA (need to set/release resets as we do this)
+	//Push to FPGA (need to set/release soft resets as we do this)
 	//TODO: only reset if we changed clock source
-	if(lane == 0)
-	{
-		g_fpga->BlockingWrite8(REG_BERT_LANE0_RST, 0x06);
-		g_fpga->BlockingWrite8(REG_BERT_LANE0_CLK, regval);
-		g_fpga->BlockingWrite8(REG_BERT_LANE0_RST, 0x00);
-	}
-	else
-	{
-		g_fpga->BlockingWrite8(REG_BERT_LANE1_RST, 0x06);
-		g_fpga->BlockingWrite8(REG_BERT_LANE1_CLK, regval);
-		g_fpga->BlockingWrite8(REG_BERT_LANE1_RST, 0x00);
-	}
+	uint32_t base = BASE_BERT_LANE0;
+	if(lane == 1)
+		base = BASE_BERT_LANE1;
+
+	//Hold both lanes in reset
+	g_apbfpga.BlockingWrite16(base + REG_TX_RESET, 1);
+	g_apbfpga.BlockingWrite16(base + REG_RX_RESET, 1);
+
+	//Push new clock divider config
+	uint16_t regval = g_bertTxClkDiv[lane];
+	if(g_bertTxClkSelIsQpll[lane])
+		regval |= 0x8000;
+	g_apbfpga.BlockingWrite16(base + REG_TX_CLK, regval);
+
+	regval = g_bertRxClkDiv[lane];
+	if(g_bertRxClkSelIsQpll[lane])
+		regval |= 0x8000;
+	g_apbfpga.BlockingWrite16(base + REG_RX_CLK, regval);
+
+	//Done, clear resets
+	g_apbfpga.BlockingWrite16(base + REG_TX_RESET, 0);
+	g_apbfpga.BlockingWrite16(base + REG_RX_RESET, 0);
 }
 
 void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, const char* args)
@@ -773,16 +777,15 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 
 		//Figure out if this is the TX or RX lane and update accordingly
 		if(subject[0] == 'T')
+		{
 			g_bertTxPattern[chan] = pattern;
+			UpdateTxLane(chan);
+		}
 		else
+		{
 			g_bertRxPattern[chan] = pattern;
-
-		//Push to hardware
-		uint8_t regval = (g_bertTxPattern[chan] << 4) | g_bertRxPattern[chan];
-		if(chan == 0)
-			g_fpga->BlockingWrite8(REG_BERT_LANE0_PRBS, regval);
-		else
-			g_fpga->BlockingWrite8(REG_BERT_LANE1_PRBS, regval);
+			UpdateRxLane(chan);
+		}
 	}
 
 	else if(!strcmp(command, "CLKDIV"))
@@ -883,8 +886,11 @@ void CrossbarSCPIServer::SerdesPMAReset(uint8_t lane)
 	uint16_t offset = BERT_LANE_STRIDE*lane;
 
 	//Reset the PMA
-	g_fpga->BlockingWrite8(REG_BERT_LANE0_RST + offset, 1);
-	g_fpga->BlockingWrite8(REG_BERT_LANE0_RST + offset, 0);
+	uint32_t base = BASE_BERT_LANE0;
+	if(lane)
+		base = BASE_BERT_LANE1;
+	g_apbfpga.BlockingWrite16(base + REG_RX_RESET, 2);
+	g_apbfpga.BlockingWrite16(base + REG_RX_RESET, 0);
 
 	//Read and throw away a few status values until reset takes effect
 	for(int i=0; i<3; i++)
@@ -1349,30 +1355,36 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 
 void CrossbarSCPIServer::UpdateTxLane(int lane)
 {
-	uint16_t regval = g_bertTxSwing[lane];
-	if(g_bertTxInvert[lane])
-		regval |= 0x8000;
-	if(g_bertTxEnable[lane])
-		regval |= 0x4000;
-	regval |= g_bertTxPostCursor[lane] << 9;
-	regval |= g_bertTxPreCursor[lane] << 4;
+	uint32_t base = BASE_BERT_LANE0;
+	if(lane == 1)
+		base = BASE_BERT_LANE1;
 
-	if(lane == 0)
-		g_fpga->BlockingWrite16(REG_BERT_LANE0_TX, regval);
-	else
-		g_fpga->BlockingWrite16(REG_BERT_LANE1_TX, regval);
+	//TX enable, PRBS pattern, invert
+	uint16_t regval = g_bertTxPattern[lane];
+	if(g_bertTxEnable[lane])
+		regval |= 0x8000;
+	if(g_bertTxInvert[lane])
+		regval |= 0x4000;
+	g_apbfpga.BlockingWrite16(base + REG_TX_CONFIG, regval);
+
+	//TX driver configuration
+	regval = g_bertTxSwing[lane];
+	regval |= (g_bertTxPostCursor[lane] << 4);
+	regval |= (g_bertTxPreCursor[lane] << 9);
+	g_apbfpga.BlockingWrite16(base + REG_TX_DRIVER, regval);
 }
 
 void CrossbarSCPIServer::UpdateRxLane(int lane)
 {
-	uint8_t regval = 0;
-	if(g_bertRxInvert[lane])
-		regval |= 1;
+	uint32_t base = BASE_BERT_LANE0;
+	if(lane == 1)
+		base = BASE_BERT_LANE1;
 
-	if(lane == 0)
-		g_fpga->BlockingWrite16(REG_BERT_LANE0_RX, regval);
-	else
-		g_fpga->BlockingWrite16(REG_BERT_LANE1_RX, regval);
+	//RX enable, PRBS pattern, invert
+	uint16_t regval = g_bertRxPattern[lane];
+	if(g_bertRxInvert[lane])
+		regval |= 0x4000;
+	g_apbfpga.BlockingWrite16(base + REG_RX_CONFIG, regval);
 }
 
 /**

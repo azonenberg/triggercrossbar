@@ -89,7 +89,9 @@ enum baseaddr_t
 	BASE_FRONT_SPI		= 0x0000'0c00,		//APB_SPIHostInterface
 	BASE_IN_LED_GPIO	= 0x0000'1000,		//APB_GPIO
 	BASE_OUT_LED_GPIO	= 0x0000'1400,		//APB_GPIO
-	BASE_MUXSEL			= 0x0000'1800		//APB_CrossbarMatrix
+	BASE_MUXSEL			= 0x0000'1800,		//APB_CrossbarMatrix
+	BASE_BERT_LANE0		= 0x0000'1c00,		//APB_BertConfig
+	BASE_BERT_LANE1		= 0x0000'2000		//APB_BertConfig
 };
 
 enum regid_t
@@ -131,6 +133,15 @@ enum regid_t
 	REG_GPIO_IN			= 0x0004,
 	REG_GPIO_TRIS		= 0x0008,
 
+	//APB_BertConfig
+	REG_TX_CONFIG		= 0x0000,
+	REG_TX_CLK			= 0x0004,
+	REG_TX_RESET		= 0x0008,
+	REG_TX_DRIVER		= 0x000c,
+	REG_RX_CONFIG		= 0x0040,
+	REG_RX_CLK			= 0x0044,
+	REG_RX_RESET		= 0x0048,
+
 	//everything below here is still on the legacy bus
 	//must match regid_t in ManagementRegisterInterface.sv
 	REG_FPGA_IRQSTAT	= 0x0020,
@@ -140,25 +151,15 @@ enum regid_t
 
 	REG_XG0_STAT		= 0x0060,
 
-	REG_BERT_LANE0_PRBS	= 0x0080,
-	REG_BERT_LANE0_TX	= 0x0082,
 	REG_BERT_LANE0_WD	= 0x0084,
 	REG_BERT_LANE0_AD	= 0x0086,
 	REG_BERT_LANE0_RD	= 0x0088,
 	REG_BERT_LANE0_STAT	= 0x008a,
-	REG_BERT_LANE0_CLK	= 0x008c,
-	REG_BERT_LANE0_RST	= 0x008e,
-	REG_BERT_LANE0_RX	= 0x0090,
 
-	REG_BERT_LANE1_PRBS	= 0x00a0,
-	REG_BERT_LANE1_TX	= 0x00a2,
 	REG_BERT_LANE1_WD	= 0x00a4,
 	REG_BERT_LANE1_AD	= 0x00a6,
 	REG_BERT_LANE1_RD	= 0x00a8,
 	REG_BERT_LANE1_STAT	= 0x00aa,
-	REG_BERT_LANE1_CLK	= 0x00ac,
-	REG_BERT_LANE1_RST	= 0x00ae,
-	REG_BERT_LANE1_RX	= 0x00b0,
 
 	REG_EMAC_BUFFER		= 0x1000,
 

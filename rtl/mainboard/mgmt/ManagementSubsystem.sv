@@ -65,6 +65,8 @@ module ManagementSubsystem(
 	APB.requester					mdioBus,
 	APB.requester					relayBus,
 	APB.requester					crossbarBus,
+	APB.requester					bertLane0Bus,
+	APB.requester					bertLane1Bus,
 
 	//Tachometers for fans
 	input wire[1:0]					fan_tach,
@@ -79,11 +81,6 @@ module ManagementSubsystem(
 	input wire[11:0]				trig_in_led,
 	input wire[11:0]				trig_out_led,
 	input wire[3:0]					relay_state,
-	output wire						serdes_config_updated,
-	output bert_txconfig_t			tx0_config,
-	output bert_txconfig_t			tx1_config,
-	output bert_rxconfig_t			rx0_config,
-	output bert_rxconfig_t			rx1_config,
 	output wire						mgmt_lane0_en,
 	output wire						mgmt_lane1_en,
 	output wire						mgmt_we,
@@ -258,7 +255,7 @@ module ManagementSubsystem(
 	// Top level APB interconnect bridge
 
 	localparam DEVICE_ADDR_WIDTH	= 10;
-	localparam NUM_APB_DEVS			= 7;
+	localparam NUM_APB_DEVS			= 9;
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) bridgeDownstreamBus[NUM_APB_DEVS-1:0]();
 
@@ -367,7 +364,15 @@ module ManagementSubsystem(
 
 	//Crossbar mux selectors (0x001_800)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_crossbari( .upstream(bridgeDownstreamBus[6]), .downstream(crossbarBus) );
+		apb_regslice_crossbar( .upstream(bridgeDownstreamBus[6]), .downstream(crossbarBus) );
+
+	//BERT configuration (0x001_c00)
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_bert_lane0( .upstream(bridgeDownstreamBus[7]), .downstream(bertLane0Bus) );
+
+	//BERT configuration (0x002_000)
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_bert_lane1( .upstream(bridgeDownstreamBus[8]), .downstream(bertLane1Bus) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Optionally pipeline read data by one cycle
@@ -428,11 +433,6 @@ module ManagementSubsystem(
 		.xg_txfifo_wr_en(xg_txfifo_wr_en),
 		.xg_txfifo_wr_data(xg_txfifo_wr_data),
 		.xg_txfifo_wr_commit(xg_txfifo_wr_commit),
-		.serdes_config_updated(serdes_config_updated),
-		.rx0_config(rx0_config),
-		.rx1_config(rx1_config),
-		.tx0_config(tx0_config),
-		.tx1_config(tx1_config),
 		.mgmt_lane0_en(mgmt_lane0_en),
 		.mgmt_lane1_en(mgmt_lane1_en),
 		.mgmt_we(mgmt_we),

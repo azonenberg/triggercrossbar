@@ -298,14 +298,6 @@ module top(
 
 	wire[1:0]	cpll_lock;
 
-	wire		serdes_config_updated;
-
-	bert_txconfig_t	tx0_config;
-	bert_txconfig_t	tx1_config;
-
-	bert_rxconfig_t	rx0_config;
-	bert_rxconfig_t	rx1_config;
-
 	wire		mgmt_lane0_en;
 	wire		mgmt_lane1_en;
 	wire		mgmt_we;
@@ -318,6 +310,10 @@ module top(
 
 	wire		mgmt_lane0_rx_rstdone;
 	wire		mgmt_lane1_rx_rstdone;
+
+	localparam DEVICE_ADDR_WIDTH = 10;
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) bertLane0Bus();
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) bertLane1Bus();
 
 	BERTSubsystem bert(
 
@@ -346,12 +342,10 @@ module top(
 
 		.cpll_lock(cpll_lock),
 
+		.lane0_apb(bertLane0Bus),
+		.lane1_apb(bertLane1Bus),
+
 		.clk_250mhz(clk_250mhz),
-		.config_updated(serdes_config_updated),
-		.tx0_config(tx0_config),
-		.tx1_config(tx1_config),
-		.rx0_config(rx0_config),
-		.rx1_config(rx1_config),
 		.mgmt_lane0_en(mgmt_lane0_en),
 		.mgmt_lane1_en(mgmt_lane1_en),
 		.mgmt_we(mgmt_we),
@@ -381,7 +375,6 @@ module top(
 	EthernetTxBus			xg0_mac_tx_bus;
 	wire					xg0_link_up;
 
-	localparam DEVICE_ADDR_WIDTH = 10;
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) mdioBus();
 
 	NetworkInterfaces network(
@@ -549,6 +542,8 @@ module top(
 		.relayBus(relayBus),
 		.mdioBus(mdioBus),
 		.crossbarBus(crossbarBus),
+		.bertLane0Bus(bertLane0Bus),
+		.bertLane1Bus(bertLane1Bus),
 
 		.relay_state(relay_state),
 
@@ -566,11 +561,6 @@ module top(
 		.trig_in_led(trig_in_led),
 		.trig_out_led(trig_out_led),
 
-		.serdes_config_updated(serdes_config_updated),
-		.rx0_config(rx0_config),
-		.rx1_config(rx1_config),
-		.tx0_config(tx0_config),
-		.tx1_config(tx1_config),
 		.mgmt_lane0_en(mgmt_lane0_en),
 		.mgmt_lane1_en(mgmt_lane1_en),
 		.mgmt_we(mgmt_we),
