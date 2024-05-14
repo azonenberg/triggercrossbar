@@ -91,7 +91,8 @@ enum baseaddr_t
 	BASE_OUT_LED_GPIO	= 0x0000'1400,		//APB_GPIO
 	BASE_MUXSEL			= 0x0000'1800,		//APB_CrossbarMatrix
 	BASE_BERT_LANE0		= 0x0000'1c00,		//APB_BertConfig
-	BASE_BERT_LANE1		= 0x0000'2000		//APB_BertConfig
+	BASE_BERT_LANE1		= 0x0000'2000,		//APB_BertConfig
+	BASE_25519			= 0x0000'2400		//APB_Curve25519
 };
 
 enum regid_t
@@ -142,6 +143,17 @@ enum regid_t
 	REG_RX_CLK			= 0x0044,
 	REG_RX_RESET		= 0x0048,
 
+	//APB_Curve25519
+	REG_CRYPT_E			= 0x0000,
+	REG_CRYPT_STATUS	= 0x0020,
+	REG_CRYPT_RD_ADDR	= 0x0024,
+	REG_CRYPT_STATUS2	= 0x0040,
+	REG_CRYPT_WORK		= 0x0060,
+	REG_CRYPT_Q_0		= 0x0080,
+	REG_CRYPT_Q_1		= 0x00a0,
+	REG_CRYPT_BASE_Q_0	= 0x0100,
+	REG_CRYPT_DATA_OUT	= 0x0140,
+
 	//everything below here is still on the legacy bus
 	//must match regid_t in ManagementRegisterInterface.sv
 	REG_FPGA_IRQSTAT	= 0x0020,
@@ -163,21 +175,9 @@ enum regid_t
 
 	REG_EMAC_BUFFER		= 0x1000,
 
-	REG_XG_TX_BUFFER	= 0x2000,
-
-	REG_CRYPT_BASE		= 0x3800,
+	REG_XG_TX_BUFFER	= 0x2000
 };
 
 #define BERT_LANE_STRIDE 0x20
-
-enum cryptreg_t
-{
-	REG_WORK			= 0x0000,
-	REG_E				= 0x0020,
-	REG_CRYPT_STATUS	= 0x0040,
-	REG_WORK_OUT		= 0x0060,
-	REG_DSA_IN			= 0x0080,
-	REG_DSA_BASE		= 0x0100
-};
 
 #endif

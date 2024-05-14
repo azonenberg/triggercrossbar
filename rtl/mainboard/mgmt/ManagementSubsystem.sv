@@ -67,6 +67,7 @@ module ManagementSubsystem(
 	APB.requester					crossbarBus,
 	APB.requester					bertLane0Bus,
 	APB.requester					bertLane1Bus,
+	APB.requester					cryptBus,
 
 	//Tachometers for fans
 	input wire[1:0]					fan_tach,
@@ -91,21 +92,7 @@ module ManagementSubsystem(
 	input wire						mgmt_lane0_done,
 	input wire						mgmt_lane1_done,
 	input wire						mgmt_lane0_rx_rstdone,
-	input wire						mgmt_lane1_rx_rstdone,
-
-	//Configuration registers in crypto clock domain
-	input wire						clk_crypt,
-	output wire						crypt_en,
-	output wire[255:0]				crypt_work_in,
-	output wire[255:0]				crypt_e,
-	input wire						crypt_out_valid,
-	input wire[255:0]				crypt_work_out,
-	output wire						crypt_dsa_en,
-	output wire						crypt_dsa_base_en,
-	output wire						crypt_dsa_load,
-	output wire						crypt_dsa_rd,
-	input wire						crypt_dsa_done,
-	output wire[1:0]				crypt_dsa_addr
+	input wire						mgmt_lane1_rx_rstdone
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -255,7 +242,7 @@ module ManagementSubsystem(
 	// Top level APB interconnect bridge
 
 	localparam DEVICE_ADDR_WIDTH	= 10;
-	localparam NUM_APB_DEVS			= 9;
+	localparam NUM_APB_DEVS			= 10;
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) bridgeDownstreamBus[NUM_APB_DEVS-1:0]();
 
@@ -374,6 +361,10 @@ module ManagementSubsystem(
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_bert_lane1( .upstream(bridgeDownstreamBus[8]), .downstream(bertLane1Bus) );
 
+	//Curve25519 accelerator (0x002_400)
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_crypt( .upstream(bridgeDownstreamBus[9]), .downstream(cryptBus) );
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Optionally pipeline read data by one cycle
 
@@ -447,20 +438,7 @@ module ManagementSubsystem(
 
 		//Control registers (port RX clock domain)
 		.xg0_rx_clk(xg0_rx_clk),
-		.xg0_link_up(xg0_link_up),
-
-		//Crypto control registers (core clock domain)
-		.crypt_en(crypt_en),
-		.crypt_work_in(crypt_work_in),
-		.crypt_e(crypt_e),
-		.crypt_out_valid(crypt_out_valid),
-		.crypt_work_out(crypt_work_out),
-		.crypt_dsa_en(crypt_dsa_en),
-		.crypt_dsa_base_en(crypt_dsa_base_en),
-		.crypt_dsa_load(crypt_dsa_load),
-		.crypt_dsa_rd(crypt_dsa_rd),
-		.crypt_dsa_done(crypt_dsa_done),
-		.crypt_dsa_addr(crypt_dsa_addr)
+		.xg0_link_up(xg0_link_up)
 	);
 
 endmodule

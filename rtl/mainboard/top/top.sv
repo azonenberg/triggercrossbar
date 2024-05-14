@@ -449,40 +449,10 @@ module top(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Curve25519 crypto_scalarmult accelerator (for speeding up SSH key exchange)
 
-	wire		crypt_en;
-	wire[255:0]	crypt_work_in;
-	wire[255:0]	crypt_e;
-	wire		crypt_out_valid;
-	wire[255:0]	crypt_work_out;
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) cryptBus();
 
-	wire		crypt_dsa_en;
-	wire		crypt_dsa_base_en;
-	wire		crypt_dsa_load;
-	wire		crypt_dsa_rd;
-	wire		crypt_dsa_done;
-	wire[1:0]	crypt_dsa_addr;
-
-	X25519_ScalarMult crypt25519(
-		.clk(clk_250mhz),
-
-		//Common inputs
-		.e(crypt_e),
-		.work_in(crypt_work_in),
-
-		//ECDH signals
-		.dh_en(crypt_en),
-
-		//ECDSA signals
-		.dsa_en(crypt_dsa_en),
-		.dsa_base_en(crypt_dsa_base_en),
-		.dsa_load(crypt_dsa_load),
-		.dsa_rd(crypt_dsa_rd),
-		.dsa_done(crypt_dsa_done),
-		.dsa_addr(crypt_dsa_addr),
-
-		//Common outputs
-		.out_valid(crypt_out_valid),
-		.work_out(crypt_work_out)
+	APB_Curve25519 crypt25519(
+		.apb(cryptBus)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -544,6 +514,7 @@ module top(
 		.crossbarBus(crossbarBus),
 		.bertLane0Bus(bertLane0Bus),
 		.bertLane1Bus(bertLane1Bus),
+		.cryptBus(cryptBus),
 
 		.relay_state(relay_state),
 
@@ -571,19 +542,7 @@ module top(
 		.mgmt_lane0_done(mgmt_lane0_done),
 		.mgmt_lane1_done(mgmt_lane1_done),
 		.mgmt_lane0_rx_rstdone(mgmt_lane0_rx_rstdone),
-		.mgmt_lane1_rx_rstdone(mgmt_lane1_rx_rstdone),
-
-		.crypt_en(crypt_en),
-		.crypt_work_in(crypt_work_in),
-		.crypt_work_out(crypt_work_out),
-		.crypt_e(crypt_e),
-		.crypt_out_valid(crypt_out_valid),
-		.crypt_dsa_en(crypt_dsa_en),
-		.crypt_dsa_base_en(crypt_dsa_base_en),
-		.crypt_dsa_load(crypt_dsa_load),
-		.crypt_dsa_rd(crypt_dsa_rd),
-		.crypt_dsa_done(crypt_dsa_done),
-		.crypt_dsa_addr(crypt_dsa_addr)
+		.mgmt_lane1_rx_rstdone(mgmt_lane1_rx_rstdone)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

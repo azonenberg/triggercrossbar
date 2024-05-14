@@ -51,18 +51,37 @@ DeviceCryptoEngine::~DeviceCryptoEngine()
 {
 }
 
+void DeviceCryptoEngine::BlockUntilAcceleratorDone()
+{
+	uint16_t status = 1;
+	while(status != 0)
+		status = g_apbfpga.BlockingRead16(BASE_25519 + REG_CRYPT_STATUS);
+}
+
+/**
+	@brief Debug utility for printing a key to the console
+ */
+void DeviceCryptoEngine::PrintBlock(const char* keyname, const uint8_t* key)
+{
+	g_cliUART.Printf("%20s = %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
+		"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		keyname,
+		key[31], key[30], key[29], key[28], key[27], key[26], key[25], key[24],
+		key[23], key[22], key[21], key[20], key[19], key[18], key[17], key[16],
+		key[15], key[14], key[13], key[12], key[11], key[10], key[9], key[8],
+		key[7], key[6], key[5], key[4], key[3], key[2], key[1], key[0]);
+}
+
 void DeviceCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clientPublicKey)
 {
 	#ifdef CRYPTO_PROFILE
 	auto t1 = g_logTimer->GetCount();
 	#endif
 
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_WORK, clientPublicKey, ECDH_KEY_SIZE);
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_E, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
-	uint8_t status = 1;
-	while(status != 0)
-		status = g_fpga->BlockingRead8(REG_CRYPT_BASE + REG_CRYPT_STATUS);
-	g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, sharedSecret, ECDH_KEY_SIZE);
+	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
+	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_WORK, clientPublicKey, ECDH_KEY_SIZE);
+	BlockUntilAcceleratorDone();
+	g_apbfpga.BlockingRead(BASE_25519 + REG_CRYPT_DATA_OUT, sharedSecret, ECDH_KEY_SIZE);
 
 	#ifdef CRYPTO_PROFILE
 	auto delta = g_logTimer->GetCount() - t1;
@@ -97,12 +116,10 @@ void DeviceCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
 	};
 
 	//Make the FPGA do the rest of the work
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_WORK, basepoint, ECDH_KEY_SIZE);
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_E, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
-	uint8_t status = 1;
-	while(status != 0)
-		status = g_fpga->BlockingRead8(REG_CRYPT_BASE + REG_CRYPT_STATUS);
-	g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, pub, ECDH_KEY_SIZE);
+	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
+	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_WORK, basepoint, ECDH_KEY_SIZE);
+	BlockUntilAcceleratorDone();
+	g_apbfpga.BlockingRead(BASE_25519 + REG_CRYPT_DATA_OUT, pub, ECDH_KEY_SIZE);
 
 	#ifdef CRYPTO_PROFILE
 	auto delta = g_logTimer->GetCount() - t1;
@@ -157,16 +174,14 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 
 	//Calculate the expected signature
 	//scalarmult(p, q, hash);
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_DSA_IN, qref, ECDSA_KEY_SIZE*2);
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_E, hash, ECDSA_KEY_SIZE);
-	uint8_t status = 1;
-	while(status != 0)
-		status = g_fpga->BlockingRead8(REG_CRYPT_BASE + REG_CRYPT_STATUS);
+	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, hash, ECDSA_KEY_SIZE);
+	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_Q_0, qref, ECDSA_KEY_SIZE*2);
+	BlockUntilAcceleratorDone();
 	uint8_t pfpga[128];
 	for(int block=0; block<4; block++)
 	{
-		g_fpga->BlockingWrite8(REG_CRYPT_BASE + REG_CRYPT_STATUS, block);
-		g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, pfpga + block*32, ECDH_KEY_SIZE);
+		g_apbfpga.BlockingWrite16(BASE_25519 + REG_CRYPT_RD_ADDR, block);
+		g_apbfpga.BlockingRead(BASE_25519 + REG_CRYPT_DATA_OUT, pfpga + block*32, ECDSA_KEY_SIZE);
 	}
 
 	#ifdef CRYPTO_PROFILE
@@ -174,16 +189,14 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 	#endif
 
 	//scalarbase(q, signedMessage + 32);
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_DSA_BASE, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE);
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_E, signedMessage+32, ECDSA_KEY_SIZE);
-	status = 1;
-	while(status != 0)
-		status = g_fpga->BlockingRead8(REG_CRYPT_BASE + REG_CRYPT_STATUS);
+	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, signedMessage+32, ECDSA_KEY_SIZE);
+	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_BASE_Q_0, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE);
+	BlockUntilAcceleratorDone();
 	uint8_t qfpga[128];
 	for(int block=0; block<4; block++)
 	{
-		g_fpga->BlockingWrite8(REG_CRYPT_BASE + REG_CRYPT_STATUS, block);
-		g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, qfpga + block*32, ECDH_KEY_SIZE);
+		g_apbfpga.BlockingWrite16(BASE_25519 + REG_CRYPT_RD_ADDR, block);
+		g_apbfpga.BlockingRead(BASE_25519 + REG_CRYPT_DATA_OUT, qfpga + block*32, ECDSA_KEY_SIZE);
 	}
 
 	#ifdef CRYPTO_PROFILE
@@ -254,16 +267,14 @@ void DeviceCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash
 
 	//Actual signing stuff
 	//scalarbase(p,bufferHash);
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_DSA_BASE, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE);
-	g_fpga->BlockingWrite(REG_CRYPT_BASE + REG_E, bufferHash, ECDSA_KEY_SIZE);
-	uint8_t status = 1;
-	while(status != 0)
-		status = g_fpga->BlockingRead8(REG_CRYPT_BASE + REG_CRYPT_STATUS);
+	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, bufferHash, ECDSA_KEY_SIZE);
+	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_BASE_Q_0, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE);
+	BlockUntilAcceleratorDone();
 	uint8_t pfpga[128];
-	for(int block=0; block<3; block++)
+	for(int block=0; block<4; block++)
 	{
-		g_fpga->BlockingWrite8(REG_CRYPT_BASE + REG_CRYPT_STATUS, block);
-		g_fpga->BlockingRead(REG_CRYPT_BASE + REG_WORK_OUT, pfpga + block*32, ECDH_KEY_SIZE);
+		g_apbfpga.BlockingWrite16(BASE_25519 + REG_CRYPT_RD_ADDR, block);
+		g_apbfpga.BlockingRead(BASE_25519 + REG_CRYPT_DATA_OUT, pfpga + block*32, ECDSA_KEY_SIZE);
 	}
 
 	//Unpack and repack the result and save in q

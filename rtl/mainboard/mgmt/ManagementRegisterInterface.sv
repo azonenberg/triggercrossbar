@@ -86,62 +86,11 @@ module ManagementRegisterInterface(
 	input wire						mgmt_lane0_done,
 	input wire						mgmt_lane1_done,
 	input wire						mgmt_lane0_rx_rstdone,
-	input wire						mgmt_lane1_rx_rstdone,
-
-	//Configuration registers for crypto IP
-	output logic					crypt_en = 0,
-	output logic[255:0]				crypt_work_in = 0,
-	output logic[255:0]				crypt_e = 0,
-	input wire						crypt_out_valid,
-	input wire[255:0]				crypt_work_out,
-	output logic					crypt_dsa_en = 0,
-	output logic					crypt_dsa_base_en = 0,
-	output logic					crypt_dsa_load = 0,
-	output logic					crypt_dsa_rd = 0,
-	input wire						crypt_dsa_done,
-	output logic[1:0]				crypt_dsa_addr = 0
+	input wire						mgmt_lane1_rx_rstdone
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Synchronizers for crypto stuff
-
-	logic			crypt_in_updated	= 0;
-
-	typedef enum logic[2:0]
-	{
-		CRYPT_DH,			//writing work/e for DH
-		CRYPT_DSA_LOWREG,	//writing dsa_in0-3
-		CRYPT_DSA_FINAL,	//writing e for DSA
-		CRYPT_DSA_RD,		//reading output
-		CRYPT_DSA_BASE,		//writing dsa_in0-1 for scalarbase
-		CRYPT_DSA_BASEFIN	//writing e for DSA scalarbase
-	} crypt_mode_t;
-
-	crypt_mode_t crypt_mode = CRYPT_DH;
-
-	//Decode crypto register modes
-	always_ff @(posedge clk) begin
-
-		crypt_en			<= 0;
-		crypt_dsa_en		<= 0;
-		crypt_dsa_load		<= 0;
-		crypt_dsa_rd		<= 0;
-		crypt_dsa_base_en	<= 0;
-
-		if(crypt_in_updated) begin
-
-			case(crypt_mode)
-				CRYPT_DH:			crypt_en 			<= 1;
-				CRYPT_DSA_LOWREG:	crypt_dsa_load		<= 1;
-				CRYPT_DSA_BASE:		crypt_dsa_load		<= 1;
-				CRYPT_DSA_FINAL: 	crypt_dsa_en		<= 1;
-				CRYPT_DSA_RD:		crypt_dsa_rd		<= 1;
-				CRYPT_DSA_BASEFIN: 	crypt_dsa_base_en	<= 1;
-			endcase
-
-		end
-
-	end
+	// Synchronizers for status signals
 
 	wire	xg0_link_up_sync;
 
@@ -206,30 +155,15 @@ module ManagementRegisterInterface(
 		REG_XG_TX_BUFFER_LO	= 16'h2000,
 		REG_XG_TX_BUFFER_HI	= 16'h2fff,
 
-		//Crypto accelerator
-		REG_CRYPT_BASE		= 16'h3800,
-
 		//helper just so we can use commas to separate list items
 		REG_LAST
 
 	} regid_t;
 
-	//Register offsets within crypto block
-	typedef enum logic[15:0]
-	{
-		REG_WORK			= 16'h0000,
-		REG_E				= 16'h0020,
-		REG_CRYPT_STATUS	= 16'h0040,
-		REG_WORK_OUT		= 16'h0060,
-		REG_DSA_IN			= 16'h0080,
-		REG_DSA_BASE		= 16'h0100
-	} cryptoff_t;
-
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Address decoding and muxing logic
 
 	logic 					reading					= 0;
-	logic					crypto_active			= 0;
 
 	logic[1:0]				drp_busy	= 0;
 
@@ -242,7 +176,6 @@ module ManagementRegisterInterface(
 
 		//Clear single cycle flags
 		rd_valid				<= 0;
-		crypt_in_updated		<= 0;
 		rxfifo_rd_en			<= 0;
 		rxheader_rd_en			<= 0;
 		rxfifo_rd_pop_single	<= 0;
@@ -256,10 +189,6 @@ module ManagementRegisterInterface(
 		//Start a new read
 		if(rd_en)
 			reading	<= 1;
-
-		//Finish a crypto operation
-		if(crypt_out_valid || crypt_dsa_done)
-			crypto_active		<= 0;
 
 		//Set interrupt line if something's changed
 		if(!rxheader_rd_empty)
@@ -293,23 +222,9 @@ module ManagementRegisterInterface(
 			rd_valid	<= 1;
 			reading		<= 0;
 
-			//Crypto registers are decoded separately
-			if(rd_addr >= REG_CRYPT_BASE) begin
-
-				if(rd_addr[7:0] == REG_CRYPT_STATUS)
-					rd_data	<= {7'b0, crypto_active};
-				else if(rd_addr[7:0] >= REG_WORK_OUT)
-					rd_data <= crypt_work_out[rd_addr[4:0]*8 +: 8];
-
-				//unmapped address
-				else
-					rd_data	<= 0;
-
-			end
-
 			//Ethernet MAC
 			//Read data without any endianness swapping, since it's logically an array of bytes
-			else if(rd_addr >= REG_EMAC_BUFFER_LO) begin
+			if(rd_addr >= REG_EMAC_BUFFER_LO) begin
 
 				case(rd_addr[1:0])
 					0: rd_data					<= rxfifo_rd_data[31:24];
@@ -373,72 +288,8 @@ module ManagementRegisterInterface(
 		//Execute a write
 		if(wr_en) begin
 
-			//Crypto accelerator registers are decoded separately
-			if(wr_addr >= REG_CRYPT_BASE) begin
-
-				if(wr_addr[8:0] >= REG_DSA_BASE) begin
-					crypt_mode							<= CRYPT_DSA_BASE;
-					crypt_dsa_addr						<= wr_addr[6:5];
-					crypt_work_in[wr_addr[4:0]*8 +: 8]	<= wr_data;
-
-					//Push the write onto the bus every 32 bytes
-					if(wr_addr[4:0] == 5'h1f) begin
-						crypt_in_updated				<= 1;
-						//if(wr_addr[6:5] == 1)
-							crypto_active				<= 1;
-					end
-
-				end
-
-				//DSA input
-				else if(wr_addr[8:0] >= REG_DSA_IN) begin
-					crypt_mode								<= CRYPT_DSA_LOWREG;
-					crypt_dsa_addr							<= wr_addr[6:5];
-					crypt_work_in[wr_addr[4:0]*8 +: 8]		<= wr_data;
-
-					//Push the write onto the bus every 32 bytes
-					if(wr_addr[4:0] == 5'h1f) begin
-						crypt_in_updated					<= 1;
-						if(wr_addr[6:5] == 1)
-							crypto_active					<= 1;
-					end
-
-				end
-
-				//write to status to read from the output buffer
-				else if(wr_addr[8:0] == REG_CRYPT_STATUS) begin
-					crypt_mode			<= CRYPT_DSA_RD;
-					crypt_dsa_addr		<= wr_data[1:0];
-					crypt_in_updated	<= 1;
-				end
-
-				//E register
-				else if(wr_addr[8:0] >= REG_E) begin
-
-					if(crypt_mode == CRYPT_DSA_LOWREG)
-						crypt_mode						<= CRYPT_DSA_FINAL;
-					else if(crypt_mode == CRYPT_DSA_BASE)
-						crypt_mode						<= CRYPT_DSA_BASEFIN;
-
-					crypt_e[wr_addr[4:0]*8 +: 8]		<= wr_data;
-
-					if(wr_addr[4:0] == 5'h1f) begin
-						crypt_in_updated				<= 1;
-						crypto_active					<= 1;
-					end
-
-				end
-
-				//work_in register
-				else if(wr_addr[8:0] >= REG_WORK) begin
-					crypt_mode								<= CRYPT_DH;
-					crypt_work_in[wr_addr[4:0]*8 +: 8]		<= wr_data;
-				end
-
-			end
-
 			//Ethernet MAC
-			else if(wr_addr >= REG_XG_TX_BUFFER_LO) begin
+			if(wr_addr >= REG_XG_TX_BUFFER_LO) begin
 				xg_txfifo_wr_en	<= 1;
 				xg_txfifo_wr_data	<= wr_data;
 			end

@@ -275,7 +275,7 @@ set_clock_groups -asynchronous -group [get_clocks network/xg_transceiver/inst/sf
 # Floorplanning
 
 create_pblock pblock_crypt25519
-add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519]]
+add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519 mgmt/apb_regslice_crypt]]
 resize_pblock [get_pblocks pblock_crypt25519] -add {SLICE_X0Y0:SLICE_X53Y49}
 resize_pblock [get_pblocks pblock_crypt25519] -add {DSP48_X0Y0:DSP48_X2Y19}
 resize_pblock [get_pblocks pblock_crypt25519] -add {RAMB18_X0Y0:RAMB18_X2Y19}
@@ -307,7 +307,7 @@ resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB36_X0Y30:RAMB36_X0Y34}
 set_property IS_SOFT FALSE [get_pblocks pblock_port_mgmt0]
 
 create_pblock pblock_qspi
-add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/tach0 mgmt/tach1]]
+add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/iface mgmt/tach0 mgmt/tach1 relays]]
 resize_pblock [get_pblocks pblock_qspi] -add {SLICE_X0Y50:SLICE_X19Y99}
 resize_pblock [get_pblocks pblock_qspi] -add {DSP48_X0Y20:DSP48_X0Y39}
 resize_pblock [get_pblocks pblock_qspi] -add {RAMB18_X0Y20:RAMB18_X0Y39}
@@ -354,6 +354,8 @@ resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {DSP48_X2Y60:DSP48_X2
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB18_X2Y60:RAMB18_X2Y73}
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB36_X2Y30:RAMB36_X2Y36}
 set_property IS_SOFT FALSE [get_pblocks pblock_cdtrtrig_gearboxes]
+
+
 
 
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]

@@ -45,6 +45,10 @@ public:
 	virtual void SharedSecret(uint8_t* sharedSecret, uint8_t* clientPublicKey) override;
 	virtual bool VerifySignature(uint8_t* signedMessage, uint32_t lengthIncludingSignature, uint8_t* publicKey) override;
 	virtual void SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash) override;
+
+protected:
+	void BlockUntilAcceleratorDone();
+	void PrintBlock(const char* keyname, const uint8_t* key);
 };
 
 #endif

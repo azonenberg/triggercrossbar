@@ -218,15 +218,21 @@ module ManagementBridge(
 	assign apb.pprot = 0;
 	assign apb.pstrb = 2'b11;
 
-	logic		apb_psel_ff		= 0;
-	logic		apb_pwrite_ff	= 0;
-	logic[7:0]	apb_pwdata_lo	= 0;
+	logic						apb_psel_ff		= 0;
+	logic						apb_pwrite_ff	= 0;
+	logic[7:0]					apb_pwdata_lo	= 0;
+	logic[apb.DATA_WIDTH-1:0]	apb_pwdata_ff	= 0;
 
 	always_comb begin
 
 		//Default to not writing and pushing registered state
 		apb.psel	= apb_psel_ff;
-		apb.paddr	= rd_addr;
+
+		if(opcode == OP_APB_READ)
+			apb.paddr	= rd_addr;
+		else
+			apb.paddr	= apb_pwdata_ff;
+
 		apb.pwrite	= apb_pwrite_ff;
 
 		//Dispatch APB reads on even address alignment
@@ -258,8 +264,10 @@ module ManagementBridge(
 			apb_psel_ff	<= 0;
 
 		//Save low half of write data
-		if(wr_en_raw && (wr_addr[0] == 0) )
+		if(wr_en_raw && (wr_addr[0] == 0) )  begin
 			apb_pwdata_lo	<= wr_data;
+			apb_pwdata_ff	<= wr_addr;
+		end
 
 		//Save high half of read data
 		if(apb.pready && !apb.pwrite)

@@ -56,7 +56,7 @@ module APB_BertConfig(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Register map
 
-	//All resets are set/clear flags
+	//All resets are set/clear flags, not self clearing
 	typedef enum logic[apb.ADDR_WIDTH-1:0]
 	{
 		REG_TX_CONFIG	= 'h00,			//15 = enable
