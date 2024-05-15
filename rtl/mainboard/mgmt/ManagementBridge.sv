@@ -54,13 +54,13 @@ module ManagementBridge(
 	// Bus to ManagementRegisterInterface
 
 	output logic		rd_en,
-	output logic[15:0]	rd_addr	= 0,
+	output logic[23:0]	rd_addr	= 0,
 
 	input wire			rd_valid,
 	input wire[7:0]		rd_data,
 
 	output logic		wr_en,
-	output logic[15:0]	wr_addr	= 0,
+	output logic[23:0]	wr_addr	= 0,
 	output wire[7:0]	wr_data,
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -162,8 +162,8 @@ module ManagementBridge(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Address counting
 
-	logic[15:0]	rd_addr_ff	= 0;
-	logic[15:0]	wr_addr_ff	= 0;
+	logic[23:0]	rd_addr_ff	= 0;
+	logic[23:0]	wr_addr_ff	= 0;
 	logic		first		= 0;
 
 	always_comb begin
@@ -180,8 +180,8 @@ module ManagementBridge(
 
 		//Start a new transaction
 		if(insn_valid) begin
-			rd_addr		= {1'b0, addr[14:0]};
-			wr_addr		= {1'b0, addr[14:0]};
+			rd_addr		= addr;
+			wr_addr		= addr;
 		end
 
 	end

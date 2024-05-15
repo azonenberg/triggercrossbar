@@ -95,6 +95,9 @@ module ManagementSubsystem(
 	input wire						mgmt_lane1_rx_rstdone
 );
 
+	localparam SMOL_ADDR_WIDTH 		= 10;
+	localparam BIG_ADDR_WIDTH		= 12;
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tachometer
 
@@ -173,7 +176,7 @@ module ManagementSubsystem(
 		.tx_bus(mgmt0_tx_bus)
 	);
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) xgTxBus();
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) xgTxBus();
 
 	Management10GTxFifo xg_tx_fifo(
 		.apb(xgTxBus),
@@ -235,27 +238,57 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Top level APB interconnect bridge
 
-	localparam DEVICE_ADDR_WIDTH	= 11;
-	localparam NUM_APB_DEVS			= 11;
-
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) bridgeDownstreamBus[NUM_APB_DEVS-1:0]();
+	//Allocate 0x8000 bytes of address space to each half of the root
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(15), .USER_WIDTH(0)) rootDownstreamBus[1:0]();
 
 	APBBridge #(
-		.BASE_ADDR(24'h000_000),
-		.BLOCK_SIZE(32'h800),
-		.NUM_PORTS(NUM_APB_DEVS)
-	) apb_bridge (
+		.BASE_ADDR(24'h00_0000),
+		.BLOCK_SIZE(24'h00_8000),
+		.NUM_PORTS(2)
+	) apb_bridge_root (
 		.upstream(bridgeUpstreamBus),
-		.downstream(bridgeDownstreamBus)
+		.downstream(rootDownstreamBus)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// System health + information (0x000_000)
+	// Second level bridge for devices with smaller amounts of address space (starts at 0x00_0000)
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) sysinfoBus();
+	localparam NUM_SMOL_DEVS		= 10;
+
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) smolDownstreamBus[NUM_SMOL_DEVS-1:0]();
+
+	APBBridge #(
+		.BASE_ADDR(24'h000_0000),
+		.BLOCK_SIZE(32'h400),
+		.NUM_PORTS(NUM_SMOL_DEVS)
+	) apb_bridge_smol (
+		.upstream(rootDownstreamBus[0]),
+		.downstream(smolDownstreamBus)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Second level bridge for devices with larger amounts of address space (starts at 0x00_8000)
+
+	localparam NUM_BIG_DEVS			= 2;
+
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) bigDownstreamBus[NUM_BIG_DEVS-1:0]();
+
+	APBBridge #(
+		.BASE_ADDR(24'h000_0000),
+		.BLOCK_SIZE(32'h1000),
+		.NUM_PORTS(NUM_BIG_DEVS)
+	) apb_bridge_big (
+		.upstream(rootDownstreamBus[1]),
+		.downstream(bigDownstreamBus)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// System health + information (0x00_0000)
+
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) sysinfoBus();
 
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_sysinfo( .upstream(bridgeDownstreamBus[0]), .downstream(sysinfoBus) );
+		apb_regslice_sysinfo( .upstream(smolDownstreamBus[0]), .downstream(sysinfoBus) );
 
 	APB_SystemInfo sysinfo(
 		.apb(sysinfoBus),
@@ -269,10 +302,10 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//Front panel LED indicator state
 
-	//Virtual GPIO bank 0 (input LEDs, 0x002_000)
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) ledBus0();
+	//Virtual GPIO bank 0 (input LEDs, 0x00_0400)
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) ledBus0();
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_gpio_0( .upstream(bridgeDownstreamBus[4]), .downstream(ledBus0) );
+		apb_regslice_gpio_0( .upstream(smolDownstreamBus[1]), .downstream(ledBus0) );
 
 	logic[11:0]	 trig_in_led_flipped;
 	APB_GPIO #(
@@ -292,10 +325,10 @@ module ManagementSubsystem(
 			trig_in_led_flipped[i]	= trig_in_led[11-i];
 	end
 
-	//Virtual GPIO bank 1 (output LEDs, 0x002_800)
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) ledBus1();
+	//Virtual GPIO bank 1 (output LEDs, 0x000_800)
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) ledBus1();
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_gpio_1( .upstream(bridgeDownstreamBus[5]), .downstream(ledBus1) );
+		apb_regslice_gpio_1( .upstream(smolDownstreamBus[2]), .downstream(ledBus1) );
 
 	logic[11:0]	trig_out_led_gated;
 	APB_GPIO #(
@@ -317,7 +350,7 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Front panel SPI interface
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) frontSpiBus();
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) frontSpiBus();
 
 	APB_SPIHostInterface iface(
 		.apb(frontSpiBus),
@@ -329,39 +362,42 @@ module ManagementSubsystem(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Pipeline registers for external APB endpoints
+	// Pipeline registers for external APB endpoints with small address space chunks
 
-	//MDIO (0x000_800)
+	//MDIO (0x00_0c00)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_mdio( .upstream(bridgeDownstreamBus[1]), .downstream(mdioBus) );
+		apb_regslice_mdio( .upstream(smolDownstreamBus[3]), .downstream(mdioBus) );
 
-	//Relay controller (0x001_000)
+	//Relay controller (0x00_1000)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_relay( .upstream(bridgeDownstreamBus[2]), .downstream(relayBus) );
+		apb_regslice_relay( .upstream(smolDownstreamBus[4]), .downstream(relayBus) );
 
-	//SPI controller (0x001_800)
+	//SPI controller (0x00_1400)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_frontspi( .upstream(bridgeDownstreamBus[3]), .downstream(frontSpiBus) );
+		apb_regslice_frontspi( .upstream(smolDownstreamBus[5]), .downstream(frontSpiBus) );
 
-	//Crossbar mux selectors (0x003_000)
+	//Crossbar mux selectors (0x00_1800)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_crossbar( .upstream(bridgeDownstreamBus[6]), .downstream(crossbarBus) );
+		apb_regslice_crossbar( .upstream(smolDownstreamBus[6]), .downstream(crossbarBus) );
 
-	//BERT configuration (0x003_800)
+	//Curve25519 accelerator (0x00_1c00)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_bert_lane0( .upstream(bridgeDownstreamBus[7]), .downstream(bertLane0Bus) );
+		apb_regslice_crypt( .upstream(smolDownstreamBus[7]), .downstream(cryptBus) );
 
-	//BERT configuration (0x004_000)
+	//BERT configuration (0x00_2000)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_bert_lane1( .upstream(bridgeDownstreamBus[8]), .downstream(bertLane1Bus) );
+		apb_regslice_bert_lane0( .upstream(smolDownstreamBus[8]), .downstream(bertLane0Bus) );
 
-	//Curve25519 accelerator (0x004_800)
+	//BERT configuration (0x00_2400)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_crypt( .upstream(bridgeDownstreamBus[9]), .downstream(cryptBus) );
+		apb_regslice_bert_lane1( .upstream(smolDownstreamBus[9]), .downstream(bertLane1Bus) );
 
-	//SFP+ transmit FIFO (0x005_000)
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Pipeline registers for external APB endpoints with large address space chunks
+
+	//SFP+ transmit FIFO (0x00_8000)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_xg_tx( .upstream(bridgeDownstreamBus[10]), .downstream(xgTxBus) );
+		apb_regslice_xg_tx( .upstream(bigDownstreamBus[0]), .downstream(xgTxBus) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Optionally pipeline read data by one cycle

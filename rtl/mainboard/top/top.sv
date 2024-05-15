@@ -311,9 +311,11 @@ module top(
 	wire		mgmt_lane0_rx_rstdone;
 	wire		mgmt_lane1_rx_rstdone;
 
-	localparam DEVICE_ADDR_WIDTH = 10;
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) bertLane0Bus();
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) bertLane1Bus();
+	localparam SMOL_ADDR_WIDTH 		= 10;
+	localparam BIG_ADDR_WIDTH		= 12;
+
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) bertLane0Bus();
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) bertLane1Bus();
 
 	BERTSubsystem bert(
 
@@ -375,7 +377,7 @@ module top(
 	EthernetTxBus			xg0_mac_tx_bus;
 	wire					xg0_link_up;
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) mdioBus();
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) mdioBus();
 
 	NetworkInterfaces network(
 		.clk_125mhz(clk_125mhz),
@@ -449,7 +451,7 @@ module top(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Curve25519 crypto_scalarmult accelerator (for speeding up SSH key exchange)
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) cryptBus();
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) cryptBus();
 
 	APB_Curve25519 crypt25519(
 		.apb(cryptBus)
@@ -458,7 +460,7 @@ module top(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Relays for bidirectional IOs
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) relayBus();
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) relayBus();
 
 	wire[3:0]	relay_state;
 
@@ -477,7 +479,7 @@ module top(
 	wire[11:0]		trig_in_led;
 	wire[11:0]		trig_out_led;
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) crossbarBus();
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) crossbarBus();
 
 	APB_CrossbarMatrix matrix(
 		.apb(crossbarBus),

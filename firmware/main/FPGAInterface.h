@@ -84,16 +84,17 @@ public:
 enum baseaddr_t
 {
 	BASE_SYSINFO		= 0x0000'0000,		//APB_SystemInfo
-	BASE_MDIO			= 0x0000'0800,		//APB_MDIO
+	BASE_IN_LED_GPIO	= 0x0000'0400,		//APB_GPIO
+	BASE_OUT_LED_GPIO	= 0x0000'0800,		//APB_GPIO
+	BASE_MDIO			= 0x0000'0c00,		//APB_MDIO
 	BASE_RELAY			= 0x0000'1000,		//APB_RelayController
-	BASE_FRONT_SPI		= 0x0000'1800,		//APB_SPIHostInterface
-	BASE_IN_LED_GPIO	= 0x0000'2000,		//APB_GPIO
-	BASE_OUT_LED_GPIO	= 0x0000'2800,		//APB_GPIO
-	BASE_MUXSEL			= 0x0000'3000,		//APB_CrossbarMatrix
-	BASE_BERT_LANE0		= 0x0000'3800,		//APB_BertConfig
-	BASE_BERT_LANE1		= 0x0000'4000,		//APB_BertConfig
-	BASE_25519			= 0x0000'4800,		//APB_Curve25519
-	BASE_XG_TX			= 0x0000'5000		//Management10GTxFifo
+	BASE_FRONT_SPI		= 0x0000'1400,		//APB_SPIHostInterface
+	BASE_MUXSEL			= 0x0000'1800,		//APB_CrossbarMatrix
+	BASE_25519			= 0x0000'1c00,		//APB_Curve25519
+	BASE_BERT_LANE0		= 0x0000'2000,		//APB_BertConfig
+	BASE_BERT_LANE1		= 0x0000'2400,		//APB_BertConfig
+
+	BASE_XG_TX			= 0x0000'8000		//Management10GTxFifo
 };
 
 enum regid_t
