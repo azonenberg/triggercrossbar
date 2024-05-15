@@ -71,9 +71,6 @@ module ManagementRegisterInterface(
 	output logic 					txfifo_wr_en = 0,
 	output logic[7:0] 				txfifo_wr_data = 0,
 	output logic	 				txfifo_wr_commit = 0,
-	output logic 					xg_txfifo_wr_en = 0,
-	output logic[7:0] 				xg_txfifo_wr_data = 0,
-	output logic	 				xg_txfifo_wr_commit = 0,
 
 	//still in core clock domain, synchronizer in serdes module
 	output logic					mgmt_lane0_en = 0,
@@ -119,7 +116,6 @@ module ManagementRegisterInterface(
 		REG_EMAC_RXLEN		= 16'h0024,
 		REG_EMAC_RXLEN_1	= 16'h0025,
 		REG_EMAC_COMMIT		= 16'h0028,		//write any value to end the active packet
-		REG_XG_COMMIT		= 16'h002c,		//write any value to end the active packet
 
 		//10G interface
 		REG_XG0_STAT		= 16'h0060,		//0 = link up
@@ -150,11 +146,6 @@ module ManagementRegisterInterface(
 		REG_EMAC_BUFFER_LO	= 16'h1000,
 		REG_EMAC_BUFFER_HI	= 16'h1fff,
 
-		//Ethernet MAC TX frame buffer
-		//Any address in this range will be treated as writing to the end of the buffer
-		REG_XG_TX_BUFFER_LO	= 16'h2000,
-		REG_XG_TX_BUFFER_HI	= 16'h2fff,
-
 		//helper just so we can use commas to separate list items
 		REG_LAST
 
@@ -181,8 +172,6 @@ module ManagementRegisterInterface(
 		rxfifo_rd_pop_single	<= 0;
 		txfifo_wr_en			<= 0;
 		txfifo_wr_commit		<= 0;
-		xg_txfifo_wr_en			<= 0;
-		xg_txfifo_wr_commit		<= 0;
 		mgmt_lane0_en			<= 0;
 		mgmt_lane1_en			<= 0;
 
@@ -289,13 +278,7 @@ module ManagementRegisterInterface(
 		if(wr_en) begin
 
 			//Ethernet MAC
-			if(wr_addr >= REG_XG_TX_BUFFER_LO) begin
-				xg_txfifo_wr_en	<= 1;
-				xg_txfifo_wr_data	<= wr_data;
-			end
-
-			//Ethernet MAC
-			else if(wr_addr >= REG_EMAC_BUFFER_LO) begin
+			if(wr_addr >= REG_EMAC_BUFFER_LO) begin
 				txfifo_wr_en	<= 1;
 				txfifo_wr_data	<= wr_data;
 			end
@@ -324,7 +307,6 @@ module ManagementRegisterInterface(
 					end
 
 					REG_EMAC_COMMIT:	txfifo_wr_commit <= 1;
-					REG_XG_COMMIT:		xg_txfifo_wr_commit <= 1;
 
 				endcase
 

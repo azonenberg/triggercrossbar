@@ -173,16 +173,10 @@ module ManagementSubsystem(
 		.tx_bus(mgmt0_tx_bus)
 	);
 
-	wire		xg_txfifo_wr_en;
-	wire[7:0]	xg_txfifo_wr_data;
-	wire		xg_txfifo_wr_commit;
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) xgTxBus();
 
 	Management10GTxFifo xg_tx_fifo(
-		.sys_clk(sys_clk),
-
-		.wr_en(xg_txfifo_wr_en),
-		.wr_data(xg_txfifo_wr_data),
-		.wr_commit(xg_txfifo_wr_commit),
+		.apb(xgTxBus),
 
 		.tx_clk(xg0_tx_clk),
 		.link_up(xg0_link_up_txclk),
@@ -241,14 +235,14 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Top level APB interconnect bridge
 
-	localparam DEVICE_ADDR_WIDTH	= 10;
-	localparam NUM_APB_DEVS			= 10;
+	localparam DEVICE_ADDR_WIDTH	= 11;
+	localparam NUM_APB_DEVS			= 11;
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) bridgeDownstreamBus[NUM_APB_DEVS-1:0]();
 
 	APBBridge #(
 		.BASE_ADDR(24'h000_000),
-		.BLOCK_SIZE(32'h400),
+		.BLOCK_SIZE(32'h800),
 		.NUM_PORTS(NUM_APB_DEVS)
 	) apb_bridge (
 		.upstream(bridgeUpstreamBus),
@@ -275,7 +269,7 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//Front panel LED indicator state
 
-	//Virtual GPIO bank 0 (input LEDs, 0x001_000)
+	//Virtual GPIO bank 0 (input LEDs, 0x002_000)
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) ledBus0();
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_gpio_0( .upstream(bridgeDownstreamBus[4]), .downstream(ledBus0) );
@@ -298,7 +292,7 @@ module ManagementSubsystem(
 			trig_in_led_flipped[i]	= trig_in_led[11-i];
 	end
 
-	//Virtual GPIO bank 1 (output LEDs, 0x001_400)
+	//Virtual GPIO bank 1 (output LEDs, 0x002_800)
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(DEVICE_ADDR_WIDTH), .USER_WIDTH(0)) ledBus1();
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_gpio_1( .upstream(bridgeDownstreamBus[5]), .downstream(ledBus1) );
@@ -337,33 +331,37 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Pipeline registers for external APB endpoints
 
-	//MDIO (0x000_400)
+	//MDIO (0x000_800)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_mdio( .upstream(bridgeDownstreamBus[1]), .downstream(mdioBus) );
 
-	//Relay controller (0x000_800)
+	//Relay controller (0x001_000)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_relay( .upstream(bridgeDownstreamBus[2]), .downstream(relayBus) );
 
-	//SPI controller (0x000_c00)
+	//SPI controller (0x001_800)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_frontspi( .upstream(bridgeDownstreamBus[3]), .downstream(frontSpiBus) );
 
-	//Crossbar mux selectors (0x001_800)
+	//Crossbar mux selectors (0x003_000)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_crossbar( .upstream(bridgeDownstreamBus[6]), .downstream(crossbarBus) );
 
-	//BERT configuration (0x001_c00)
+	//BERT configuration (0x003_800)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_bert_lane0( .upstream(bridgeDownstreamBus[7]), .downstream(bertLane0Bus) );
 
-	//BERT configuration (0x002_000)
+	//BERT configuration (0x004_000)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_bert_lane1( .upstream(bridgeDownstreamBus[8]), .downstream(bertLane1Bus) );
 
-	//Curve25519 accelerator (0x002_400)
+	//Curve25519 accelerator (0x004_800)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_crypt( .upstream(bridgeDownstreamBus[9]), .downstream(cryptBus) );
+
+	//SFP+ transmit FIFO (0x005_000)
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_xg_tx( .upstream(bridgeDownstreamBus[10]), .downstream(xgTxBus) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Optionally pipeline read data by one cycle
@@ -421,9 +419,6 @@ module ManagementSubsystem(
 		.txfifo_wr_en(txfifo_wr_en),
 		.txfifo_wr_data(txfifo_wr_data),
 		.txfifo_wr_commit(txfifo_wr_commit),
-		.xg_txfifo_wr_en(xg_txfifo_wr_en),
-		.xg_txfifo_wr_data(xg_txfifo_wr_data),
-		.xg_txfifo_wr_commit(xg_txfifo_wr_commit),
 		.mgmt_lane0_en(mgmt_lane0_en),
 		.mgmt_lane1_en(mgmt_lane1_en),
 		.mgmt_we(mgmt_we),

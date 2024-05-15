@@ -76,8 +76,8 @@ void QSPIEthernetInterface::SendTxFrame(EthernetFrame* frame, bool markFree)
 	//Separate TX buffers for 1G (8 bit datapath in FPGA) and 10G (32 bit datapath in FPGA)
 	if(g_sfpLinkUp)
 	{
-		g_fpga->BlockingWrite(REG_XG_TX_BUFFER, frame->RawData(), frame->Length());
-		g_fpga->BlockingWrite8(REG_XG_COMMIT, 0);
+		g_apbfpga.BlockingWrite(BASE_XG_TX + REG_XG_TX_BUF, frame->RawData(), frame->Length());
+		g_apbfpga.BlockingWrite16(BASE_XG_TX + REG_XG_TX_COMMIT, 0);
 	}
 	else
 	{

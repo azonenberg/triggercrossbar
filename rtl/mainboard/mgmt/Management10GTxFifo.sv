@@ -35,13 +35,12 @@ import EthernetBus::*;
 	@file
 	@author Andrew D. Zonenberg
 	@brief FIFO for shifting Ethernet frames from the QSPI clock domain to the management PHY clock domain
+
+	No overflow checks since the incoming QSPI/APB data stream is far too slow to have any chance of overrunning
+	the buffer of the 10G MAC
  */
 module Management10GTxFifo(
-	input wire				sys_clk,
-
-	input wire				wr_en,
-	input wire[7:0]			wr_data,
-	input wire				wr_commit,
+	APB.completer 			apb,
 
 	input wire				tx_clk,
 	input wire				link_up,
@@ -49,74 +48,178 @@ module Management10GTxFifo(
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Deserialize the 8-bit data coming in from the MCU to a 32-bit stream
+	// We only support 16-bit APB, throw synthesis error for anything else
 
-	logic		fifo_wr_en 		= 0;
-	logic[31:0]	fifo_wr_data 	= 0;
-	logic[2:0]	fifo_wr_valid	= 0;
-	logic		fifo_wr_commit	= 0;
+	if(apb.DATA_WIDTH != 16)
+		apb_bus_width_is_invalid();
 
-	logic[10:0]	tx_wr_packetlen = 0;
-	logic[1:0]	bytecount		= 0;
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Register map
 
-	always_ff @(posedge sys_clk) begin
+	typedef enum logic[apb.ADDR_WIDTH-1:0]
+	{
+		REG_STAT	= 'h0000,		//[0] = link up flag
+		REG_COMMIT	= 'h0004,		//Write any value to send the current frame
+		REG_TX_BUF	= 'h0008		//Write any address >= here to write to transmit buffer
+	} regid_t;
 
-		fifo_wr_en		<= 0;
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Synchronizers for status signals
 
-		fifo_wr_commit	<= wr_commit;
+	wire	link_up_sync;
 
-		//Count number of *words* in the FIFO
-		if(fifo_wr_en)
-			tx_wr_packetlen	<= tx_wr_packetlen + 1;
+	ThreeStageSynchronizer sync_xg0_link_up(
+		.clk_in(tx_clk),
+		.din(link_up),
+		.clk_out(apb.pclk),
+		.dout(link_up_sync)
+	);
 
-		//Push frame data 32 bits at a time
-		if(wr_en) begin
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Deserialize the 16-bit data coming in from APB to a 32-bit stream
 
-			bytecount			<= bytecount + 1;
+	logic		fifo_wr_en 			= 0;
+	logic[31:0]	fifo_wr_data 		= 0;
+	logic[2:0]	fifo_wr_valid		= 0;
+	logic		fifo_wr_commit		= 0;
+	logic		fifo_wr_commit_adv	= 0;
 
-			//Full word?
-			if(bytecount == 3) begin
+	logic[10:0]	tx_wr_packetlen		= 0;
+	logic		tx_wr_phase			= 0;
 
-				fifo_wr_valid		<= 4;
-				fifo_wr_en			<= 1;
-				fifo_wr_data[7:0]	<= wr_data;
+	//Combinatorial readback
+	always_comb begin
+
+		apb.pready	= apb.psel && apb.penable;
+		apb.prdata	= 0;
+		apb.pslverr	= 0;
+
+		if(apb.pready) begin
+
+			//write
+			if(apb.pwrite) begin
+
+				//Can't write to status register
+				if(apb.paddr == REG_STAT)
+					apb.pslverr		= 1;
+
+				//everything else is in sequential block
+
 			end
 
-			//Partial word
+			//read
 			else begin
-				fifo_wr_valid		<= fifo_wr_valid + 1;
 
-				case(bytecount)
-					0:	fifo_wr_data[31:24]	<= wr_data;
-					1:	fifo_wr_data[23:16]	<= wr_data;
-					2:	fifo_wr_data[15:8]	<= wr_data;
-					default: begin
-					end
-				endcase
+				//Status register readback
+				if(apb.paddr == REG_STAT)
+					apb.prdata	= { 15'h0, link_up_sync };
+
+				//No other readback allowed (FIFO is write only)
+				else
+					apb.pslverr	= 1;
+
 			end
 
 		end
+	end
 
-		//If committing a partial word, push it as-is
-		//(bump packet length here a cycle early since we're committing next cycle)
-		else if(wr_commit && (bytecount > 0) ) begin
-			fifo_wr_en		<= 1;
-			fifo_wr_valid	<= bytecount;
-			tx_wr_packetlen	<= tx_wr_packetlen + 1;
+	always_ff @(posedge apb.pclk or negedge apb.preset_n) begin
 
-			//Clear low bytes of the word to zero
-			case(bytecount)
-				1:	fifo_wr_data[23:0]	<= 0;
-				2:	fifo_wr_data[15:0]	<= 0;
-				3:	fifo_wr_data[7:0]	<= 0;
-			endcase
+		//Reset
+		if(!apb.preset_n) begin
+			fifo_wr_en			<= 0;
+			fifo_wr_data		<= 0;
+			fifo_wr_valid		<= 0;
+			fifo_wr_commit		<= 0;
+			fifo_wr_commit_adv	<= 0;
+			tx_wr_packetlen		<= 0;
+			tx_wr_phase			<= 0;
 		end
 
-		//Reset length when pushing packet
-		if(fifo_wr_commit) begin
-			tx_wr_packetlen	<= 0;
-			fifo_wr_valid	<= 0;
-			bytecount		<= 0;
+		//Normal path
+		else begin
+
+			fifo_wr_en			<= 0;
+			fifo_wr_commit_adv	<= 0;
+			fifo_wr_commit		<= fifo_wr_commit_adv;
+
+			//Increment word count as we push
+			if(fifo_wr_en)
+				tx_wr_packetlen	<= tx_wr_packetlen + 1;
+
+			//Reset state after a push completes
+			if(fifo_wr_commit) begin
+				tx_wr_packetlen	<= 0;
+				fifo_wr_valid	<= 0;
+				tx_wr_phase		<= 0;
+			end
+
+			if(apb.pready && apb.pwrite) begin
+
+				//Commit an in-progress packet
+				if(apb.paddr == REG_COMMIT) begin
+
+					fifo_wr_commit_adv	<= 1;
+
+					//If committing a half word, push it as-is
+					//(bump packet length here a cycle early since we're committing next cycle)
+					if(tx_wr_phase) begin
+						fifo_wr_en			<= 1;
+						fifo_wr_valid		<= 2;
+						fifo_wr_data[15:0]	<= 0;
+						tx_wr_packetlen		<= tx_wr_packetlen + 1;
+					end
+
+				end
+
+				//Write to the transmit buffer
+				else if(apb.paddr >= REG_TX_BUF) begin
+
+					//Even numbered address: high half of word
+					if(apb.paddr[1:0] == 0) begin
+
+						//Is this a partial write (half width)?
+						//If so, write only the LSB and push the word
+						//(we don't support byte writes except for the last in a packet)
+						if(apb.pstrb[1] == 0) begin
+							fifo_wr_en		<= 1;
+							fifo_wr_valid	<= 1;
+							fifo_wr_data	<= { apb.pwdata[7:0], 24'h0 };
+						end
+
+						//No, normal - write the half-word into the TX buffer
+						else begin
+							fifo_wr_data	<= { apb.pwdata[7:0], apb.pwdata[15:8], 16'h0 };
+							tx_wr_phase		<= 1;
+						end
+
+					end
+
+					//Odd numbered address: low half of word
+					else begin
+
+						//Either way, we're pushing the data into the FIFO
+						tx_wr_phase		<= 0;
+						fifo_wr_en		<= 1;
+
+						//Partial write?
+						if(apb.pstrb[1] == 0) begin
+							fifo_wr_valid	<= 3;
+							fifo_wr_data	<= { fifo_wr_data[31:16], apb.pwdata[7:0], 8'h0 };
+						end
+
+						//Full write
+						else begin
+							fifo_wr_valid	<= 4;
+							fifo_wr_data	<= { fifo_wr_data[31:16], apb.pwdata[7:0], apb.pwdata[15:8] };
+						end
+
+					end
+
+				end
+
+			end
+
 		end
 
 	end
@@ -125,7 +228,7 @@ module Management10GTxFifo(
 	// The actual FIFOs
 
 	//For now, no checks for overflow
-	//Assume we're popping (at 10G speed) faster than we can possibly push from STM32 over SPI
+	//Assume we're popping (at 10G speed) faster than we can possibly push from STM32 over QSPI
 
 	logic		rd_reset = 0;
 	always_ff @(posedge tx_clk) begin
@@ -140,7 +243,7 @@ module Management10GTxFifo(
 	EthernetTxBus	tx_bus_adv;
 
 	ThreeStageSynchronizer sync_fifo_rst(
-		.clk_in(sys_clk),
+		.clk_in(apb.pclk),
 		.din(rd_reset),
 		.clk_out(tx_clk),
 		.dout(wr_reset)
@@ -151,7 +254,7 @@ module Management10GTxFifo(
 		.USE_BLOCK(1),
 		.OUT_REG(1)
 	) tx_cdc_fifo (
-		.wr_clk(sys_clk),
+		.wr_clk(apb.pclk),
 		.wr_en(fifo_wr_en),
 		.wr_data({fifo_wr_data, fifo_wr_valid}),
 		.wr_size(),
@@ -178,7 +281,7 @@ module Management10GTxFifo(
 		.USE_BLOCK(0),
 		.OUT_REG(1)
 	) tx_framelen_fifo (
-		.wr_clk(sys_clk),
+		.wr_clk(apb.pclk),
 		.wr_en(fifo_wr_commit),
 		.wr_data(tx_wr_packetlen),
 		.wr_size(),

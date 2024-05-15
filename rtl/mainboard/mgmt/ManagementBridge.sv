@@ -121,6 +121,8 @@ module ManagementBridge(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// QSPI interface
 
+	wire	stop;
+
 	typedef enum logic[7:0]
 	{
 		OP_LEGACY_READ		= 8'h20,
@@ -140,6 +142,7 @@ module ManagementBridge(
 		.dq(qspi_dq),
 
 		.start(start),
+		.stop(stop),
 		.insn_valid(insn_valid),
 		.insn({opcode, addr}),
 		.wr_valid(wr_en_raw),
@@ -216,14 +219,17 @@ module ManagementBridge(
 	assign apb.preset_n = 1;
 	assign apb.pwakeup = 0;
 	assign apb.pprot = 0;
-	assign apb.pstrb = 2'b11;
 
-	logic						apb_psel_ff		= 0;
-	logic						apb_pwrite_ff	= 0;
-	logic[7:0]					apb_pwdata_lo	= 0;
-	logic[apb.DATA_WIDTH-1:0]	apb_pwdata_ff	= 0;
+	logic						apb_psel_ff				= 0;
+	logic						apb_pwrite_ff			= 0;
+	logic[7:0]					apb_pwdata_lo			= 0;
+	logic[apb.DATA_WIDTH-1:0]	apb_paddr_ff			= 0;
+	logic						apb_write_half_valid	= 0;
 
 	always_comb begin
+
+		//Default to all write data being valid
+		apb.pstrb	= 2'b11;
 
 		//Default to not writing and pushing registered state
 		apb.psel	= apb_psel_ff;
@@ -231,7 +237,7 @@ module ManagementBridge(
 		if(opcode == OP_APB_READ)
 			apb.paddr	= rd_addr;
 		else
-			apb.paddr	= apb_pwdata_ff;
+			apb.paddr	= apb_paddr_ff;
 
 		apb.pwrite	= apb_pwrite_ff;
 
@@ -246,6 +252,14 @@ module ManagementBridge(
 			apb.psel	= 1;
 			apb.pwrite	= 1;
 			apb.pwdata	= { wr_data, apb_pwdata_lo };
+		end
+
+		//If a write is in progress (even alignment) send a partial-width write
+		if(stop && apb_write_half_valid) begin
+			apb.psel	= 1;
+			apb.pwrite	= 1;
+			apb.pwdata	= { 8'h00, apb_pwdata_lo };
+			apb.pstrb	= 2'b01;
 		end
 
 		//enable one cycle after select
@@ -263,10 +277,15 @@ module ManagementBridge(
 		if(apb.pready)
 			apb_psel_ff	<= 0;
 
+		//clear write-pending flag when write commits
+		if(apb.pready && apb.pwrite)
+			apb_write_half_valid	<= 0;
+
 		//Save low half of write data
 		if(wr_en_raw && (wr_addr[0] == 0) )  begin
-			apb_pwdata_lo	<= wr_data;
-			apb_pwdata_ff	<= wr_addr;
+			apb_pwdata_lo			<= wr_data;
+			apb_paddr_ff			<= wr_addr;
+			apb_write_half_valid	<= 1;
 		end
 
 		//Save high half of read data
