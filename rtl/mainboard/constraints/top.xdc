@@ -276,10 +276,7 @@ set_clock_groups -asynchronous -group [get_clocks network/xg_transceiver/inst/sf
 
 create_pblock pblock_crypt25519
 add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519 mgmt/apb_regslice_crypt]]
-resize_pblock [get_pblocks pblock_crypt25519] -add {SLICE_X0Y0:SLICE_X53Y49}
-resize_pblock [get_pblocks pblock_crypt25519] -add {DSP48_X0Y0:DSP48_X2Y19}
-resize_pblock [get_pblocks pblock_crypt25519] -add {RAMB18_X0Y0:RAMB18_X2Y19}
-resize_pblock [get_pblocks pblock_crypt25519] -add {RAMB36_X0Y0:RAMB36_X2Y9}
+resize_pblock [get_pblocks pblock_crypt25519] -add {CLOCKREGION_X0Y0:CLOCKREGION_X1Y0}
 set_property IS_SOFT FALSE [get_pblocks pblock_crypt25519]
 
 create_pblock pblock_port_xg0
@@ -354,6 +351,7 @@ resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {DSP48_X2Y60:DSP48_X2
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB18_X2Y60:RAMB18_X2Y73}
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB36_X2Y30:RAMB36_X2Y36}
 set_property IS_SOFT FALSE [get_pblocks pblock_cdtrtrig_gearboxes]
+
 
 
 

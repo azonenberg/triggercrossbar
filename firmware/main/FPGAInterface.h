@@ -83,6 +83,7 @@ public:
 
 enum baseaddr_t
 {
+	//Root bridge, small-address branch (0x400 per node)
 	BASE_SYSINFO		= 0x0000'0000,		//APB_SystemInfo
 	BASE_IN_LED_GPIO	= 0x0000'0400,		//APB_GPIO
 	BASE_OUT_LED_GPIO	= 0x0000'0800,		//APB_GPIO
@@ -91,9 +92,14 @@ enum baseaddr_t
 	BASE_FRONT_SPI		= 0x0000'1400,		//APB_SPIHostInterface
 	BASE_MUXSEL			= 0x0000'1800,		//APB_CrossbarMatrix
 	BASE_25519			= 0x0000'1c00,		//APB_Curve25519
-	BASE_BERT_LANE0		= 0x0000'2000,		//APB_BertConfig
-	BASE_BERT_LANE1		= 0x0000'2400,		//APB_BertConfig
 
+	//BERT bridge (0x100 per node)
+	BASE_BERT_LANE0		= 0x0000'2000,		//APB_BertConfig
+	BASE_BERT_LANE1		= 0x0000'2100,		//APB_BertConfig
+	BASE_DRP_LANE0		= 0x0000'2200,		//APB_SerdesDRP
+	BASE_DRP_LANE1		= 0x0000'2300,		//APB_SerdesDRP
+
+	//Root bridge, large-address branch (0x1000 per node)
 	BASE_XG_TX			= 0x0000'8000		//Management10GTxFifo
 };
 
@@ -156,6 +162,12 @@ enum regid_t
 	REG_CRYPT_BASE_Q_0	= 0x0100,
 	REG_CRYPT_DATA_OUT	= 0x0140,
 
+	//APB_SerdesDRP
+	REG_DRP_ADDR		= 0x0000,
+	REG_DRP_DATA		= 0x0004,
+	REG_DRP_STATUS		= 0x0008,
+	REG_DRP_STATUS_2	= 0x0028,
+
 	//Management10GTxFifo
 	REG_XG_TX_STAT		= 0x0000,
 	REG_XG_TX_COMMIT	= 0x0004,
@@ -167,19 +179,9 @@ enum regid_t
 	REG_EMAC_RXLEN		= 0x0024,
 	REG_EMAC_COMMIT		= 0x0028,
 
-	REG_BERT_LANE0_WD	= 0x0084,
-	REG_BERT_LANE0_AD	= 0x0086,
-	REG_BERT_LANE0_RD	= 0x0088,
-	REG_BERT_LANE0_STAT	= 0x008a,
-
-	REG_BERT_LANE1_WD	= 0x00a4,
-	REG_BERT_LANE1_AD	= 0x00a6,
-	REG_BERT_LANE1_RD	= 0x00a8,
-	REG_BERT_LANE1_STAT	= 0x00aa,
-
 	REG_EMAC_BUFFER		= 0x1000
 };
 
-#define BERT_LANE_STRIDE 0x20
+#define BERT_LANE_STRIDE 0x100
 
 #endif

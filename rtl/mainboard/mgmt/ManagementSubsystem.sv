@@ -65,8 +65,7 @@ module ManagementSubsystem(
 	APB.requester					mdioBus,
 	APB.requester					relayBus,
 	APB.requester					crossbarBus,
-	APB.requester					bertLane0Bus,
-	APB.requester					bertLane1Bus,
+	APB.requester					bertBus,
 	APB.requester					cryptBus,
 
 	//Tachometers for fans
@@ -81,18 +80,7 @@ module ManagementSubsystem(
 	//Configuration registers in core clock domain
 	input wire[11:0]				trig_in_led,
 	input wire[11:0]				trig_out_led,
-	input wire[3:0]					relay_state,
-	output wire						mgmt_lane0_en,
-	output wire						mgmt_lane1_en,
-	output wire						mgmt_we,
-	output wire[8:0]				mgmt_addr,
-	output wire[15:0]				mgmt_wdata,
-	input wire[15:0]				mgmt_lane0_rdata,
-	input wire[15:0]				mgmt_lane1_rdata,
-	input wire						mgmt_lane0_done,
-	input wire						mgmt_lane1_done,
-	input wire						mgmt_lane0_rx_rstdone,
-	input wire						mgmt_lane1_rx_rstdone
+	input wire[3:0]					relay_state
 );
 
 	localparam SMOL_ADDR_WIDTH 		= 10;
@@ -253,7 +241,7 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Second level bridge for devices with smaller amounts of address space (starts at 0x00_0000)
 
-	localparam NUM_SMOL_DEVS		= 10;
+	localparam NUM_SMOL_DEVS		= 9;
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) smolDownstreamBus[NUM_SMOL_DEVS-1:0]();
 
@@ -386,11 +374,7 @@ module ManagementSubsystem(
 
 	//BERT configuration (0x00_2000)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_bert_lane0( .upstream(smolDownstreamBus[8]), .downstream(bertLane0Bus) );
-
-	//BERT configuration (0x00_2400)
-	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_bert_lane1( .upstream(smolDownstreamBus[9]), .downstream(bertLane1Bus) );
+		apb_regslice_bert_lane0( .upstream(smolDownstreamBus[8]), .downstream(bertBus) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Pipeline registers for external APB endpoints with large address space chunks
@@ -455,17 +439,6 @@ module ManagementSubsystem(
 		.txfifo_wr_en(txfifo_wr_en),
 		.txfifo_wr_data(txfifo_wr_data),
 		.txfifo_wr_commit(txfifo_wr_commit),
-		.mgmt_lane0_en(mgmt_lane0_en),
-		.mgmt_lane1_en(mgmt_lane1_en),
-		.mgmt_we(mgmt_we),
-		.mgmt_addr(mgmt_addr),
-		.mgmt_wdata(mgmt_wdata),
-		.mgmt_lane0_rdata(mgmt_lane0_rdata),
-		.mgmt_lane1_rdata(mgmt_lane1_rdata),
-		.mgmt_lane0_done(mgmt_lane0_done),
-		.mgmt_lane1_done(mgmt_lane1_done),
-		.mgmt_lane0_rx_rstdone(mgmt_lane0_rx_rstdone),
-		.mgmt_lane1_rx_rstdone(mgmt_lane1_rx_rstdone),
 
 		//Control registers (port RX clock domain)
 		.xg0_rx_clk(xg0_rx_clk),

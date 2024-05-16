@@ -298,24 +298,10 @@ module top(
 
 	wire[1:0]	cpll_lock;
 
-	wire		mgmt_lane0_en;
-	wire		mgmt_lane1_en;
-	wire		mgmt_we;
-	wire[8:0]	mgmt_addr;
-	wire[15:0]	mgmt_wdata;
-	wire[15:0]	mgmt_lane0_rdata;
-	wire[15:0]	mgmt_lane1_rdata;
-	wire		mgmt_lane0_done;
-	wire		mgmt_lane1_done;
-
-	wire		mgmt_lane0_rx_rstdone;
-	wire		mgmt_lane1_rx_rstdone;
-
 	localparam SMOL_ADDR_WIDTH 		= 10;
 	localparam BIG_ADDR_WIDTH		= 12;
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) bertLane0Bus();
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) bertLane1Bus();
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) bertBus();
 
 	BERTSubsystem bert(
 
@@ -344,21 +330,7 @@ module top(
 
 		.cpll_lock(cpll_lock),
 
-		.lane0_apb(bertLane0Bus),
-		.lane1_apb(bertLane1Bus),
-
-		.clk_250mhz(clk_250mhz),
-		.mgmt_lane0_en(mgmt_lane0_en),
-		.mgmt_lane1_en(mgmt_lane1_en),
-		.mgmt_we(mgmt_we),
-		.mgmt_addr(mgmt_addr),
-		.mgmt_wdata(mgmt_wdata),
-		.mgmt_lane0_rdata(mgmt_lane0_rdata),
-		.mgmt_lane1_rdata(mgmt_lane1_rdata),
-		.mgmt_lane0_done(mgmt_lane0_done),
-		.mgmt_lane1_done(mgmt_lane1_done),
-		.mgmt_lane0_rx_rstdone(mgmt_lane0_rx_rstdone),
-		.mgmt_lane1_rx_rstdone(mgmt_lane1_rx_rstdone)
+		.apb(bertBus)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -514,8 +486,7 @@ module top(
 		.relayBus(relayBus),
 		.mdioBus(mdioBus),
 		.crossbarBus(crossbarBus),
-		.bertLane0Bus(bertLane0Bus),
-		.bertLane1Bus(bertLane1Bus),
+		.bertBus(bertBus),
 		.cryptBus(cryptBus),
 
 		.relay_state(relay_state),
@@ -532,19 +503,7 @@ module top(
 		.frontpanel_miso(frontpanel_miso),
 		.frontpanel_cs_n(frontpanel_cs_n),
 		.trig_in_led(trig_in_led),
-		.trig_out_led(trig_out_led),
-
-		.mgmt_lane0_en(mgmt_lane0_en),
-		.mgmt_lane1_en(mgmt_lane1_en),
-		.mgmt_we(mgmt_we),
-		.mgmt_addr(mgmt_addr),
-		.mgmt_wdata(mgmt_wdata),
-		.mgmt_lane0_rdata(mgmt_lane0_rdata),
-		.mgmt_lane1_rdata(mgmt_lane1_rdata),
-		.mgmt_lane0_done(mgmt_lane0_done),
-		.mgmt_lane1_done(mgmt_lane1_done),
-		.mgmt_lane0_rx_rstdone(mgmt_lane0_rx_rstdone),
-		.mgmt_lane1_rx_rstdone(mgmt_lane1_rx_rstdone)
+		.trig_out_led(trig_out_led)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

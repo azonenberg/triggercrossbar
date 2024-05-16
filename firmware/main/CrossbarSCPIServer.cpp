@@ -834,33 +834,41 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 			g_bertRxClkSelIsQpll[chan] = value;
 
 		UpdateClocks(chan);
-
-
 	}
 }
 
 uint16_t CrossbarSCPIServer::SerdesDRPRead(uint8_t lane, uint16_t regid)
 {
-	uint16_t offset = BERT_LANE_STRIDE * lane;
+	uint32_t base = BASE_DRP_LANE0;
+	if(lane == 1)
+		base = BASE_DRP_LANE1;
 
 	//Send the command
-	g_fpga->BlockingWrite16(REG_BERT_LANE0_AD + offset, regid);
+	g_apbfpga.BlockingWrite16(base + REG_DRP_ADDR, regid);
 
 	//Make sure we're ready
-	//while(0 != g_fpga->BlockingRead8(REG_BERT_LANE0_STAT + offset))
-	//{}
+	//TODO: is this needed?
+	while(0 != (g_apbfpga.BlockingRead16(base + REG_DRP_STATUS) & 1))
+	{}
 
 	//Read the result
 	//(blocking poll shouldn't be needed after all of the CDC delays etc?
-	return g_fpga->BlockingRead16(REG_BERT_LANE0_RD + offset);
+	return g_apbfpga.BlockingRead16(base + REG_DRP_DATA);
 }
 
 void CrossbarSCPIServer::SerdesDRPWrite(uint8_t lane, uint16_t regid, uint16_t regval)
 {
-	uint16_t offset = BERT_LANE_STRIDE * lane;
+	uint32_t base = BASE_DRP_LANE0;
+	if(lane == 1)
+		base = BASE_DRP_LANE1;
 
-	g_fpga->BlockingWrite16(REG_BERT_LANE0_WD + offset, regval);
-	g_fpga->BlockingWrite16(REG_BERT_LANE0_AD + offset, regid | 0x8000);
+	g_apbfpga.BlockingWrite16(base + REG_DRP_DATA, regval);
+	g_apbfpga.BlockingWrite16(base + REG_DRP_ADDR, regid | 0x8000);
+
+	//Make sure we're ready
+	//TODO: is this needed?
+	while(0 != (g_apbfpga.BlockingRead16(base + REG_DRP_STATUS) & 1))
+	{}
 }
 
 void CrossbarSCPIServer::PrintFloat(CharacterDevice& buf, float f)
@@ -883,8 +891,6 @@ void CrossbarSCPIServer::PrintFloat(CharacterDevice& buf, float f)
 
 void CrossbarSCPIServer::SerdesPMAReset(uint8_t lane)
 {
-	uint16_t offset = BERT_LANE_STRIDE*lane;
-
 	//Reset the PMA
 	uint32_t base = BASE_BERT_LANE0;
 	if(lane)
@@ -893,13 +899,16 @@ void CrossbarSCPIServer::SerdesPMAReset(uint8_t lane)
 	g_apbfpga.BlockingWrite16(base + REG_RX_RESET, 0);
 
 	//Read and throw away a few status values until reset takes effect
+	base = BASE_DRP_LANE0;
+	if(lane)
+		base = BASE_DRP_LANE1;
 	for(int i=0; i<3; i++)
-		g_fpga->BlockingRead8(REG_BERT_LANE0_STAT + offset);
+		g_apbfpga.BlockingRead16(base + REG_DRP_STATUS);
 
 	//Poll until reset completes
 	while(1)
 	{
-		auto stat = g_fpga->BlockingRead8(REG_BERT_LANE0_STAT + offset);
+		auto stat = g_apbfpga.BlockingRead16(base + REG_DRP_STATUS);
 		if((stat & 0x2) == 2)
 			break;
 	}

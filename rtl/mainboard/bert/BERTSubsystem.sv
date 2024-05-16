@@ -60,24 +60,8 @@ module BERTSubsystem(
 	input wire					rx1_p,
 	input wire					rx1_n,
 
-	//Control buses (TODO put bridging internal here)
-	APB.completer 				lane0_apb,
-	APB.completer 				lane1_apb,
-
-	//Control registers (clk_250mhz domain, synchronized internally)
-	input wire					clk_250mhz,
-
-	input wire					mgmt_lane0_en,
-	input wire					mgmt_lane1_en,
-	input wire					mgmt_we,
-	input wire[8:0]				mgmt_addr,
-	input wire[15:0]			mgmt_wdata,
-	output wire[15:0]			mgmt_lane0_rdata,
-	output wire[15:0]			mgmt_lane1_rdata,
-	output wire					mgmt_lane0_done,
-	output wire					mgmt_lane1_done,
-	output wire					mgmt_lane0_rx_rstdone,
-	output wire					mgmt_lane1_rx_rstdone,
+	//Control buses
+	APB.completer 				apb,
 
 	//Status outputs
 	output wire[1:0]			cpll_lock
@@ -105,32 +89,105 @@ module BERTSubsystem(
 	BUFH bufh_lane1_tx(.I(lane1_txclk_raw), .O(lane1_txclk));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// APB interface logic for SERDES configuration
+	// APB bridge (base 0x00_2000) for SFRs
+
+	localparam ADDR_WIDTH			= 8;
+	localparam NUM_DEVS				= 4;
+
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(ADDR_WIDTH), .USER_WIDTH(0)) downstreamBus[NUM_DEVS-1:0]();
+
+	APBBridge #(
+		.BASE_ADDR(24'h000_0000),
+		.BLOCK_SIZE(32'h100),
+		.NUM_PORTS(NUM_DEVS)
+	) apb_bridge (
+		.upstream(apb),
+		.downstream(downstreamBus)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Low speed GPIOs on lane 0 (0x0000_2000)
 
 	//TODO: refactor synchronizers into these blocks to reduce duplicated code
-
-	wire		lane0_serdes_config_updated;
-	wire		lane1_serdes_config_updated;
-
+	wire			lane0_serdes_config_updated;
 	bert_txconfig_t	tx0_config;
-	bert_txconfig_t	tx1_config;
-
 	bert_rxconfig_t	rx0_config;
-	bert_rxconfig_t	rx1_config;
 
 	APB_BertConfig lane0_config(
-		.apb(lane0_apb),
+		.apb(downstreamBus[0]),
 
 		.tx_config(tx0_config),
 		.rx_config(rx0_config),
 		.config_updated(lane0_serdes_config_updated));
 
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Low speed GPIOs on lane 1 (0x0000_2100)
+
+	//TODO: refactor synchronizers into these blocks to reduce duplicated code
+	wire			lane1_serdes_config_updated;
+	bert_txconfig_t	tx1_config;
+	bert_rxconfig_t	rx1_config;
+
 	APB_BertConfig lane1_config(
-		.apb(lane1_apb),
+		.apb(downstreamBus[1]),
 
 		.tx_config(tx1_config),
 		.rx_config(rx1_config),
 		.config_updated(lane1_serdes_config_updated));
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// DRP on lane 0 (0x0000_2200)
+
+	wire		lane0_drp_en;
+	wire		lane0_drp_we;
+	wire[8:0]	lane0_drp_addr;
+	wire[15:0]	lane0_drp_di;
+	wire[15:0]	lane0_drp_do;
+	wire		lane0_drp_rdy;
+
+	wire		mgmt_lane0_rx_rstdone;
+
+	APB_SerdesDRP lane0_drp(
+		.apb(downstreamBus[2]),
+
+		.drp_clk(clk_125mhz),
+
+		.drp_en(lane0_drp_en),
+		.drp_we(lane0_drp_we),
+		.drp_addr(lane0_drp_addr),
+		.drp_wdata(lane0_drp_di),
+		.drp_rdata(lane0_drp_do),
+		.drp_rdy(lane0_drp_rdy),
+
+		.rx_rst_done(mgmt_lane0_rx_rstdone)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// DRP on lane 1 (0x0000_2300)
+
+	wire		lane1_drp_en;
+	wire		lane1_drp_we;
+	wire[8:0]	lane1_drp_addr;
+	wire[15:0]	lane1_drp_di;
+	wire[15:0]	lane1_drp_do;
+	wire		lane1_drp_rdy;
+
+	wire		mgmt_lane1_rx_rstdone;
+
+	APB_SerdesDRP lane1_drp(
+		.apb(downstreamBus[3]),
+
+		.drp_clk(clk_125mhz),
+
+		.drp_en(lane1_drp_en),
+		.drp_we(lane1_drp_we),
+		.drp_addr(lane1_drp_addr),
+		.drp_wdata(lane1_drp_di),
+		.drp_rdata(lane1_drp_do),
+		.drp_rdy(lane1_drp_rdy),
+
+		.rx_rst_done(mgmt_lane1_rx_rstdone)
+	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Synchronizers for control registers
@@ -146,13 +203,13 @@ module BERTSubsystem(
 	ThreeStageSynchronizer sync_lane0_rx_rst_done(
 		.clk_in(lane0_rxclk),
 		.din(rx0_rxreset_done),
-		.clk_out(clk_250mhz),
+		.clk_out(apb.pclk),
 		.dout(mgmt_lane0_rx_rstdone));
 
 	ThreeStageSynchronizer sync_lane1_rx_rst_done(
 		.clk_in(lane1_rxclk),
 		.din(rx1_rxreset_done),
-		.clk_out(clk_250mhz),
+		.clk_out(apb.pclk),
 		.dout(mgmt_lane1_rx_rstdone));
 
 	RegisterSynchronizer #(
@@ -160,7 +217,7 @@ module BERTSubsystem(
 		.INIT(0),
 		.IN_REG(1)
 	) sync_rx0_config (
-		.clk_a(clk_250mhz),
+		.clk_a(apb.pclk),
 		.en_a(lane0_serdes_config_updated),
 		.ack_a(),
 		.reg_a(rx0_config),
@@ -174,7 +231,7 @@ module BERTSubsystem(
 		.INIT(0),
 		.IN_REG(1)
 	) sync_tx0_config (
-		.clk_a(clk_250mhz),
+		.clk_a(apb.pclk),
 		.en_a(lane0_serdes_config_updated),
 		.ack_a(),
 		.reg_a(tx0_config),
@@ -188,7 +245,7 @@ module BERTSubsystem(
 		.INIT(0),
 		.IN_REG(1)
 	) sync_rx1_config (
-		.clk_a(clk_250mhz),
+		.clk_a(apb.pclk),
 		.en_a(lane1_serdes_config_updated),
 		.ack_a(),
 		.reg_a(rx1_config),
@@ -202,7 +259,7 @@ module BERTSubsystem(
 		.INIT(0),
 		.IN_REG(1)
 	) sync_tx1_config (
-		.clk_a(clk_250mhz),
+		.clk_a(apb.pclk),
 		.en_a(lane1_serdes_config_updated),
 		.ack_a(),
 		.reg_a(tx1_config),
@@ -217,42 +274,34 @@ module BERTSubsystem(
 	wire	rx1_rst_sync;
 
 	ThreeStageSynchronizer sync_lane0_tx_reset(
-		.clk_in(clk_250mhz),
+		.clk_in(apb.pclk),
 		.din(tx0_config.tx_reset),
 		.clk_out(clk_125mhz),
 		.dout(tx0_rst_sync));
 
 	ThreeStageSynchronizer sync_lane1_tx_reset(
-		.clk_in(clk_250mhz),
+		.clk_in(apb.pclk),
 		.din(tx1_config.tx_reset),
 		.clk_out(clk_125mhz),
 		.dout(tx1_rst_sync));
 
 	ThreeStageSynchronizer sync_lane0_rx_reset(
-		.clk_in(clk_250mhz),
+		.clk_in(apb.pclk),
 		.din(rx0_config.rx_reset),
 		.clk_out(clk_125mhz),
 		.dout(rx0_rst_sync));
 
 	ThreeStageSynchronizer sync_lane1_rx_reset(
-		.clk_in(clk_250mhz),
+		.clk_in(apb.pclk),
 		.din(rx1_config.rx_reset),
 		.clk_out(clk_125mhz),
 		.dout(rx1_rst_sync));
-
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Output PRBS generation on TX0 port
 
 	wire		lane0_prbs_err;
 	wire[31:0]	lane0_rx_data;
-
-	wire		lane0_drp_en;
-	wire		lane0_drp_we;
-	wire[8:0]	lane0_drp_addr;
-	wire[15:0]	lane0_drp_di;
-	wire[15:0]	lane0_drp_do;
-	wire		lane0_drp_rdy;
 
 	GTXWrapper lane0_transceiver(
 		.sysclk_in(clk_125mhz),
@@ -354,13 +403,6 @@ module BERTSubsystem(
 	wire[31:0]	lane1_rx_data;
 	wire		lane1_prbs_err;
 
-	wire		lane1_drp_en;
-	wire		lane1_drp_we;
-	wire[8:0]	lane1_drp_addr;
-	wire[15:0]	lane1_drp_di;
-	wire[15:0]	lane1_drp_do;
-	wire		lane1_drp_rdy;
-
 	GTXWrapper lane1_transceiver(
 		.sysclk_in(clk_125mhz),
 
@@ -453,45 +495,6 @@ module BERTSubsystem(
 
 		.rx_clk_from_qpll(rx1_config_sync.clk_from_qpll),
 		.tx_clk_from_qpll(tx1_config_sync.clk_from_qpll)
-		);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// DRP arbitration and clock domain shifting
-
-	DRPClockDomainShifting lane0_drp_cdc(
-		.mgmt_clk(clk_250mhz),
-		.mgmt_en(mgmt_lane0_en),
-		.mgmt_wr(mgmt_we),
-		.mgmt_addr(mgmt_addr),
-		.mgmt_wdata(mgmt_wdata),
-		.mgmt_rdata(mgmt_lane0_rdata),
-		.mgmt_done(mgmt_lane0_done),
-
-		.drp_clk(clk_125mhz),
-		.drp_en(lane0_drp_en),
-		.drp_we(lane0_drp_we),
-		.drp_addr(lane0_drp_addr),
-		.drp_di(lane0_drp_di),
-		.drp_do(lane0_drp_do),
-		.drp_rdy(lane0_drp_rdy)
-		);
-
-	DRPClockDomainShifting lane1_drp_cdc(
-		.mgmt_clk(clk_250mhz),
-		.mgmt_en(mgmt_lane1_en),
-		.mgmt_wr(mgmt_we),
-		.mgmt_addr(mgmt_addr),
-		.mgmt_wdata(mgmt_wdata),
-		.mgmt_rdata(mgmt_lane1_rdata),
-		.mgmt_done(mgmt_lane1_done),
-
-		.drp_clk(clk_125mhz),
-		.drp_en(lane1_drp_en),
-		.drp_we(lane1_drp_we),
-		.drp_addr(lane1_drp_addr),
-		.drp_di(lane1_drp_di),
-		.drp_do(lane1_drp_do),
-		.drp_rdy(lane1_drp_rdy)
 		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

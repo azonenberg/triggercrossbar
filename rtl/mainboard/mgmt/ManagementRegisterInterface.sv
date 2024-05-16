@@ -36,7 +36,7 @@ import EthernetBus::*;
 /**
 	@file
 	@author Andrew D. Zonenberg
-	@brief Container for management logic
+	@brief Container for management logic using legacy bus
 
 	Management registers have 16-bit addresses and are 8 bits in size.
  */
@@ -70,20 +70,7 @@ module ManagementRegisterInterface(
 	input wire[10:0]				rxheader_rd_data,
 	output logic 					txfifo_wr_en = 0,
 	output logic[7:0] 				txfifo_wr_data = 0,
-	output logic	 				txfifo_wr_commit = 0,
-
-	//still in core clock domain, synchronizer in serdes module
-	output logic					mgmt_lane0_en = 0,
-	output logic					mgmt_lane1_en = 0,
-	output logic					mgmt_we = 0,
-	output logic[8:0]				mgmt_addr = 0,
-	output logic[15:0]				mgmt_wdata = 0,
-	input wire[15:0]				mgmt_lane0_rdata,
-	input wire[15:0]				mgmt_lane1_rdata,
-	input wire						mgmt_lane0_done,
-	input wire						mgmt_lane1_done,
-	input wire						mgmt_lane0_rx_rstdone,
-	input wire						mgmt_lane1_rx_rstdone
+	output logic	 				txfifo_wr_commit = 0
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -117,30 +104,6 @@ module ManagementRegisterInterface(
 		REG_EMAC_RXLEN_1	= 16'h0025,
 		REG_EMAC_COMMIT		= 16'h0028,		//write any value to end the active packet
 
-		//10G interface
-		REG_XG0_STAT		= 16'h0060,		//0 = link up
-
-		//BERT configuration
-
-		REG_BERT_LANE0_WD	= 16'h0084,		//DRP write data (must write before address)
-		REG_BERT_LANE0_WD_1	= 16'h0085,
-		REG_BERT_LANE0_AD	= 16'h0086,		//DRP address
-		REG_BERT_LANE0_AD_1 = 16'h0087,		//15 = write enable
-											//14:9 = reserved
-											//8:0 = address
-		REG_BERT_LANE0_RD	= 16'h0088,
-		REG_BERT_LANE0_RD_1	= 16'h0089,
-		REG_BERT_LANE0_STAT	= 16'h008a,		//0 = DRP busy
-											//1 = rx reset done
-
-		REG_BERT_LANE1_WD	= 16'h00a4,
-		REG_BERT_LANE1_WD_1	= 16'h00a5,
-		REG_BERT_LANE1_AD	= 16'h00a6,
-		REG_BERT_LANE1_AD_1	= 16'h00a7,
-		REG_BERT_LANE1_RD	= 16'h00a8,
-		REG_BERT_LANE1_RD_1	= 16'h00a9,
-		REG_BERT_LANE1_STAT	= 16'h00aa,
-
 		//Ethernet MAC frame buffer
 		//Any address in this range will be treated as reading from the top of the buffer
 		REG_EMAC_BUFFER_LO	= 16'h1000,
@@ -156,9 +119,6 @@ module ManagementRegisterInterface(
 
 	logic 					reading					= 0;
 
-	logic[1:0]				drp_busy	= 0;
-
-
 	logic[8:0]				packetWordsRead = 0;
 	logic[8:0]				packetWordLength = 0;
 	logic					rxheader_rd_en_ff = 0;
@@ -172,8 +132,6 @@ module ManagementRegisterInterface(
 		rxfifo_rd_pop_single	<= 0;
 		txfifo_wr_en			<= 0;
 		txfifo_wr_commit		<= 0;
-		mgmt_lane0_en			<= 0;
-		mgmt_lane1_en			<= 0;
 
 		//Start a new read
 		if(rd_en)
@@ -182,16 +140,6 @@ module ManagementRegisterInterface(
 		//Set interrupt line if something's changed
 		if(!rxheader_rd_empty)
 			irq					<= 1;
-
-		//Manage DRP states
-		if(mgmt_lane0_en)
-			drp_busy[0]			<= 1;
-		if(mgmt_lane1_en)
-			drp_busy[1]			<= 1;
-		if(mgmt_lane0_done)
-			drp_busy[0]			<= 0;
-		if(mgmt_lane1_done)
-			drp_busy[1]			<= 0;
 
 		//Track expected length of a packet being read
 		rxheader_rd_en_ff	<= rxheader_rd_en;
@@ -254,16 +202,6 @@ module ManagementRegisterInterface(
 							rxfifo_rd_en	<= 1;
 					end
 
-					REG_XG0_STAT:		rd_data <= {7'b0, xg0_link_up_sync };
-
-					REG_BERT_LANE0_RD:		rd_data	<= mgmt_lane0_rdata[7:0];
-					REG_BERT_LANE0_RD_1:	rd_data	<= mgmt_lane0_rdata[15:8];
-					REG_BERT_LANE0_STAT:	rd_data	<= {6'b0, mgmt_lane0_rx_rstdone, drp_busy[0]};
-
-					REG_BERT_LANE1_RD:		rd_data	<= mgmt_lane1_rdata[7:0];
-					REG_BERT_LANE1_RD_1:	rd_data	<= mgmt_lane1_rdata[15:8];
-					REG_BERT_LANE1_STAT:	rd_data	<= {6'b0, mgmt_lane1_rx_rstdone, drp_busy[1]};
-
 					default: begin
 						rd_data	<= 0;
 					end
@@ -286,25 +224,6 @@ module ManagementRegisterInterface(
 			else begin
 
 				case(wr_addr[7:0])
-
-					REG_BERT_LANE0_WD:		mgmt_wdata[7:0]		<= wr_data;
-					REG_BERT_LANE0_WD_1:	mgmt_wdata[15:8]	<= wr_data;
-					REG_BERT_LANE0_AD: 		mgmt_addr[7:0]		<= wr_data;
-					REG_BERT_LANE0_AD_1: begin
-						mgmt_lane0_en				<= 1;
-						mgmt_we						<= wr_data[7];
-						mgmt_addr[8]				<= wr_data[0];
-
-					end
-
-					REG_BERT_LANE1_WD:		mgmt_wdata[7:0]		<= wr_data;
-					REG_BERT_LANE1_WD_1:	mgmt_wdata[15:8]	<= wr_data;
-					REG_BERT_LANE1_AD:		mgmt_addr[7:0]		<= wr_data;
-					REG_BERT_LANE1_AD_1: begin
-						mgmt_lane1_en				<= 1;
-						mgmt_we						<= wr_data[7];
-						mgmt_addr[8]				<= wr_data[0];
-					end
 
 					REG_EMAC_COMMIT:	txfifo_wr_commit <= 1;
 
