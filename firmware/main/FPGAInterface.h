@@ -100,7 +100,8 @@ enum baseaddr_t
 	BASE_DRP_LANE1		= 0x0000'2300,		//APB_SerdesDRP
 
 	//Root bridge, large-address branch (0x1000 per node)
-	BASE_XG_TX			= 0x0000'8000		//Management10GTxFifo
+	BASE_XG_TX			= 0x0000'8000,		//Management10GTxFifo
+	BASE_1G_TX			= 0x0000'9000		//ManagementTxFifo
 };
 
 enum regid_t
@@ -168,16 +169,15 @@ enum regid_t
 	REG_DRP_STATUS		= 0x0008,
 	REG_DRP_STATUS_2	= 0x0028,
 
-	//Management10GTxFifo
-	REG_XG_TX_STAT		= 0x0000,
-	REG_XG_TX_COMMIT	= 0x0004,
-	REG_XG_TX_BUF		= 0x0008,
+	//Management10GTxFifo / ManagementTxFifo
+	REG_ETH_TX_STAT		= 0x0000,
+	REG_ETH_TX_COMMIT	= 0x0004,
+	REG_ETH_TX_BUF		= 0x0008,
 
 	//everything below here is still on the legacy bus
 	//must match regid_t in ManagementRegisterInterface.sv
 	REG_FPGA_IRQSTAT	= 0x0020,
 	REG_EMAC_RXLEN		= 0x0024,
-	REG_EMAC_COMMIT		= 0x0028,
 
 	REG_EMAC_BUFFER		= 0x1000
 };

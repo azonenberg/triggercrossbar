@@ -53,36 +53,13 @@ module ManagementRegisterInterface(
 	output logic					rd_valid	= 0,
 	output logic[7:0]				rd_data		= 0,
 
-	input wire						wr_en,
-	input wire[15:0]				wr_addr,
-	input wire[7:0]					wr_data,
-
-	//Configuration registers in port RX clock domains
-	input wire						xg0_rx_clk,
-	input wire						xg0_link_up,
-
 	//Configuration registers in core clock domain
 	output logic					rxfifo_rd_en = 0,
 	output logic					rxfifo_rd_pop_single = 0,
 	input wire[31:0]				rxfifo_rd_data,
 	output logic					rxheader_rd_en = 0,
 	input wire						rxheader_rd_empty,
-	input wire[10:0]				rxheader_rd_data,
-	output logic 					txfifo_wr_en = 0,
-	output logic[7:0] 				txfifo_wr_data = 0,
-	output logic	 				txfifo_wr_commit = 0
-	);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Synchronizers for status signals
-
-	wire	xg0_link_up_sync;
-
-	ThreeStageSynchronizer sync_xg0_link_up(
-		.clk_in(xg0_rx_clk),
-		.din(xg0_link_up),
-		.clk_out(clk),
-		.dout(xg0_link_up_sync)
+	input wire[10:0]				rxheader_rd_data
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -102,7 +79,6 @@ module ManagementRegisterInterface(
 		//Ethernet MAC
 		REG_EMAC_RXLEN		= 16'h0024,
 		REG_EMAC_RXLEN_1	= 16'h0025,
-		REG_EMAC_COMMIT		= 16'h0028,		//write any value to end the active packet
 
 		//Ethernet MAC frame buffer
 		//Any address in this range will be treated as reading from the top of the buffer
@@ -130,8 +106,6 @@ module ManagementRegisterInterface(
 		rxfifo_rd_en			<= 0;
 		rxheader_rd_en			<= 0;
 		rxfifo_rd_pop_single	<= 0;
-		txfifo_wr_en			<= 0;
-		txfifo_wr_commit		<= 0;
 
 		//Start a new read
 		if(rd_en)
@@ -205,27 +179,6 @@ module ManagementRegisterInterface(
 					default: begin
 						rd_data	<= 0;
 					end
-
-				endcase
-
-			end
-
-		end
-
-		//Execute a write
-		if(wr_en) begin
-
-			//Ethernet MAC
-			if(wr_addr >= REG_EMAC_BUFFER_LO) begin
-				txfifo_wr_en	<= 1;
-				txfifo_wr_data	<= wr_data;
-			end
-
-			else begin
-
-				case(wr_addr[7:0])
-
-					REG_EMAC_COMMIT:	txfifo_wr_commit <= 1;
 
 				endcase
 

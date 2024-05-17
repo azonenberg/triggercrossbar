@@ -131,10 +131,6 @@ module ManagementSubsystem(
 		.rxheader_rd_data(rxheader_rd_data)
 	);
 
-	wire		txfifo_wr_en;
-	wire[7:0]	txfifo_wr_data;
-	wire		txfifo_wr_commit;
-
 	wire		eth_link_up_txclk;
 	ThreeStageSynchronizer sync_link_up_txclk(
 		.clk_in(eth_rx_clk),
@@ -151,12 +147,10 @@ module ManagementSubsystem(
 		.dout(xg0_link_up_txclk)
 	);
 
-	ManagementTxFifo tx_fifo(
-		.sys_clk(sys_clk),
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) gigTxBus();
 
-		.wr_en(txfifo_wr_en),
-		.wr_data(txfifo_wr_data),
-		.wr_commit(txfifo_wr_commit),
+	ManagementTxFifo tx_fifo(
+		.apb(gigTxBus),
 
 		.tx_clk(mgmt0_tx_clk),
 		.link_up(eth_link_up_txclk),
@@ -383,6 +377,10 @@ module ManagementSubsystem(
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_xg_tx( .upstream(bigDownstreamBus[0]), .downstream(xgTxBus) );
 
+	//RGMII transmit FIFO (0x00_9000)
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_1g_tx( .upstream(bigDownstreamBus[1]), .downstream(gigTxBus) );
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Optionally pipeline read data by one cycle
 
@@ -398,15 +396,7 @@ module ManagementSubsystem(
 	logic		mgmt_rd_en_ff	= 0;
 	logic[15:0]	mgmt_rd_addr_ff	= 0;
 
-	logic		mgmt_wr_en_ff	= 0;
-	logic[15:0]	mgmt_wr_addr_ff	= 0;
-	logic[7:0]	mgmt_wr_data_ff	= 0;
-
 	always_ff @(posedge sys_clk) begin
-		mgmt_wr_en_ff	<= mgmt_wr_en;
-		mgmt_wr_addr_ff	<= mgmt_wr_addr;
-		mgmt_wr_data_ff	<= mgmt_wr_data;
-
 		mgmt_rd_en_ff	<= mgmt_rd_en;
 		mgmt_rd_addr_ff	<= mgmt_rd_addr;
 	end
@@ -425,24 +415,13 @@ module ManagementSubsystem(
 		.rd_valid(mgmt_rd_valid),
 		.rd_data(mgmt_rd_data),
 
-		.wr_en(mgmt_wr_en_ff),
-		.wr_addr(mgmt_wr_addr_ff),
-		.wr_data(mgmt_wr_data_ff),
-
 		//Control registers (core clock domain)
 		.rxfifo_rd_en(rxfifo_rd_en),
 		.rxfifo_rd_pop_single(rxfifo_rd_pop_single),
 		.rxfifo_rd_data(rxfifo_rd_data),
 		.rxheader_rd_en(rxheader_rd_en),
 		.rxheader_rd_empty(rxheader_rd_empty),
-		.rxheader_rd_data(rxheader_rd_data),
-		.txfifo_wr_en(txfifo_wr_en),
-		.txfifo_wr_data(txfifo_wr_data),
-		.txfifo_wr_commit(txfifo_wr_commit),
-
-		//Control registers (port RX clock domain)
-		.xg0_rx_clk(xg0_rx_clk),
-		.xg0_link_up(xg0_link_up)
+		.rxheader_rd_data(rxheader_rd_data)
 	);
 
 endmodule

@@ -135,7 +135,7 @@ void PollPHYs()
 	g_basetLinkUp = bup;
 
 	//Get the SFP link status
-	uint16_t status = g_apbfpga.BlockingRead16(BASE_XG_TX + REG_XG_TX_STAT);
+	uint16_t status = g_apbfpga.BlockingRead16(BASE_XG_TX + REG_ETH_TX_STAT);
 	if(status & 1)
 	{
 		//Link went up?
