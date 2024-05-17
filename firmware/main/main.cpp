@@ -206,7 +206,7 @@ bool CheckForFPGAEvents()
  */
 void PollFPGA()
 {
-	uint16_t fpgastat = g_fpga->BlockingRead16(REG_FPGA_IRQSTAT);
+	uint16_t fpgastat = g_apbfpga.BlockingRead16(BASE_IRQ_STAT);
 
 	//New Ethernet frame ready?
 	if(fpgastat & 1)

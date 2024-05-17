@@ -235,7 +235,7 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Second level bridge for devices with smaller amounts of address space (starts at 0x00_0000)
 
-	localparam NUM_SMOL_DEVS		= 9;
+	localparam NUM_SMOL_DEVS		= 10;
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) smolDownstreamBus[NUM_SMOL_DEVS-1:0]();
 
@@ -341,6 +341,19 @@ module ManagementSubsystem(
 		.spi_mosi(frontpanel_mosi),
 		.spi_miso(frontpanel_miso),
 		.spi_cs_n(frontpanel_cs_n)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//Interrupt status register (0x00_2400)
+
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) irqStatusBus();
+
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_irq_status( .upstream(smolDownstreamBus[9]), .downstream(irqStatusBus) );
+
+	APB_StatusRegister irqstat (
+		.apb(irqStatusBus),
+		.status({15'h0, !rxheader_rd_empty})
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

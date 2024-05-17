@@ -99,6 +99,9 @@ enum baseaddr_t
 	BASE_DRP_LANE0		= 0x0000'2200,		//APB_SerdesDRP
 	BASE_DRP_LANE1		= 0x0000'2300,		//APB_SerdesDRP
 
+	//More small stuff
+	BASE_IRQ_STAT		= 0x0000'2400,		//APB_StatusRegister
+
 	//Root bridge, large-address branch (0x1000 per node)
 	BASE_XG_TX			= 0x0000'8000,		//Management10GTxFifo
 	BASE_1G_TX			= 0x0000'9000		//ManagementTxFifo
@@ -176,12 +179,8 @@ enum regid_t
 
 	//everything below here is still on the legacy bus
 	//must match regid_t in ManagementRegisterInterface.sv
-	REG_FPGA_IRQSTAT	= 0x0020,
 	REG_EMAC_RXLEN		= 0x0024,
-
 	REG_EMAC_BUFFER		= 0x1000
 };
-
-#define BERT_LANE_STRIDE 0x100
 
 #endif
