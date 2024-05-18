@@ -133,14 +133,14 @@ module APB_BertConfig(
 
 				case(apb.paddr)
 
-					REG_TX_CONFIG:	apb.prdata	<= { tx_config.enable, tx_config.invert, 11'h0, tx_config.prbsmode };
-					REG_TX_CLK:		apb.prdata	<= { tx_config.clk_from_qpll, 12'h0, tx_config.clkdiv };
-					REG_TX_RESET:	apb.prdata	<= { 15'h0, tx_config.tx_reset };
-					REG_TX_DRIVER:	apb.prdata	<= { 2'h0, tx_config.precursor, tx_config.postcursor, tx_config.swing };
+					REG_TX_CONFIG:	apb.prdata	= { tx_config.enable, tx_config.invert, 11'h0, tx_config.prbsmode };
+					REG_TX_CLK:		apb.prdata	= { tx_config.clk_from_qpll, 12'h0, tx_config.clkdiv };
+					REG_TX_RESET:	apb.prdata	= { 15'h0, tx_config.tx_reset };
+					REG_TX_DRIVER:	apb.prdata	= { 2'h0, tx_config.precursor, tx_config.postcursor, tx_config.swing };
 
-					REG_RX_CONFIG:	apb.prdata	<= { 1'b0, rx_config.invert, 11'h0, rx_config.prbsmode };
-					REG_RX_CLK:		apb.prdata	<= { rx_config.clk_from_qpll, 12'h0, rx_config.clkdiv };
-					REG_RX_RESET:	apb.prdata	<= { 14'h0, rx_config.pmareset, rx_config.rx_reset };
+					REG_RX_CONFIG:	apb.prdata	= { 1'b0, rx_config.invert, 11'h0, rx_config.prbsmode };
+					REG_RX_CLK:		apb.prdata	= { rx_config.clk_from_qpll, 12'h0, rx_config.clkdiv };
+					REG_RX_RESET:	apb.prdata	= { 14'h0, rx_config.pmareset, rx_config.rx_reset };
 
 					//illegal address
 					default:	apb.pslverr	= 1;

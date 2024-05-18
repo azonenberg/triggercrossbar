@@ -79,7 +79,7 @@ module ManagementTxFifo(
 	// Serialize the 16-bit data coming in from APB to an 8-bit stream
 
 	logic		wr_en 			= 0;
-	logic[31:0]	wr_data 		= 0;
+	logic[7:0]	wr_data 		= 0;
 	logic		wr_commit		= 0;
 
 	logic[7:0]	next_byte		= 0;

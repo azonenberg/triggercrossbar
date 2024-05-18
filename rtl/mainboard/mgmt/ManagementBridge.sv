@@ -51,19 +51,6 @@ module ManagementBridge(
 	inout wire[3:0]		qspi_dq,
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Bus to ManagementRegisterInterface
-
-	output logic		rd_en,
-	output logic[23:0]	rd_addr	= 0,
-
-	input wire			rd_valid,
-	input wire[7:0]		rd_data,
-
-	output logic		wr_en,
-	output logic[23:0]	wr_addr	= 0,
-	output wire[7:0]	wr_data,
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Top level APB bus to the rest of the chip
 
 	APB.requester		apb
@@ -72,9 +59,11 @@ module ManagementBridge(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Mux readback data
 
+	logic[23:0]	rd_addr	= 0;
+	logic[23:0]	wr_addr	= 0;
+
 	logic		rd_valid_muxed;
 	logic[7:0]	rd_data_muxed;
-	logic		rd_is_apb = 0;
 
 	wire		start;
 	wire		insn_valid;
@@ -93,27 +82,16 @@ module ManagementBridge(
 		rd_valid_muxed	<= 0;
 		rd_data_muxed	<= 0;
 
-		//APB reads
-		if(rd_is_apb) begin
-
-			//Even half
-			if(apb.pready) begin
-				rd_valid_muxed	<= 1;
-				rd_data_muxed	<= apb.prdata[7:0];
-			end
-
-			//Odd half
-			else if(rd_en_raw && rd_addr[0]) begin
-				rd_valid_muxed	<= 1;
-				rd_data_muxed	<= rd_data_hi;
-			end
-
+		//Even half
+		if(apb.pready) begin
+			rd_valid_muxed	<= 1;
+			rd_data_muxed	<= apb.prdata[7:0];
 		end
 
-		//legacy bus reads
-		else begin
-			rd_valid_muxed	<= rd_valid;
-			rd_data_muxed	<= rd_data;
+		//Odd half
+		else if(rd_en_raw && rd_addr[0]) begin
+			rd_valid_muxed	<= 1;
+			rd_data_muxed	<= rd_data_hi;
 		end
 
 	end
@@ -121,13 +99,11 @@ module ManagementBridge(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// QSPI interface
 
-	wire	stop;
+	wire		stop;
+	wire[7:0]	wr_data;
 
 	typedef enum logic[7:0]
 	{
-		OP_LEGACY_READ		= 8'h20,
-		OP_LEGACY_WRITE		= 8'h21,
-
 		OP_APB_READ			= 8'h40,
 		OP_APB_WRITE		= 8'h41
 	} opcode_t;
@@ -153,11 +129,6 @@ module ManagementBridge(
 		.rd_valid(rd_valid_muxed),
 		.rd_data(rd_data_muxed)
 	);
-
-	always_comb begin
-		rd_en	= rd_en_raw && (opcode == OP_LEGACY_READ);
-		wr_en	= wr_en_raw && (opcode == OP_LEGACY_WRITE);
-	end
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Address counting
@@ -192,10 +163,8 @@ module ManagementBridge(
 		rd_addr_ff		<= rd_addr;
 
 		//Process instruction
-		if(insn_valid) begin
-			rd_mode		<= (opcode == OP_LEGACY_READ) || (opcode == OP_APB_READ);
-			rd_is_apb	<= (opcode == OP_APB_READ);
-		end
+		if(insn_valid)
+			rd_mode		<= (opcode == OP_APB_READ);
 
 		//Reset anything we need on CS# falling edge
 		if(start) begin
@@ -223,6 +192,7 @@ module ManagementBridge(
 	logic						apb_psel_ff				= 0;
 	logic						apb_pwrite_ff			= 0;
 	logic[7:0]					apb_pwdata_lo			= 0;
+	logic[15:0]					apb_pwdata_ff			= 0;
 	logic[apb.DATA_WIDTH-1:0]	apb_paddr_ff			= 0;
 	logic						apb_write_half_valid	= 0;
 
@@ -240,6 +210,7 @@ module ManagementBridge(
 			apb.paddr	= apb_paddr_ff;
 
 		apb.pwrite	= apb_pwrite_ff;
+		apb.pwdata	= apb_pwdata_ff;
 
 		//Dispatch APB reads on even address alignment
 		if(rd_en_raw && (opcode == OP_APB_READ) && (rd_addr[0] == 0) ) begin
@@ -272,6 +243,7 @@ module ManagementBridge(
 		//Register combinatorially generated flags
 		apb_psel_ff		<= apb.psel;
 		apb_pwrite_ff	<= apb.pwrite;
+		apb_pwdata_ff	<= apb.pwdata;
 
 		//clear pending request when it completes
 		if(apb.pready)
@@ -293,5 +265,25 @@ module ManagementBridge(
 			rd_data_hi	<= apb.prdata[15:8];
 
 	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Debug ILA
+
+	ila_3 ila(
+		.clk(clk),
+		.probe0(apb.psel),
+		.probe1(apb.penable),
+		.probe2(apb.pwrite),
+		.probe3(apb.pready),
+		.probe4(apb.paddr),
+		.probe5(apb_paddr_ff),
+		.probe6(rd_data_hi),
+		.probe7(apb.prdata),
+		.probe8(rd_en_raw),
+		.probe9(rd_addr),
+		.probe10(wr_addr),
+		.probe11(rd_data_muxed),
+		.probe12(rd_valid_muxed)
+	);
 
 endmodule

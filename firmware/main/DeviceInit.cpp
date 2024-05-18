@@ -35,7 +35,6 @@
 
 #include "triggercrossbar.h"
 #include <ctype.h>
-#include "DeviceFPGAInterface.h"
 #include "net/QSPIEthernetInterface.h"
 #include "../super/superregs.h"
 
@@ -434,9 +433,6 @@ void InitQSPI()
 	*/
 
 	g_qspi = &qspi;
-
-	static DeviceFPGAInterface fpga;
-	g_fpga = &fpga;
 }
 
 void InitI2C()

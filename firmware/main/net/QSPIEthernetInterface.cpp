@@ -95,7 +95,7 @@ void QSPIEthernetInterface::CancelTxFrame(EthernetFrame* frame)
 EthernetFrame* QSPIEthernetInterface::GetRxFrame()
 {
 	//Read and sanity check length
-	uint16_t len = g_fpga->BlockingRead16(REG_EMAC_RXLEN);
+	uint16_t len = g_apbfpga.BlockingRead16(BASE_ETH_RX + REG_ETH_RX_LEN);
 	if(len > 1500)
 	{
 		g_log(Logger::ERROR, "Got a %d byte long frame (max size 1500, FPGA should not have done this)\n", (int)len);
@@ -104,6 +104,7 @@ EthernetFrame* QSPIEthernetInterface::GetRxFrame()
 	if(len == 0)
 	{
 		//g_log(Logger::ERROR, "Got a zero-byte Ethernet frame, makes no sense\n");
+		g_apbfpga.BlockingWrite16(BASE_ETH_RX + REG_ETH_RX_POP, 1);
 		return nullptr;
 	}
 
@@ -112,9 +113,8 @@ EthernetFrame* QSPIEthernetInterface::GetRxFrame()
 	{
 		g_log("Frame dropped due to lack of buffers\n");
 
-		//Read and discard the frame
-		static uint8_t rxbuf[1500] = {0};
-		g_fpga->BlockingRead(REG_EMAC_BUFFER, rxbuf, len);
+		//Discard it
+		g_apbfpga.BlockingWrite16(BASE_ETH_RX + REG_ETH_RX_POP, 1);
 		return nullptr;
 	}
 
@@ -122,7 +122,8 @@ EthernetFrame* QSPIEthernetInterface::GetRxFrame()
 	//TODO: DMA optimizations
 	auto frame = m_rxFreeList.Pop();
 	frame->SetLength(len);
-	g_fpga->BlockingRead(REG_EMAC_BUFFER, frame->RawData(), len);
+	g_apbfpga.BlockingRead(BASE_ETH_RX + REG_ETH_RX_BUF, frame->RawData(), len);
+	g_apbfpga.BlockingWrite16(BASE_ETH_RX + REG_ETH_RX_POP, 1);
 
 	return frame;
 }

@@ -104,12 +104,13 @@ enum baseaddr_t
 
 	//Root bridge, large-address branch (0x1000 per node)
 	BASE_XG_TX			= 0x0000'8000,		//Management10GTxFifo
-	BASE_1G_TX			= 0x0000'9000		//ManagementTxFifo
+	BASE_1G_TX			= 0x0000'9000,		//ManagementTxFifo
+	BASE_ETH_RX			= 0x0000'a000
 };
 
 enum regid_t
 {
-	//This section is now on APB
+	//APB register IDs
 	//(must match register IDs in corresponding module)
 
 	//APB_SystemInfo
@@ -177,10 +178,10 @@ enum regid_t
 	REG_ETH_TX_COMMIT	= 0x0004,
 	REG_ETH_TX_BUF		= 0x0008,
 
-	//everything below here is still on the legacy bus
-	//must match regid_t in ManagementRegisterInterface.sv
-	REG_EMAC_RXLEN		= 0x0024,
-	REG_EMAC_BUFFER		= 0x1000
+	//ManagementRxFifo
+	REG_ETH_RX_BUF		= 0x0000,
+	REG_ETH_RX_POP		= 0x0ff8,
+	REG_ETH_RX_LEN		= 0x0ffc
 };
 
 #endif

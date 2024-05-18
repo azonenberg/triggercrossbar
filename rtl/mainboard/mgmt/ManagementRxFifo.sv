@@ -34,41 +34,143 @@ import EthernetBus::*;
 /**
 	@file
 	@author Andrew D. Zonenberg
-	@brief FIFO for shifting Ethernet frames from the management PHY clock domain to the QSPI clock domain
+	@brief FIFO for buffering incoming Ethernet frames (already in the management clock domain) to the QSPI
  */
 module ManagementRxFifo(
-	input wire					sys_clk,
 
-	input wire					eth_rx_clk,
+	//The APB bus
+	APB.completer 				apb,
 
+	//RX link from MAC
 	input wire EthernetRxBus	eth_rx_bus,
 	input wire					eth_link_up,
 
-	input wire					rxfifo_rd_en,
-	input wire					rxfifo_rd_pop_single,
-	output wire[31:0]			rxfifo_rd_data,
-	input wire					rxheader_rd_en,
-	output wire					rxheader_rd_empty,
-	output wire[10:0]			rxheader_rd_data
+	//Status flag to IRQ line
+	output logic				rx_frame_ready
 );
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// We only support 16-bit APB, throw synthesis error for anything else
+
+	if(apb.DATA_WIDTH != 16)
+		apb_bus_width_is_invalid();
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Register IDs
+
+	typedef enum logic[11:0]
+	{
+		REG_RX_BUF			= 12'h0000,	//start of receive buffer
+										//(must be mapped at zero so we can use paddr directly as FIFO read index)
+
+		REG_RX_POP			= 12'h0ff8,	//write any value to pop the current frame
+		REG_RX_LEN			= 12'h0ffc	//frame length, in bytes
+	} regid_t;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Register logic
+
+	wire[31:0]			rxfifo_rd_data;
+	logic				rxheader_rd_en;
+	wire				rxheader_rd_empty;
+	wire[10:0]			rxheader_rd_data;
+	logic				rxfifo_pop_packet;
+	logic[10:0]			rxfifo_packet_size;
+
+	logic				apb_pready_next;
+
+	//Combinatorial readback, but with one cycle of latency because of registered reads
+
+	always_comb begin
+
+		apb_pready_next	= apb.psel && apb.penable && !apb.pready;
+
+		rx_frame_ready = !rxheader_rd_empty;
+
+		apb.prdata	= 0;
+		apb.pslverr	= 0;
+
+		//this is one cycle after the request is valid due to pipeline latency on reads
+		if(apb.pready) begin
+
+			//read
+			if(!apb.pwrite) begin
+
+				if(apb.paddr == REG_RX_LEN)
+					apb.prdata	= { 5'h0, rxheader_rd_data[10:0] };
+
+				//can't read from pop register
+				else if(apb.paddr == REG_RX_POP)
+					apb.pslverr = 1;
+
+				//anything else is reading from the rx buffer
+				else begin
+
+					//low half?
+					if(apb.paddr[1:0] == 0)
+						apb.prdata = { rxfifo_rd_data[23:16], rxfifo_rd_data[31:24] };
+
+					//high half
+					else
+						apb.prdata = { rxfifo_rd_data[7:0], rxfifo_rd_data[15:8] };
+
+				end
+			end
+
+			//write
+			else begin
+				if(apb.paddr != REG_RX_POP)
+					apb.pslverr	 = 1;
+			end
+
+		end
+	end
+
+	always_ff @(posedge apb.pclk or negedge apb.preset_n) begin
+
+		//Reset
+		if(!apb.preset_n) begin
+			apb.pready			<= 0;
+			rxheader_rd_en		<= 0;
+			rxfifo_pop_packet	<= 0;
+		end
+
+		//Normal path
+		else begin
+
+			rxheader_rd_en		<= 0;
+			rxfifo_pop_packet	<= 0;
+
+			//Register request flags
+			//address/write data don't need to be registered, they'll be kept stable
+			apb.pready		<= apb_pready_next;
+
+			//Pop at the end of a packet
+			if(apb.pready && apb.pwrite && (apb.paddr == REG_RX_POP) ) begin
+
+				//Header is no longer valid
+				rxheader_rd_en		<= 1;
+
+				//Pop it (convert length from bytes to words, rounding up)
+				rxfifo_pop_packet	<= 1;
+				if(rxheader_rd_data[1:0])
+					rxfifo_packet_size	<= rxheader_rd_data[10:2] + 1;
+				else
+					rxfifo_packet_size	<= rxheader_rd_data[10:2];
+			end
+
+		end
+
+	end
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Main FIFO and push logic
 
+	//No need to handle drop requests because we're on the other side of an EthernetRxClockCrossing
+	//which will drop anything with a bad FCS itself
+
 	logic		rxfifo_wr_en		= 0;
+	logic		rxfifo_wr_commit	= 0;
 	logic[31:0]	rxfifo_wr_data		= 0;
-
-	wire		wr_reset;
-	assign		wr_reset = !eth_link_up;
-
-	wire		rd_reset;
-
-	ThreeStageSynchronizer sync_fifo_rst(
-		.clk_in(eth_rx_clk),
-		.din(wr_reset),
-		.clk_out(sys_clk),
-		.dout(rd_reset)
-	);
 
 	wire[12:0]	rxfifo_wr_size;
 	wire[12:0]	rxfifo_rd_size;
@@ -78,23 +180,24 @@ module ManagementRxFifo(
 		.WIDTH(32),
 		.DEPTH(4096)	//at least 8 packets worth
 	) rx_cdc_fifo (
-		.wr_clk(eth_rx_clk),
+		.wr_clk(apb.pclk),
 		.wr_en(rxfifo_wr_en),
 		.wr_data(rxfifo_wr_data),
-		.wr_reset(wr_reset),
+		.wr_reset(!eth_link_up),
 		.wr_size(rxfifo_wr_size),
-		.wr_commit(eth_rx_bus.commit),
+		.wr_commit(rxfifo_wr_commit),
 		.wr_rollback(rxfifo_wr_drop),
 
-		.rd_clk(sys_clk),
-		.rd_en(rxfifo_rd_en),
-		.rd_offset(10'h0),
-		.rd_pop_single(rxfifo_rd_pop_single),
-		.rd_pop_packet(1'b0),
-		.rd_packet_size(10'h0),
+		.rd_clk(apb.pclk),
+		.rd_en(apb_pready_next),				//read all the time even if actually reading a status register
+												//(reading too much is harmless)
+		.rd_offset({2'b0, apb.paddr[11:2]}),	//reading 32 bit words so use word address index
+		.rd_pop_single(1'b0),
+		.rd_pop_packet(rxfifo_pop_packet),
+		.rd_packet_size(rxfifo_packet_size),
 		.rd_data(rxfifo_rd_data),
 		.rd_size(rxfifo_rd_size),
-		.rd_reset(rd_reset)
+		.rd_reset(!eth_link_up)
 	);
 
 	//PUSH SIDE
@@ -104,37 +207,33 @@ module ManagementRxFifo(
 	wire		header_wfull;
 	wire[5:0]	rxheader_rd_size;
 	wire[5:0]	rxheader_wr_size;
-	CrossClockFifo #(
+
+	SingleClockFifo #(
 		.WIDTH(11),
 		.DEPTH(32),
 		.USE_BLOCK(0),
 		.OUT_REG(0)
 	) rx_framelen_fifo (
-		.wr_clk(eth_rx_clk),
-		.wr_en(eth_rx_bus.commit && !dropping && (framelen != 0) ),
-		.wr_data(framelen),
-		.wr_size(rxheader_wr_size),
-		.wr_full(header_wfull),
-		.wr_overflow(),
-		.wr_reset(wr_reset),
+		.clk(apb.pclk),
 
-		.rd_clk(sys_clk),
-		.rd_en(rxheader_rd_en),
-		.rd_data(rxheader_rd_data),
-		.rd_size(rxheader_rd_size),
-		.rd_empty(rxheader_rd_empty),
-		.rd_underflow(),
-		.rd_reset(rd_reset)
+		.wr(eth_rx_bus.commit && !dropping && (framelen != 0) ),
+		.din(framelen),
+		.wsize(rxheader_wr_size),
+		.full(header_wfull),
+		.overflow(),
+		.reset(!eth_link_up),
+
+		.rd(rxheader_rd_en),
+		.dout(rxheader_rd_data),
+		.rsize(rxheader_rd_size),
+		.empty(rxheader_rd_empty),
+		.underflow()
 	);
 
-	always_ff @(posedge eth_rx_clk) begin
+	always_ff @(posedge apb.pclk) begin
 
 		rxfifo_wr_drop		<= 0;
-
-		if(eth_rx_bus.drop) begin
-			rxfifo_wr_drop	<= 1;
-			dropping		<= 1;
-		end
+		rxfifo_wr_commit	<= eth_rx_bus.commit;
 
 		//Frame delimiter
 		if(eth_rx_bus.start) begin

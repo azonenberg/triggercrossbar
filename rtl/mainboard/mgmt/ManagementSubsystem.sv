@@ -45,7 +45,7 @@ module ManagementSubsystem(
 	input wire						qspi_sck,
 	input wire						qspi_cs_n,
 	inout wire[3:0]					qspi_dq,
-	output wire						irq,
+	output logic					irq,
 
 	//Management network bus
 	input wire						eth_rx_clk,
@@ -109,26 +109,15 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// FIFO for storing inbound/outbound Ethernet frames
 
-	wire		rxfifo_rd_en;
-	wire		rxfifo_rd_pop_single;
-	wire[31:0]	rxfifo_rd_data;
-	wire		rxheader_rd_en;
-	wire		rxheader_rd_empty;
-	wire[10:0]	rxheader_rd_data;
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) ethRxBus();
 
-	ManagementRxFifo rx_fifo(
-		.sys_clk(sys_clk),
-
-		.eth_rx_clk(eth_rx_clk),
+	wire	rx_frame_ready;
+	ManagementRxFifo eth_rx_fifo(
+		.apb(ethRxBus),
 		.eth_rx_bus(eth_rx_bus),
 		.eth_link_up(eth_link_up),
 
-		.rxfifo_rd_en(rxfifo_rd_en),
-		.rxfifo_rd_pop_single(rxfifo_rd_pop_single),
-		.rxfifo_rd_data(rxfifo_rd_data),
-		.rxheader_rd_en(rxheader_rd_en),
-		.rxheader_rd_empty(rxheader_rd_empty),
-		.rxheader_rd_data(rxheader_rd_data)
+		.rx_frame_ready(rx_frame_ready)
 	);
 
 	wire		eth_link_up_txclk;
@@ -171,21 +160,6 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// QSPI device bridge to internal legacy bus plus APB
 
-	wire		mgmt_rd_en;
-	wire[15:0]	mgmt_rd_addr;
-	wire		mgmt_rd_valid;
-	wire[7:0]	mgmt_rd_data;
-
-	wire		mgmt_wr_en;
-	wire[15:0]	mgmt_wr_addr;
-	wire[7:0]	mgmt_wr_data;
-
-	//(* retiming_backward = 1 *)
-	logic		mgmt_rd_valid_out	= 0;
-
-	//(* retiming_backward = 1 *)
-	logic[7:0]	mgmt_rd_data_out	= 0;
-
 	//The top level APB bus from the QSPI bridge to everything else
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(24), .USER_WIDTH(0)) processorBus();
 
@@ -197,15 +171,6 @@ module ManagementSubsystem(
 		.qspi_sck(qspi_sck),
 		.qspi_cs_n(qspi_cs_n),
 		.qspi_dq(qspi_dq),
-
-		.rd_en(mgmt_rd_en),
-		.rd_addr(mgmt_rd_addr),
-		.rd_valid(mgmt_rd_valid_out),
-		.rd_data(mgmt_rd_data_out),
-
-		.wr_en(mgmt_wr_en),
-		.wr_addr(mgmt_wr_addr),
-		.wr_data(mgmt_wr_data),
 
 		.apb(processorBus)
 	);
@@ -251,7 +216,7 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Second level bridge for devices with larger amounts of address space (starts at 0x00_8000)
 
-	localparam NUM_BIG_DEVS			= 2;
+	localparam NUM_BIG_DEVS			= 3;
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) bigDownstreamBus[NUM_BIG_DEVS-1:0]();
 
@@ -353,7 +318,7 @@ module ManagementSubsystem(
 
 	APB_StatusRegister irqstat (
 		.apb(irqStatusBus),
-		.status({15'h0, !rxheader_rd_empty})
+		.status({15'h0, rx_frame_ready})
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -394,47 +359,15 @@ module ManagementSubsystem(
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_1g_tx( .upstream(bigDownstreamBus[1]), .downstream(gigTxBus) );
 
+	//Ethernet RX FIFO (0x00_a000)
+	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(0))
+		apb_regslice_eth_rx( .upstream(bigDownstreamBus[2]), .downstream(ethRxBus) );
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Optionally pipeline read data by one cycle
+	// Interrupt pin generation
 
 	always_comb begin
-	//always_ff @(posedge sys_clk) begin
-		mgmt_rd_valid_out	= mgmt_rd_valid;
-		mgmt_rd_data_out	= mgmt_rd_data;
+		irq	= rx_frame_ready;	//TODO other sources OR'd together
 	end
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Pipeline register on write data plus read address bus
-
-	logic		mgmt_rd_en_ff	= 0;
-	logic[15:0]	mgmt_rd_addr_ff	= 0;
-
-	always_ff @(posedge sys_clk) begin
-		mgmt_rd_en_ff	<= mgmt_rd_en;
-		mgmt_rd_addr_ff	<= mgmt_rd_addr;
-	end
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Register interface
-
-	ManagementRegisterInterface regs (
-		.clk(sys_clk),
-
-		.irq(irq),
-
-		//Memory bus
-		.rd_en(mgmt_rd_en_ff),
-		.rd_addr(mgmt_rd_addr_ff),
-		.rd_valid(mgmt_rd_valid),
-		.rd_data(mgmt_rd_data),
-
-		//Control registers (core clock domain)
-		.rxfifo_rd_en(rxfifo_rd_en),
-		.rxfifo_rd_pop_single(rxfifo_rd_pop_single),
-		.rxfifo_rd_data(rxfifo_rd_data),
-		.rxheader_rd_en(rxheader_rd_en),
-		.rxheader_rd_empty(rxheader_rd_empty),
-		.rxheader_rd_data(rxheader_rd_data)
-	);
 
 endmodule
