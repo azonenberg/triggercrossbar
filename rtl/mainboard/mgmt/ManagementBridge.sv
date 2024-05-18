@@ -266,24 +266,4 @@ module ManagementBridge(
 
 	end
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Debug ILA
-
-	ila_3 ila(
-		.clk(clk),
-		.probe0(apb.psel),
-		.probe1(apb.penable),
-		.probe2(apb.pwrite),
-		.probe3(apb.pready),
-		.probe4(apb.paddr),
-		.probe5(apb_paddr_ff),
-		.probe6(rd_data_hi),
-		.probe7(apb.prdata),
-		.probe8(rd_en_raw),
-		.probe9(rd_addr),
-		.probe10(wr_addr),
-		.probe11(rd_data_muxed),
-		.probe12(rd_valid_muxed)
-	);
-
 endmodule
