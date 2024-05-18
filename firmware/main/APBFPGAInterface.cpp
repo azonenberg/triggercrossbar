@@ -50,12 +50,20 @@ void APBFPGAInterface::Nop()
 
 void APBFPGAInterface::BlockingRead(uint32_t addr, uint8_t* data, uint32_t len)
 {
+	g_qspi->Abort();
 	g_qspi->BlockingRead(OP_APB_READ, addr, data, len);
+
+	//return to memory mapped mode
+	g_qspi->SetMemoryMapMode(APBFPGAInterface::OP_APB_READ, APBFPGAInterface::OP_APB_WRITE);
 }
 
 void APBFPGAInterface::BlockingWrite(uint32_t addr, const uint8_t* data, uint32_t len)
 {
+	g_qspi->Abort();
 	g_qspi->BlockingWrite(OP_APB_WRITE, addr, data, len);
+
+	//return to memory mapped mode
+	g_qspi->SetMemoryMapMode(APBFPGAInterface::OP_APB_READ, APBFPGAInterface::OP_APB_WRITE);
 }
 
 void APBFPGAInterface::CryptoEngineBlock()

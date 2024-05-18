@@ -74,9 +74,11 @@ void QSPIEthernetInterface::SendTxFrame(EthernetFrame* frame, bool markFree)
 	//TODO: DMA optimizations
 
 	//Separate TX buffers for 1G (8 bit datapath in FPGA) and 10G (32 bit datapath in FPGA)
-	uint32_t base = g_sfpLinkUp ? BASE_XG_TX : BASE_1G_TX;
+	auto base = g_sfpLinkUp ? BASE_XG_TX : BASE_1G_TX;
+	auto fifo = g_sfpLinkUp ? g_eth10GTxFifo : g_eth1GTxFifo;
+	//TODO: this isn't working, likely because we rely on an exact number of accesses?
 	g_apbfpga.BlockingWrite(base + REG_ETH_TX_BUF, frame->RawData(), frame->Length());
-	g_apbfpga.BlockingWrite16(base + REG_ETH_TX_COMMIT, 0);
+	fifo->tx_commit = 1;
 
 	//Done, put on free list
 	if(markFree)
@@ -95,7 +97,7 @@ void QSPIEthernetInterface::CancelTxFrame(EthernetFrame* frame)
 EthernetFrame* QSPIEthernetInterface::GetRxFrame()
 {
 	//Read and sanity check length
-	uint16_t len = g_apbfpga.BlockingRead16(BASE_ETH_RX + REG_ETH_RX_LEN);
+	uint16_t len = g_ethRxFifo->rx_len;
 	if(len > 1500)
 	{
 		g_log(Logger::ERROR, "Got a %d byte long frame (max size 1500, FPGA should not have done this)\n", (int)len);
@@ -103,8 +105,8 @@ EthernetFrame* QSPIEthernetInterface::GetRxFrame()
 	}
 	if(len == 0)
 	{
-		//g_log(Logger::ERROR, "Got a zero-byte Ethernet frame, makes no sense\n");
-		g_apbfpga.BlockingWrite16(BASE_ETH_RX + REG_ETH_RX_POP, 1);
+		g_log(Logger::ERROR, "Got a zero-byte Ethernet frame, makes no sense\n");
+		g_ethRxFifo->rx_pop = 1;
 		return nullptr;
 	}
 
@@ -114,7 +116,7 @@ EthernetFrame* QSPIEthernetInterface::GetRxFrame()
 		g_log("Frame dropped due to lack of buffers\n");
 
 		//Discard it
-		g_apbfpga.BlockingWrite16(BASE_ETH_RX + REG_ETH_RX_POP, 1);
+		g_ethRxFifo->rx_pop = 1;
 		return nullptr;
 	}
 
@@ -122,8 +124,8 @@ EthernetFrame* QSPIEthernetInterface::GetRxFrame()
 	//TODO: DMA optimizations
 	auto frame = m_rxFreeList.Pop();
 	frame->SetLength(len);
-	g_apbfpga.BlockingRead(BASE_ETH_RX + REG_ETH_RX_BUF, frame->RawData(), len);
-	g_apbfpga.BlockingWrite16(BASE_ETH_RX + REG_ETH_RX_POP, 1);
+	memcpy(frame->RawData(), (void*)&g_ethRxFifo->rx_buf, len);
+	g_ethRxFifo->rx_pop = 1;
 
 	return frame;
 }

@@ -187,3 +187,26 @@ ManagementDHCPClient* g_dhcpClient = nullptr;
 
 ///@brief The NTP client
 ManagementNTPClient* g_ntpClient = nullptr;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Memory mapped SFRs on the FPGA
+
+//TODO: use linker script to locate these rather than this ugly pointer code?
+
+///@brief System information
+volatile APB_SystemInfo* g_sysInfo =
+	reinterpret_cast<volatile APB_SystemInfo*>(FPGA_MEM_BASE + BASE_SYSINFO);
+
+///@brief Relay controller
+volatile APB_RelayController* g_relayController =
+	reinterpret_cast<volatile APB_RelayController*>(FPGA_MEM_BASE + BASE_RELAY);
+
+///@brief Ethernet RX buffer
+volatile ManagementRxFifo* g_ethRxFifo =
+	reinterpret_cast<volatile ManagementRxFifo*>(FPGA_MEM_BASE + BASE_ETH_RX);
+
+///@brief Ethernet TX buffers
+volatile ManagementTxFifo* g_eth1GTxFifo =
+	reinterpret_cast<volatile ManagementTxFifo*>(FPGA_MEM_BASE + BASE_1G_TX);
+volatile ManagementTxFifo* g_eth10GTxFifo =
+	reinterpret_cast<volatile ManagementTxFifo*>(FPGA_MEM_BASE + BASE_XG_TX);

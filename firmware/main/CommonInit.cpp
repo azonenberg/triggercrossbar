@@ -95,8 +95,8 @@ void InitFPGA()
 	//Retry until we get a nonzero result indicating FPGA is up
 	while(true)
 	{
-		uint32_t idcode = g_apbfpga.BlockingRead32(BASE_SYSINFO + REG_FPGA_IDCODE);
-		g_apbfpga.BlockingRead(BASE_SYSINFO + REG_FPGA_SERIAL, g_fpgaSerial, 8);
+		uint32_t idcode = g_sysInfo->idcode;
+		memcpy(g_fpgaSerial, (const void*)g_sysInfo->serial, 8);
 
 		//If IDCODE is all zeroes, poll again
 		if(idcode == 0)
@@ -125,7 +125,7 @@ void InitFPGA()
 	}
 
 	//Read USERCODE
-	g_usercode = g_apbfpga.BlockingRead32(BASE_SYSINFO + REG_USERCODE);
+	g_usercode = g_sysInfo->usercode;
 	g_log("Usercode: %08x\n", g_usercode);
 	{
 		LogIndenter li(g_log);
@@ -151,11 +151,10 @@ void InitFPGA()
 	g_log("Setting all relays to input mode\n");
 	for(int chan=0; chan<4; chan++)
 	{
-		//Set the relay mode
-		g_apbfpga.BlockingWrite16(BASE_RELAY + REG_RELAY_TOGGLE, 0x8000 | chan);
+		g_relayController->toggle = 0x8000 | chan;
 
-		//Block until it's not busy anymore
-		while(0 != g_apbfpga.BlockingRead16(BASE_RELAY + REG_RELAY_STAT))
+		//Ping-pong poll the two status registers until we're done
+		while( (0 != g_relayController->stat) && (0 != g_relayController->stat2) )
 		{}
 	}
 }

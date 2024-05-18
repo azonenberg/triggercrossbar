@@ -105,7 +105,7 @@ enum baseaddr_t
 	//Root bridge, large-address branch (0x1000 per node)
 	BASE_XG_TX			= 0x0000'8000,		//Management10GTxFifo
 	BASE_1G_TX			= 0x0000'9000,		//ManagementTxFifo
-	BASE_ETH_RX			= 0x0000'a000
+	BASE_ETH_RX			= 0x0000'a000		//ManagementRxFifo
 };
 
 enum regid_t
@@ -113,27 +113,11 @@ enum regid_t
 	//APB register IDs
 	//(must match register IDs in corresponding module)
 
-	//APB_SystemInfo
-	REG_FPGA_IDCODE		= 0x0000,
-	REG_FPGA_SERIAL		= 0x0004,
-	REG_FAN0_RPM		= 0x0010,
-	REG_FAN1_RPM		= 0x0012,
-	REG_DIE_TEMP		= 0x0014,
-	REG_VOLT_CORE		= 0x0016,
-	REG_VOLT_RAM		= 0x0018,
-	REG_VOLT_AUX		= 0x001a,
-	REG_USERCODE		= 0x001c,
-
 	//APB_MDIO
 	REG_MDIO_CMD_ADDR	= 0x0000,
 	REG_MDIO_DATA		= 0x0002,
 	REG_MDIO_STATUS		= 0x0020,
 	REG_MDIO_STATUS2	= 0x0040,
-
-	//APB_RelayController
-	REG_RELAY_TOGGLE	= 0x0000,
-	REG_RELAY_STAT		= 0x0020,
-	REG_RELAY_STAT2		= 0x0040,
 
 	//APB_SPIHostInterface
 	REG_SPI_CLK_DIV		= 0x0000,
@@ -174,14 +158,49 @@ enum regid_t
 	REG_DRP_STATUS_2	= 0x0028,
 
 	//Management10GTxFifo / ManagementTxFifo
-	REG_ETH_TX_STAT		= 0x0000,
 	REG_ETH_TX_COMMIT	= 0x0004,
-	REG_ETH_TX_BUF		= 0x0008,
-
-	//ManagementRxFifo
-	REG_ETH_RX_BUF		= 0x0000,
-	REG_ETH_RX_POP		= 0x0ff8,
-	REG_ETH_RX_LEN		= 0x0ffc
+	REG_ETH_TX_BUF		= 0x0008
 };
+
+struct __attribute__((packed)) APB_SystemInfo
+{
+	uint32_t		idcode;
+	uint8_t			serial[8];
+	uint32_t		field_0c;
+	uint16_t		fan_rpm[2];
+	uint16_t		die_temp;
+	uint16_t		voltage_core;
+	uint16_t		voltage_ram;
+	uint16_t		voltage_aux;
+	uint32_t		usercode;
+};
+
+struct __attribute__((packed)) APB_RelayController
+{
+	uint16_t		toggle;
+	uint16_t		field_02[15];
+	uint16_t		stat;
+	uint16_t		field_22[15];
+	uint16_t		stat2;
+};
+
+struct __attribute__((packed)) ManagementRxFifo
+{
+	uint8_t			rx_buf[4088];
+	uint16_t		rx_pop;
+	uint16_t		field_ffa;
+	uint16_t		rx_len;
+};
+
+struct __attribute__((packed)) ManagementTxFifo
+{
+	uint16_t		tx_stat;
+	uint16_t		field_02;
+	uint16_t		tx_commit;
+	uint16_t		field_06;
+	uint8_t			tx_buf[4088];
+};
+
+#define FPGA_MEM_BASE 0x9000'0000
 
 #endif

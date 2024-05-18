@@ -36,6 +36,7 @@
 #include <peripheral/Flash.h>
 #include <peripheral/GPIO.h>
 #include <peripheral/I2C.h>
+#include <peripheral/MPU.h>
 #include <peripheral/OctoSPI.h>
 #include <peripheral/OctoSPIManager.h>
 #include <peripheral/Power.h>
@@ -211,5 +212,12 @@ bool IsFrontPanelDFU();
 extern char g_inputDisplayNames[8][DISPLAY_NAME_MAX];
 extern char g_outputDisplayNames[8][DISPLAY_NAME_MAX];
 extern char g_bidirDisplayNames[4][DISPLAY_NAME_MAX];
+
+//SFRs on the FPGA
+extern volatile APB_SystemInfo* g_sysInfo;
+extern volatile APB_RelayController* g_relayController;
+extern volatile ManagementRxFifo* g_ethRxFifo;
+extern volatile ManagementTxFifo* g_eth1GTxFifo;
+extern volatile ManagementTxFifo* g_eth10GTxFifo;
 
 #endif

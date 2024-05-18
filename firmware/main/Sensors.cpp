@@ -34,17 +34,7 @@
  */
 uint16_t GetFanRPM(uint8_t channel)
 {
-	switch(channel)
-	{
-		case 0:
-			return g_apbfpga.BlockingRead16(BASE_SYSINFO + REG_FAN0_RPM);
-
-		case 1:
-			return g_apbfpga.BlockingRead16(BASE_SYSINFO + REG_FAN1_RPM);
-
-		default:
-			return 0;
-	}
+	return g_sysInfo->fan_rpm[channel];
 }
 
 /**
@@ -52,7 +42,7 @@ uint16_t GetFanRPM(uint8_t channel)
  */
 uint16_t GetFPGATemperature()
 {
-	return g_apbfpga.BlockingRead16(BASE_SYSINFO + REG_DIE_TEMP);
+	return g_sysInfo->die_temp;
 }
 
 /**
@@ -60,7 +50,7 @@ uint16_t GetFPGATemperature()
  */
 uint16_t GetFPGAVCCINT()
 {
-	return g_apbfpga.BlockingRead16(BASE_SYSINFO + REG_VOLT_CORE);
+	return g_sysInfo->voltage_core;
 }
 
 /**
@@ -68,7 +58,7 @@ uint16_t GetFPGAVCCINT()
  */
 uint16_t GetFPGAVCCBRAM()
 {
-	return g_apbfpga.BlockingRead16(BASE_SYSINFO + REG_VOLT_RAM);
+	return g_sysInfo->voltage_ram;
 }
 
 /**
@@ -76,7 +66,7 @@ uint16_t GetFPGAVCCBRAM()
  */
 uint16_t GetFPGAVCCAUX()
 {
-	return g_apbfpga.BlockingRead16(BASE_SYSINFO + REG_VOLT_AUX);
+	return g_sysInfo->voltage_aux;
 }
 
 /**
