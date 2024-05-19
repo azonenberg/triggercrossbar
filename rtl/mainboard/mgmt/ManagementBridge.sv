@@ -266,8 +266,7 @@ module ManagementBridge(
 
 	end
 
-	/*
-	ila_1 ila(
+	ila_2 ila(
 		.clk(clk),
 		.probe0(qspi_sck),
 		.probe1(qspi_cs_n),
@@ -287,6 +286,5 @@ module ManagementBridge(
 		.probe15(qspi.dq_in_sync),
 		.probe16(qspi.dq_out)
 	);
-	*/
 
 endmodule

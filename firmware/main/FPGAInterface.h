@@ -153,8 +153,7 @@ enum regid_t
 	REG_DRP_STATUS_2	= 0x0028,
 
 	//Management10GTxFifo / ManagementTxFifo
-	REG_ETH_TX_COMMIT	= 0x0004,
-	REG_ETH_TX_BUF		= 0x0008
+	REG_ETH_TX_BUF		= 0x0040
 };
 
 struct __attribute__((packed)) APB_SystemInfo
@@ -202,9 +201,9 @@ struct __attribute__((packed)) ManagementTxFifo
 {
 	uint16_t		tx_stat;
 	uint16_t		field_02[3];
-	uint16_t		tx_commit;
-	uint16_t		field_0a[3];
-	uint8_t			tx_buf[4080];
+	uint64_t		tx_commit;
+	uint16_t		field_0a[24];
+	uint8_t			tx_buf[4032];
 };
 
 struct __attribute__((packed)) APB_Curve25519

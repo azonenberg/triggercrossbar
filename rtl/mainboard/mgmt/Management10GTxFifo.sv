@@ -59,8 +59,8 @@ module Management10GTxFifo(
 	typedef enum logic[apb.ADDR_WIDTH-1:0]
 	{
 		REG_STAT	= 'h0000,		//[0] = link up flag
-		REG_COMMIT	= 'h0004,		//Write any value to send the current frame
-		REG_TX_BUF	= 'h0008		//Write any address >= here to write to transmit buffer
+		REG_COMMIT	= 'h0008,		//Write any value to send the current frame
+		REG_TX_BUF	= 'h0040		//Write any address >= here to write to transmit buffer
 	} regid_t;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -352,5 +352,25 @@ module Management10GTxFifo(
 		endcase
 
 	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Debug ILA
+
+	ila_1 ila(
+		.clk(apb.pclk),
+		.probe0(fifo_wr_commit),
+		.probe1(tx_wr_packetlen),
+		.probe2(fifo_wr_en),
+		.probe3(fifo_wr_data),
+		.probe4(apb.psel),
+		.probe5(apb.penable),
+		.probe6(apb.pready),
+		.probe7(apb.paddr),
+		.probe8(apb.prdata),
+		.probe9(apb.pwrite),
+		.probe10(apb.pwdata),
+		.probe11(apb.pstrb),
+		.probe12(fifo_wr_valid)
+	);
 
 endmodule

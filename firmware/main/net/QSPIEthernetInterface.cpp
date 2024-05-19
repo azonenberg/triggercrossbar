@@ -74,12 +74,13 @@ void QSPIEthernetInterface::SendTxFrame(EthernetFrame* frame, bool markFree)
 	//TODO: DMA optimizations
 
 	//Separate TX buffers for 1G (8 bit datapath in FPGA) and 10G (32 bit datapath in FPGA)
-	auto base = g_sfpLinkUp ? BASE_XG_TX : BASE_1G_TX;
-	//auto fifo = g_sfpLinkUp ? g_eth10GTxFifo : g_eth1GTxFifo;
-	//TODO: this isn't working, likely because we rely on an exact number of accesses?
+	uint32_t base = g_sfpLinkUp ? BASE_XG_TX : BASE_1G_TX;
+	volatile ManagementTxFifo* fifo = g_sfpLinkUp ? g_eth10GTxFifo : g_eth1GTxFifo;
+	//TODO: this isn't working, likely because we rely on an exact number of accesses
 	g_apbfpga.BlockingWrite(base + REG_ETH_TX_BUF, frame->RawData(), frame->Length());
-	g_apbfpga.BlockingWrite16(base + REG_ETH_TX_COMMIT, 1);
-	//fifo->tx_commit = 1;
+	//memcpy((void*)fifo->tx_buf, frame->RawData(), frame->Length());
+	asm("dmb st");
+	fifo->tx_commit = 1;
 
 	//Done, put on free list
 	if(markFree)

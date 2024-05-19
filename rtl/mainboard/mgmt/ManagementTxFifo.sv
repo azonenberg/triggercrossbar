@@ -60,7 +60,7 @@ module ManagementTxFifo(
 	{
 		REG_STAT	= 'h0000,		//[0] = link up flag
 		REG_COMMIT	= 'h0008,		//Write any value to send the current frame
-		REG_TX_BUF	= 'h0010		//Write any address >= here to write to transmit buffer
+		REG_TX_BUF	= 'h0040		//Write any address >= here to write to transmit buffer
 	} regid_t;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -85,7 +85,7 @@ module ManagementTxFifo(
 	logic[7:0]	next_byte		= 0;
 	logic		next_byte_valid	= 0;
 
-	logic[10:0]	tx_wr_packetlen		= 0;
+	logic[10:0]	tx_wr_packetlen	= 0;
 
 	//Combinatorial readback
 	always_comb begin
