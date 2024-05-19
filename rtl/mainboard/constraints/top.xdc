@@ -296,7 +296,7 @@ resize_pblock [get_pblocks pblock_xg0_pcs] -add {RAMB36_X2Y18:RAMB36_X3Y19}
 set_property IS_SOFT FALSE [get_pblocks pblock_xg0_pcs]
 
 create_pblock pblock_port_mgmt0
-add_cells_to_pblock [get_pblocks pblock_port_mgmt0] [get_cells -quiet [list mgmt/sync_link_up_txclk network/mdio network/port_mgmt0]]
+#add_cells_to_pblock [get_pblocks pblock_port_mgmt0] [get_cells -quiet [list mgmt/sync_link_up_txclk network/mdio network/port_mgmt0]]
 resize_pblock [get_pblocks pblock_port_mgmt0] -add {SLICE_X0Y150:SLICE_X11Y178}
 resize_pblock [get_pblocks pblock_port_mgmt0] -add {DSP48_X0Y60:DSP48_X0Y69}
 resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB18_X0Y60:RAMB18_X0Y69}
@@ -304,7 +304,7 @@ resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB36_X0Y30:RAMB36_X0Y34}
 set_property IS_SOFT FALSE [get_pblocks pblock_port_mgmt0]
 
 create_pblock pblock_qspi
-add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/iface mgmt/tach0 mgmt/tach1 relays]]
+#add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/iface mgmt/tach0 mgmt/tach1 relays]]
 resize_pblock [get_pblocks pblock_qspi] -add {SLICE_X0Y50:SLICE_X19Y99}
 resize_pblock [get_pblocks pblock_qspi] -add {DSP48_X0Y20:DSP48_X0Y39}
 resize_pblock [get_pblocks pblock_qspi] -add {RAMB18_X0Y20:RAMB18_X0Y39}

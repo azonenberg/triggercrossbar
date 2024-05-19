@@ -52,32 +52,22 @@ static const char* g_linkSpeedNamesLong[] =
 uint16_t ManagementPHYRead(uint8_t regid)
 {
 	//Request the read
-	g_apbfpga.BlockingWrite16(BASE_MDIO + REG_MDIO_CMD_ADDR, regid << 8);
+	g_mdio->cmd_addr = regid << 8;
 
-	//Poll until busy flag is cleared
-	//TODO: need to be careful WRT caching here when we memory map
-	while(true)
-	{
-		auto reply = g_apbfpga.BlockingRead16(BASE_MDIO + REG_MDIO_STATUS);
-		if(reply != 1)
-			return g_apbfpga.BlockingRead16(BASE_MDIO + REG_MDIO_DATA);
-	}
+	//Poll until busy flag is cleared (in both status registers b/c caching)
+	StatusRegisterMaskedWait(&g_mdio->status, &g_mdio->status2, 0x1, 0x0);
+
+	return g_mdio->data;
 }
 
 void ManagementPHYWrite(uint8_t regid, uint16_t regval)
 {
 	//Request the write
-	g_apbfpga.BlockingWrite16(BASE_MDIO + REG_MDIO_CMD_ADDR, (regid << 8) | 0x8000);
-	g_apbfpga.BlockingWrite16(BASE_MDIO + REG_MDIO_DATA, regval);
+	g_mdio->cmd_addr = (regid << 8) | 0x8000;
+	g_mdio->data = regval;
 
-	//Poll until busy flag is cleared
-	//TODO: need to be careful WRT caching here when we memory map
-	while(true)
-	{
-		auto reply = g_apbfpga.BlockingRead16(BASE_MDIO + REG_MDIO_STATUS);
-		if(reply != 1)
-			return;
-	}
+	//Poll until busy flag is cleared (in both status registers b/c caching)
+	StatusRegisterMaskedWait(&g_mdio->status, &g_mdio->status2, 0x1, 0x0);
 }
 
 /**
@@ -135,7 +125,8 @@ void PollPHYs()
 	g_basetLinkUp = bup;
 
 	//Get the SFP link status
-	if(g_eth10GTxFifo->tx_stat & 1)
+	auto stat = g_eth10GTxFifo->tx_stat;
+	if(stat & 1)
 	{
 		//Link went up?
 		if(!g_sfpLinkUp)

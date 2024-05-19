@@ -48,6 +48,7 @@ public:
 
 protected:
 	void BlockUntilAcceleratorDone();
+
 	void PrintBlock(const char* keyname, const uint8_t* key);
 };
 

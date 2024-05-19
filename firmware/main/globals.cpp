@@ -201,6 +201,14 @@ volatile APB_SystemInfo* g_sysInfo =
 volatile APB_RelayController* g_relayController =
 	reinterpret_cast<volatile APB_RelayController*>(FPGA_MEM_BASE + BASE_RELAY);
 
+///@brief MDIO interface
+volatile APB_MDIO* g_mdio =
+	reinterpret_cast<volatile APB_MDIO*>(FPGA_MEM_BASE + BASE_MDIO);
+
+///@brief Curve25519 controller
+volatile APB_Curve25519* g_curve25519 =
+	reinterpret_cast<volatile APB_Curve25519*>(FPGA_MEM_BASE + BASE_25519);
+
 ///@brief Ethernet RX buffer
 volatile ManagementRxFifo* g_ethRxFifo =
 	reinterpret_cast<volatile ManagementRxFifo*>(FPGA_MEM_BASE + BASE_ETH_RX);

@@ -541,3 +541,21 @@ void LogTemperatures()
 		static_cast<int>(((temps[7] & 0xff) / 256.0) * 100)
 		);
 }*/
+
+/**
+	@brief Block until the status register (mapped at two locations) matches the target
+ */
+void StatusRegisterMaskedWait(volatile uint16_t* a, volatile uint16_t* b, uint16_t mask, uint16_t target)
+{
+	asm("dmb st");
+
+	while(true)
+	{
+		uint16_t va = *a;
+		uint16_t vb = *b;
+		asm("dmb");
+
+		if( ( (va & mask) == target) && ( (vb & mask) == target) )
+			return;
+	}
+}

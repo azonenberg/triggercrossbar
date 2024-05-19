@@ -76,11 +76,11 @@ module APB_MDIO #(
 								//12:8	Register address
 								//4:0	PHY address
 
-		DATA		= 'h02,		//Read/write data
+		DATA		= 'h08,		//Read/write data
 
-		STATUS		= 'h20,		//Busy flag
+		STATUS		= 'h40,		//Busy flag
 
-		STATUS2		= 'h40		//Duplicate of STATUS at 0x20, 32 bytes offset
+		STATUS2		= 'h60		//Duplicate of STATUS at 0x20, 32 bytes offset
 								//(workaround for inability to disable prefetch cache on STM32H7)
 
 	} regid_t;

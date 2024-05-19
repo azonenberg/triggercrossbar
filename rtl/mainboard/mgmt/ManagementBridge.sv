@@ -266,4 +266,27 @@ module ManagementBridge(
 
 	end
 
+	/*
+	ila_1 ila(
+		.clk(clk),
+		.probe0(qspi_sck),
+		.probe1(qspi_cs_n),
+		.probe2(start),
+		.probe3(stop),
+		.probe4(opcode),
+		.probe5(addr),
+		.probe6(insn_valid),
+		.probe7(rd_en_raw),
+		.probe8(wr_en_raw),
+		.probe9(apb.psel),
+		.probe10(apb.pwrite),
+		.probe11(apb.pwdata),
+		.probe12(apb.pready),
+		.probe13(apb.paddr),
+		.probe14(apb_write_half_valid),
+		.probe15(qspi.dq_in_sync),
+		.probe16(qspi.dq_out)
+	);
+	*/
+
 endmodule

@@ -58,6 +58,10 @@
 #include <staticnet/stack/staticnet.h>
 #include <staticnet/ssh/SSHTransportServer.h>
 
+//SFR poll (ignore warnings related to this, we know the alignment of the SFRs are correct)
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+void StatusRegisterMaskedWait(volatile uint16_t* a, volatile uint16_t* b, uint16_t mask, uint16_t target);
+
 #include "net/ManagementTCPProtocol.h"
 #include "net/ManagementUDPProtocol.h"
 #include "FPGAInterface.h"
@@ -216,8 +220,10 @@ extern char g_bidirDisplayNames[4][DISPLAY_NAME_MAX];
 //SFRs on the FPGA
 extern volatile APB_SystemInfo* g_sysInfo;
 extern volatile APB_RelayController* g_relayController;
+extern volatile APB_MDIO* g_mdio;
 extern volatile ManagementRxFifo* g_ethRxFifo;
 extern volatile ManagementTxFifo* g_eth1GTxFifo;
 extern volatile ManagementTxFifo* g_eth10GTxFifo;
+extern volatile APB_Curve25519* g_curve25519;
 
 #endif

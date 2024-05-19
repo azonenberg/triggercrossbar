@@ -59,8 +59,8 @@ module ManagementTxFifo(
 	typedef enum logic[apb.ADDR_WIDTH-1:0]
 	{
 		REG_STAT	= 'h0000,		//[0] = link up flag
-		REG_COMMIT	= 'h0004,		//Write any value to send the current frame
-		REG_TX_BUF	= 'h0008		//Write any address >= here to write to transmit buffer
+		REG_COMMIT	= 'h0008,		//Write any value to send the current frame
+		REG_TX_BUF	= 'h0010		//Write any address >= here to write to transmit buffer
 	} regid_t;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

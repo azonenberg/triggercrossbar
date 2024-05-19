@@ -53,9 +53,7 @@ DeviceCryptoEngine::~DeviceCryptoEngine()
 
 void DeviceCryptoEngine::BlockUntilAcceleratorDone()
 {
-	uint16_t status = 1;
-	while(status != 0)
-		status = g_apbfpga.BlockingRead16(BASE_25519 + REG_CRYPT_STATUS);
+	StatusRegisterMaskedWait(&g_curve25519->status, &g_curve25519->status2, 0x1, 0x0);
 }
 
 /**
@@ -78,10 +76,13 @@ void DeviceCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clientPubl
 	auto t1 = g_logTimer->GetCount();
 	#endif
 
-	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
+	__builtin_memcpy((void*)g_curve25519->e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
+	asm("dmb st");
 	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_WORK, clientPublicKey, ECDH_KEY_SIZE);
+	asm("dmb st");
+	g_curve25519->cmd = CMD_CRYPTO_SCALARMULT;
 	BlockUntilAcceleratorDone();
-	g_apbfpga.BlockingRead(BASE_25519 + REG_CRYPT_DATA_OUT, sharedSecret, ECDH_KEY_SIZE);
+	memcpy(sharedSecret, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);
 
 	#ifdef CRYPTO_PROFILE
 	auto delta = g_logTimer->GetCount() - t1;
@@ -116,10 +117,14 @@ void DeviceCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
 	};
 
 	//Make the FPGA do the rest of the work
-	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
+	__builtin_memcpy((void*)g_curve25519->e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
+	//__builtin_memcpy((void*)g_curve25519->work, basepoint, ECDH_KEY_SIZE);
+	asm("dmb st");
 	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_WORK, basepoint, ECDH_KEY_SIZE);
+	asm("dmb st");
+	g_curve25519->cmd = CMD_CRYPTO_SCALARMULT;
 	BlockUntilAcceleratorDone();
-	g_apbfpga.BlockingRead(BASE_25519 + REG_CRYPT_DATA_OUT, pub, ECDH_KEY_SIZE);
+	memcpy(pub, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);
 
 	#ifdef CRYPTO_PROFILE
 	auto delta = g_logTimer->GetCount() - t1;
@@ -180,8 +185,9 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 	uint8_t pfpga[128];
 	for(int block=0; block<4; block++)
 	{
-		g_apbfpga.BlockingWrite16(BASE_25519 + REG_CRYPT_RD_ADDR, block);
-		g_apbfpga.BlockingRead(BASE_25519 + REG_CRYPT_DATA_OUT, pfpga + block*32, ECDSA_KEY_SIZE);
+		g_curve25519->rd_addr = block;
+		asm("dmb st");
+		memcpy(pfpga + block*32, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);
 	}
 
 	#ifdef CRYPTO_PROFILE
@@ -195,8 +201,9 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 	uint8_t qfpga[128];
 	for(int block=0; block<4; block++)
 	{
-		g_apbfpga.BlockingWrite16(BASE_25519 + REG_CRYPT_RD_ADDR, block);
-		g_apbfpga.BlockingRead(BASE_25519 + REG_CRYPT_DATA_OUT, qfpga + block*32, ECDSA_KEY_SIZE);
+		g_curve25519->rd_addr = block;
+		asm("dmb st");
+		memcpy(qfpga + block*32, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);
 	}
 
 	#ifdef CRYPTO_PROFILE
@@ -273,8 +280,9 @@ void DeviceCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash
 	uint8_t pfpga[128];
 	for(int block=0; block<4; block++)
 	{
-		g_apbfpga.BlockingWrite16(BASE_25519 + REG_CRYPT_RD_ADDR, block);
-		g_apbfpga.BlockingRead(BASE_25519 + REG_CRYPT_DATA_OUT, pfpga + block*32, ECDSA_KEY_SIZE);
+		g_curve25519->rd_addr = block;
+		asm("dmb st");
+		memcpy(pfpga + block*32, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);
 	}
 
 	//Unpack and repack the result and save in q

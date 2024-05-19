@@ -50,6 +50,7 @@ void APBFPGAInterface::Nop()
 
 void APBFPGAInterface::BlockingRead(uint32_t addr, uint8_t* data, uint32_t len)
 {
+	asm("dmb st");
 	g_qspi->Abort();
 	g_qspi->BlockingRead(OP_APB_READ, addr, data, len);
 
@@ -59,6 +60,7 @@ void APBFPGAInterface::BlockingRead(uint32_t addr, uint8_t* data, uint32_t len)
 
 void APBFPGAInterface::BlockingWrite(uint32_t addr, const uint8_t* data, uint32_t len)
 {
+	asm("dmb st");
 	g_qspi->Abort();
 	g_qspi->BlockingWrite(OP_APB_WRITE, addr, data, len);
 

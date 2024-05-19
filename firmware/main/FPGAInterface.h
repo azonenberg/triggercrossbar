@@ -113,12 +113,6 @@ enum regid_t
 	//APB register IDs
 	//(must match register IDs in corresponding module)
 
-	//APB_MDIO
-	REG_MDIO_CMD_ADDR	= 0x0000,
-	REG_MDIO_DATA		= 0x0002,
-	REG_MDIO_STATUS		= 0x0020,
-	REG_MDIO_STATUS2	= 0x0040,
-
 	//APB_SPIHostInterface
 	REG_SPI_CLK_DIV		= 0x0000,
 	REG_SPI_DATA		= 0x0002,
@@ -144,6 +138,7 @@ enum regid_t
 	REG_CRYPT_E			= 0x0000,
 	REG_CRYPT_STATUS	= 0x0020,
 	REG_CRYPT_RD_ADDR	= 0x0024,
+	REG_CRYPT_CMD		= 0x0028,
 	REG_CRYPT_STATUS2	= 0x0040,
 	REG_CRYPT_WORK		= 0x0060,
 	REG_CRYPT_Q_0		= 0x0080,
@@ -184,6 +179,17 @@ struct __attribute__((packed)) APB_RelayController
 	uint16_t		stat2;
 };
 
+struct __attribute__((packed)) APB_MDIO
+{
+	uint16_t		cmd_addr;
+	uint16_t		field_02[3];
+	uint16_t		data;
+	uint16_t		field_04[27];
+	uint16_t		status;
+	uint16_t		field_22[15];
+	uint16_t		status2;
+};
+
 struct __attribute__((packed)) ManagementRxFifo
 {
 	uint8_t			rx_buf[4088];
@@ -195,10 +201,36 @@ struct __attribute__((packed)) ManagementRxFifo
 struct __attribute__((packed)) ManagementTxFifo
 {
 	uint16_t		tx_stat;
-	uint16_t		field_02;
+	uint16_t		field_02[3];
 	uint16_t		tx_commit;
-	uint16_t		field_06;
-	uint8_t			tx_buf[4088];
+	uint16_t		field_0a[3];
+	uint8_t			tx_buf[4080];
+};
+
+struct __attribute__((packed)) APB_Curve25519
+{
+	uint8_t			e[32];
+	uint16_t		status;
+	uint16_t		field_22;
+	uint16_t		rd_addr;
+	uint16_t		field_26;
+	uint16_t		cmd;
+	uint16_t		field_2a[11];
+	uint16_t		status2;
+	uint16_t		field_42[15];
+	uint8_t			work[32];
+	uint8_t			q0[32];
+	uint8_t			q1[32];
+	uint8_t			field_c0[32];
+	uint8_t			field_e0[32];
+	uint8_t			base_q0[32];
+	uint8_t			field_120[32];
+	uint8_t			data_out[32];
+};
+
+enum crypt_cmd_t
+{
+	CMD_CRYPTO_SCALARMULT = 1
 };
 
 #define FPGA_MEM_BASE 0x9000'0000
