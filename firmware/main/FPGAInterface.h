@@ -201,8 +201,8 @@ struct __attribute__((packed)) ManagementTxFifo
 {
 	uint16_t		tx_stat;
 	uint16_t		field_02[3];
-	uint64_t		tx_commit;
-	uint16_t		field_0a[24];
+	uint16_t		tx_commit;
+	uint16_t		field_0a[27];
 	uint8_t			tx_buf[4032];
 };
 
