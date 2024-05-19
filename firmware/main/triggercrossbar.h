@@ -225,5 +225,6 @@ extern volatile ManagementRxFifo* g_ethRxFifo;
 extern volatile ManagementTxFifo* g_eth1GTxFifo;
 extern volatile ManagementTxFifo* g_eth10GTxFifo;
 extern volatile APB_Curve25519* g_curve25519;
+extern volatile uint16_t* g_irqStat;
 
 #endif
