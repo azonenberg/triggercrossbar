@@ -312,22 +312,4 @@ module ManagementTxFifo(
 
 	end
 
-	//Debug ILA
-	ila_1 ila(
-		.clk(apb.pclk),
-		.probe0(apb.penable),
-		.probe1(apb.psel),
-		.probe2(apb.pready),
-		.probe3(apb.pwrite),
-		.probe4(apb.paddr),
-		.probe5(apb.pwdata),
-		.probe6(apb.pstrb),
-		.probe7(next_byte),
-		.probe8(next_byte_valid),
-		.probe9(wr_commit),
-		.probe10(tx_wr_packetlen),
-		.probe11(wr_en),
-		.probe12(wr_data)
-	);
-
 endmodule

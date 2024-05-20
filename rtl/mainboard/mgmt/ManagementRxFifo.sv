@@ -265,22 +265,4 @@ module ManagementRxFifo(
 
 	end
 
-	ila_2 ila(
-		.clk(apb.pclk),
-		.probe0(eth_rx_bus.start),
-		.probe1(framelen),
-		.probe2(apb.penable),
-		.probe3(apb.psel),
-		.probe4(apb.pready),
-		.probe5(eth_rx_bus.commit),
-		.probe6(apb.prdata),
-		.probe7(apb.paddr),
-		.probe8(rxfifo_pop_packet),
-		.probe9(rxfifo_packet_size),
-		.probe10(rxfifo_rd_data),
-		.probe11(rxheader_rd_size),
-		.probe12(rxfifo_rd_size),
-		.probe13(apb.pwrite)
-	);
-
 endmodule
