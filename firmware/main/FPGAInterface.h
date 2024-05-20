@@ -119,13 +119,6 @@ enum regid_t
 	//APB register IDs
 	//(must match register IDs in corresponding module)
 
-	//APB_SPIHostInterface
-	REG_SPI_CLK_DIV		= 0x0000,
-	REG_SPI_DATA		= 0x0002,
-	REG_SPI_CS_N		= 0x0004,
-	REG_SPI_STATUS		= 0x0020,
-	REG_SPI_STATUS2		= 0x0040,
-
 	//APB_BertConfig
 	REG_TX_CONFIG		= 0x0000,
 	REG_TX_CLK			= 0x0004,
@@ -140,6 +133,17 @@ enum regid_t
 	REG_DRP_DATA		= 0x0004,
 	REG_DRP_STATUS		= 0x0008,
 	REG_DRP_STATUS_2	= 0x0028,
+};
+
+struct __attribute__((packed)) APB_SPIHostInterface
+{
+	uint16_t		clkdiv;
+	uint16_t		data;
+	uint16_t		cs_n;
+	uint16_t		field_06[13];
+	uint16_t		status;
+	uint16_t		field_22[15];
+	uint16_t		status2;
 };
 
 struct __attribute__((packed)) APB_GPIO

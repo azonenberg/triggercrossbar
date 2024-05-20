@@ -256,29 +256,23 @@ uint8_t GetFrontPanelMode()
 
 void SetFrontPanelCS(bool b)
 {
-	g_apbfpga.BlockingWrite16(BASE_FRONT_SPI + REG_SPI_CS_N, b);
+	g_apbfpga.BlockingWrite16(&g_frontPanelSPI->cs_n, b);
 }
 
 void SendFrontPanelByte(uint8_t data)
 {
-	g_apbfpga.BlockingWrite16(BASE_FRONT_SPI + REG_SPI_DATA, data);
-
-	//Block until not busy
-	while(0 != g_apbfpga.BlockingRead16(BASE_FRONT_SPI + REG_SPI_STATUS))
-	{}
+	g_apbfpga.BlockingWrite16(&g_frontPanelSPI->data, data);
+	StatusRegisterMaskedWait(&g_frontPanelSPI->status, &g_frontPanelSPI->status2, 0x1, 0x0);
 }
 
 uint8_t ReadFrontPanelByte()
 {
 	//Send the data byte
-	g_apbfpga.BlockingWrite16(BASE_FRONT_SPI + REG_SPI_DATA, 0x00);
+	g_apbfpga.BlockingWrite16(&g_frontPanelSPI->data, 0x00);
 
-	//Block until not busy
-	while(0 != g_apbfpga.BlockingRead16(BASE_FRONT_SPI + REG_SPI_STATUS))
-	{}
-
-	//Return the response
-	return g_apbfpga.BlockingRead16(BASE_FRONT_SPI + REG_SPI_DATA);
+	//Return the response once complete
+	StatusRegisterMaskedWait(&g_frontPanelSPI->status, &g_frontPanelSPI->status2, 0x1, 0x0);
+	return g_frontPanelSPI->data;
 }
 
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value)

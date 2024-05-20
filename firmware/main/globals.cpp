@@ -220,6 +220,10 @@ volatile APB_GPIO* g_ledGpioInPortActivity =
 volatile APB_GPIO* g_ledGpioOutPortActivity =
 	reinterpret_cast<volatile APB_GPIO*>(FPGA_MEM_BASE + BASE_OUT_LED_GPIO);
 
+///@brief Front panel SPI controller
+volatile APB_SPIHostInterface* g_frontPanelSPI =
+	reinterpret_cast<volatile APB_SPIHostInterface*>(FPGA_MEM_BASE + BASE_FRONT_SPI);
+
 ///@brief Ethernet RX buffer
 volatile ManagementRxFifo* g_ethRxFifo =
 	reinterpret_cast<volatile ManagementRxFifo*>(FPGA_MEM_BASE + BASE_ETH_RX);
