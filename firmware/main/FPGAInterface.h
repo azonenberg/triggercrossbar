@@ -79,6 +79,12 @@ public:
 
 	void BlockingWrite32(uint32_t addr, uint32_t data)
 	{ BlockingWrite(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
+
+	void BlockingWrite16(volatile void* addr, uint16_t data)
+	{ BlockingWrite16(reinterpret_cast<uint32_t>(addr) & 0xffffff, data); }
+
+	void BlockingWriteN(volatile void* addr, const void* data, uint32_t len)
+	{ BlockingWrite(reinterpret_cast<uint32_t>(const_cast<void*>(addr)) & 0xffffff, (const uint8_t*)data, len); }
 };
 
 enum baseaddr_t
@@ -153,6 +159,8 @@ enum regid_t
 	REG_DRP_STATUS_2	= 0x0028,
 
 	//Management10GTxFifo / ManagementTxFifo
+	REG_ETH_TX_COMMIT	= 0x0008,
+	REG_ETH_TX_LENGTH	= 0x0010,
 	REG_ETH_TX_BUF		= 0x0040
 };
 
@@ -201,8 +209,9 @@ struct __attribute__((packed)) ManagementTxFifo
 {
 	uint16_t		tx_stat;
 	uint16_t		field_02[3];
-	uint16_t		tx_commit;
-	uint16_t		field_0a[27];
+	uint64_t		tx_commit;
+	uint64_t		tx_len;
+	uint16_t		field_14[20];
 	uint8_t			tx_buf[4032];
 };
 

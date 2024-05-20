@@ -373,7 +373,8 @@ void InitQSPI()
 	//With 3.3V Vdd, we can go up to 140 MHz.
 	//FPGA currently requires <= 62.5 MHz due to the RX oversampling used (4x in 250 MHz clock domain)
 	//Dividing by 5 gives 50 MHz and a transfer rate of 200 Mbps
-	uint8_t prescale = 5;
+	//Dividing by 10, but DDR, gives the same throughput and works around an errata
+	uint8_t prescale = 20;
 
 	//Configure the OCTOSPI itself
 	//Original code used "instruction", but we want "address" to enable memory mapping
@@ -386,7 +387,8 @@ void InitQSPI()
 	qspi.SetDummyCycleCount(1);
 	qspi.SetDQSEnable(false);
 	qspi.SetDeselectTime(1);
-	qspi.SetSampleDelay(false);
+	qspi.SetSampleDelay(false, true);
+	qspi.SetDoubleRateMode(true);
 
 	//Poke MPU settings to disable caching etc on the QSPI memory range
 	MPU::Configure(MPU::KEEP_DEFAULT_MAP, MPU::DISABLE_IN_FAULT_HANDLERS);

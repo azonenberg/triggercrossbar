@@ -60,6 +60,7 @@ module ManagementTxFifo(
 	{
 		REG_STAT	= 'h0000,		//[0] = link up flag
 		REG_COMMIT	= 'h0008,		//Write any value to send the current frame
+		REG_LENGTH	= 'h0010,		//Write expected frame length (in bytes) here before writing to TX buffer
 		REG_TX_BUF	= 'h0040		//Write any address >= here to write to transmit buffer
 	} regid_t;
 
@@ -310,5 +311,23 @@ module ManagementTxFifo(
 		endcase
 
 	end
+
+	//Debug ILA
+	ila_1 ila(
+		.clk(apb.pclk),
+		.probe0(apb.penable),
+		.probe1(apb.psel),
+		.probe2(apb.pready),
+		.probe3(apb.pwrite),
+		.probe4(apb.paddr),
+		.probe5(apb.pwdata),
+		.probe6(apb.pstrb),
+		.probe7(next_byte),
+		.probe8(next_byte_valid),
+		.probe9(wr_commit),
+		.probe10(tx_wr_packetlen),
+		.probe11(wr_en),
+		.probe12(wr_data)
+	);
 
 endmodule

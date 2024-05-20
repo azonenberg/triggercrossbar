@@ -76,10 +76,11 @@ void DeviceCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clientPubl
 	auto t1 = g_logTimer->GetCount();
 	#endif
 
-	__builtin_memcpy((void*)g_curve25519->e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
-	asm("dmb st");
+	//__builtin_memcpy((void*)g_curve25519->e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
+	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
+	//asm("dmb st");
 	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_WORK, clientPublicKey, ECDH_KEY_SIZE);
-	asm("dmb st");
+	//asm("dmb st");
 	g_curve25519->cmd = CMD_CRYPTO_SCALARMULT;
 	BlockUntilAcceleratorDone();
 	memcpy(sharedSecret, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);
@@ -117,11 +118,12 @@ void DeviceCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
 	};
 
 	//Make the FPGA do the rest of the work
-	__builtin_memcpy((void*)g_curve25519->e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
+	//__builtin_memcpy((void*)g_curve25519->e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
 	//__builtin_memcpy((void*)g_curve25519->work, basepoint, ECDH_KEY_SIZE);
-	asm("dmb st");
+	//asm("dmb st");
+	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
 	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_WORK, basepoint, ECDH_KEY_SIZE);
-	asm("dmb st");
+	//asm("dmb st");
 	g_curve25519->cmd = CMD_CRYPTO_SCALARMULT;
 	BlockUntilAcceleratorDone();
 	memcpy(pub, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);

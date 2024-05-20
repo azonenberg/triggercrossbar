@@ -60,6 +60,7 @@ module Management10GTxFifo(
 	{
 		REG_STAT	= 'h0000,		//[0] = link up flag
 		REG_COMMIT	= 'h0008,		//Write any value to send the current frame
+		REG_LENGTH	= 'h0010,		//Write expected frame length (in bytes) here before writing to TX buffer
 		REG_TX_BUF	= 'h0040		//Write any address >= here to write to transmit buffer
 	} regid_t;
 
@@ -84,8 +85,12 @@ module Management10GTxFifo(
 	logic		fifo_wr_commit		= 0;
 	logic		fifo_wr_commit_adv	= 0;
 
-	logic[10:0]	tx_wr_packetlen		= 0;
+	logic[10:0]	expected_len_bytes	= 0;
+	logic[10:0]	expected_len_words	= 0;
+	logic[10:0]	running_len_bytes	= 0;
 	logic		tx_wr_phase			= 0;
+	logic[10:0]	bytes_left			= 0;
+	logic[10:0]	wr_offset			= 0;
 
 	//Combinatorial readback
 	always_comb begin
@@ -93,6 +98,9 @@ module Management10GTxFifo(
 		apb.pready	= apb.psel && apb.penable;
 		apb.prdata	= 0;
 		apb.pslverr	= 0;
+
+		wr_offset 	= (apb.paddr - REG_TX_BUF);
+		bytes_left	= expected_len_bytes - wr_offset;
 
 		if(apb.pready) begin
 
@@ -132,8 +140,10 @@ module Management10GTxFifo(
 			fifo_wr_valid		<= 0;
 			fifo_wr_commit		<= 0;
 			fifo_wr_commit_adv	<= 0;
-			tx_wr_packetlen		<= 0;
 			tx_wr_phase			<= 0;
+			expected_len_words	<= 0;
+			running_len_bytes	<= 0;
+			expected_len_bytes	<= 0;
 		end
 
 		//Normal path
@@ -145,13 +155,14 @@ module Management10GTxFifo(
 
 			//Increment word count as we push
 			if(fifo_wr_en)
-				tx_wr_packetlen	<= tx_wr_packetlen + 1;
+				running_len_bytes	<= running_len_bytes + fifo_wr_valid;
 
 			//Reset state after a push completes
 			if(fifo_wr_commit) begin
-				tx_wr_packetlen	<= 0;
-				fifo_wr_valid	<= 0;
-				tx_wr_phase		<= 0;
+				running_len_bytes	<= 0;
+				fifo_wr_valid		<= 0;
+				tx_wr_phase			<= 0;
+				expected_len_words	<= 0;
 			end
 
 			if(apb.pready && apb.pwrite) begin
@@ -167,30 +178,34 @@ module Management10GTxFifo(
 						fifo_wr_en			<= 1;
 						fifo_wr_valid		<= 2;
 						fifo_wr_data[15:0]	<= 0;
-						tx_wr_packetlen		<= tx_wr_packetlen + 1;
 					end
 
 				end
 
+				else if(apb.paddr == REG_LENGTH) begin
+					expected_len_bytes		<= apb.pwdata[10:0];
+					if(apb.pwdata[1:0])
+						expected_len_words	<= apb.pwdata[10:2] + 1;
+					else
+						expected_len_words	<= apb.pwdata[10:2];
+				end
+
 				//Write to the transmit buffer
+				//Expect writes to be rounded up to multiples of 64-byte AXI transactions
 				else if(apb.paddr >= REG_TX_BUF) begin
 
 					//Even numbered address: high half of word
 					if(apb.paddr[1:0] == 0) begin
 
-						//Is this a partial write (half width)?
-						//If so, write only the LSB and push the word
-						//(we don't support byte writes except for the last in a packet)
-						if(apb.pstrb[1] == 0) begin
-							fifo_wr_en		<= 1;
-							fifo_wr_valid	<= 1;
-							fifo_wr_data	<= { apb.pwdata[7:0], 24'h0 };
-						end
+						//Normal - write the half-word into the TX buffer
+						fifo_wr_data	<= { apb.pwdata[7:0], apb.pwdata[15:8], 16'h0 };
+						tx_wr_phase		<= 1;
 
-						//No, normal - write the half-word into the TX buffer
-						else begin
-							fifo_wr_data	<= { apb.pwdata[7:0], apb.pwdata[15:8], 16'h0 };
-							tx_wr_phase		<= 1;
+						//If this is the end of a frame, push it
+						if(bytes_left <= 2) begin
+							fifo_wr_valid	<= bytes_left;
+							fifo_wr_en		<= 1;
+							tx_wr_phase		<= 0;
 						end
 
 					end
@@ -202,17 +217,22 @@ module Management10GTxFifo(
 						tx_wr_phase		<= 0;
 						fifo_wr_en		<= 1;
 
-						//Partial write?
-						if(apb.pstrb[1] == 0) begin
-							fifo_wr_valid	<= 3;
-							fifo_wr_data	<= { fifo_wr_data[31:16], apb.pwdata[7:0], 8'h0 };
+						//Off the end of the frame? Don't write
+						if(wr_offset >= expected_len_bytes) begin
+							fifo_wr_valid	<= 0;
+							fifo_wr_en		<= 0;
 						end
 
-						//Full write
-						else begin
+						//Enough space for the whole word? Write it
+						else if(bytes_left >= 2)
 							fifo_wr_valid	<= 4;
-							fifo_wr_data	<= { fifo_wr_data[31:16], apb.pwdata[7:0], apb.pwdata[15:8] };
-						end
+
+						//Partial word
+						else
+							fifo_wr_valid	<= bytes_left + 2;	//account for what's in the buffer now
+
+						//Full write
+						fifo_wr_data	<= { fifo_wr_data[31:16], apb.pwdata[7:0], apb.pwdata[15:8] };
 
 					end
 
@@ -283,7 +303,7 @@ module Management10GTxFifo(
 	) tx_framelen_fifo (
 		.wr_clk(apb.pclk),
 		.wr_en(fifo_wr_commit),
-		.wr_data(tx_wr_packetlen),
+		.wr_data(expected_len_words),
 		.wr_size(),
 		.wr_full(),
 		.wr_overflow(),
@@ -352,25 +372,5 @@ module Management10GTxFifo(
 		endcase
 
 	end
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Debug ILA
-
-	ila_1 ila(
-		.clk(apb.pclk),
-		.probe0(fifo_wr_commit),
-		.probe1(tx_wr_packetlen),
-		.probe2(fifo_wr_en),
-		.probe3(fifo_wr_data),
-		.probe4(apb.psel),
-		.probe5(apb.penable),
-		.probe6(apb.pready),
-		.probe7(apb.paddr),
-		.probe8(apb.prdata),
-		.probe9(apb.pwrite),
-		.probe10(apb.pwdata),
-		.probe11(apb.pstrb),
-		.probe12(fifo_wr_valid)
-	);
 
 endmodule
