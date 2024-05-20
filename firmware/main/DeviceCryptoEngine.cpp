@@ -76,12 +76,9 @@ void DeviceCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clientPubl
 	auto t1 = g_logTimer->GetCount();
 	#endif
 
-	//__builtin_memcpy((void*)g_curve25519->e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
-	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
-	//asm("dmb st");
-	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_WORK, clientPublicKey, ECDH_KEY_SIZE);
-	//asm("dmb st");
-	g_curve25519->cmd = CMD_CRYPTO_SCALARMULT;
+	g_apbfpga.BlockingWriteN(g_curve25519->e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
+	g_apbfpga.BlockingWriteN(g_curve25519->work, clientPublicKey, ECDH_KEY_SIZE);
+	g_apbfpga.BlockingWrite16(&g_curve25519->cmd, CMD_CRYPTO_SCALARMULT);
 	BlockUntilAcceleratorDone();
 	memcpy(sharedSecret, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);
 
@@ -118,13 +115,9 @@ void DeviceCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
 	};
 
 	//Make the FPGA do the rest of the work
-	//__builtin_memcpy((void*)g_curve25519->e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
-	//__builtin_memcpy((void*)g_curve25519->work, basepoint, ECDH_KEY_SIZE);
-	//asm("dmb st");
-	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
-	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_WORK, basepoint, ECDH_KEY_SIZE);
-	//asm("dmb st");
-	g_curve25519->cmd = CMD_CRYPTO_SCALARMULT;
+	g_apbfpga.BlockingWriteN(g_curve25519->e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
+	g_apbfpga.BlockingWriteN(g_curve25519->work, basepoint, ECDH_KEY_SIZE);
+	g_apbfpga.BlockingWrite16(&g_curve25519->cmd, CMD_CRYPTO_SCALARMULT);
 	BlockUntilAcceleratorDone();
 	memcpy(pub, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);
 
@@ -181,8 +174,8 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 
 	//Calculate the expected signature
 	//scalarmult(p, q, hash);
-	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, hash, ECDSA_KEY_SIZE);
-	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_Q_0, qref, ECDSA_KEY_SIZE*2);
+	g_apbfpga.BlockingWriteN(g_curve25519->e, hash, ECDSA_KEY_SIZE);
+	g_apbfpga.BlockingWriteN(g_curve25519->q0, qref, ECDSA_KEY_SIZE*2);
 	BlockUntilAcceleratorDone();
 	uint8_t pfpga[128];
 	for(int block=0; block<4; block++)
@@ -197,8 +190,8 @@ bool DeviceCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t length
 	#endif
 
 	//scalarbase(q, signedMessage + 32);
-	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, signedMessage+32, ECDSA_KEY_SIZE);
-	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_BASE_Q_0, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE);
+	g_apbfpga.BlockingWriteN(g_curve25519->e, signedMessage+32, ECDSA_KEY_SIZE);
+	g_apbfpga.BlockingWriteN(g_curve25519->base_q0, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE);
 	BlockUntilAcceleratorDone();
 	uint8_t qfpga[128];
 	for(int block=0; block<4; block++)
@@ -276,8 +269,8 @@ void DeviceCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash
 
 	//Actual signing stuff
 	//scalarbase(p,bufferHash);
-	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_E, bufferHash, ECDSA_KEY_SIZE);
-	g_apbfpga.BlockingWrite(BASE_25519 + REG_CRYPT_BASE_Q_0, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE);
+	g_apbfpga.BlockingWriteN(g_curve25519->e, bufferHash, ECDSA_KEY_SIZE);
+	g_apbfpga.BlockingWriteN(g_curve25519->base_q0, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE);
 	BlockUntilAcceleratorDone();
 	uint8_t pfpga[128];
 	for(int block=0; block<4; block++)

@@ -71,7 +71,7 @@ void QSPIEthernetInterface::SendTxFrame(EthernetFrame* frame, bool markFree)
 		return;
 	}
 
-	//TODO: DMA optimizations
+	//TODO: DMA optimizations?
 
 	//Separate TX buffers for 1G (8 bit datapath in FPGA) and 10G (32 bit datapath in FPGA)
 	//Memory mapped write here isnt working
