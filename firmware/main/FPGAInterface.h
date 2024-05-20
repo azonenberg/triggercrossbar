@@ -119,20 +119,28 @@ enum regid_t
 	//APB register IDs
 	//(must match register IDs in corresponding module)
 
-	//APB_BertConfig
-	REG_TX_CONFIG		= 0x0000,
-	REG_TX_CLK			= 0x0004,
-	REG_TX_RESET		= 0x0008,
-	REG_TX_DRIVER		= 0x000c,
-	REG_RX_CONFIG		= 0x0040,
-	REG_RX_CLK			= 0x0044,
-	REG_RX_RESET		= 0x0048,
-
 	//APB_SerdesDRP
 	REG_DRP_ADDR		= 0x0000,
 	REG_DRP_DATA		= 0x0004,
 	REG_DRP_STATUS		= 0x0008,
 	REG_DRP_STATUS_2	= 0x0028,
+};
+
+struct __attribute__((packed)) APB_BERTConfig
+{
+	uint16_t		tx_config;
+	uint16_t		field_02;
+	uint16_t		tx_clk;
+	uint16_t		field_06;
+	uint16_t		tx_reset;
+	uint16_t		field_0a;
+	uint16_t		tx_driver;
+	uint16_t		field_0e[25];
+	uint16_t		rx_config;
+	uint16_t		field_42;
+	uint16_t		rx_clk;
+	uint16_t		field_46;
+	uint16_t		rx_reset;
 };
 
 struct __attribute__((packed)) APB_SPIHostInterface

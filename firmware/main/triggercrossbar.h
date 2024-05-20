@@ -229,6 +229,7 @@ extern volatile uint16_t* g_irqStat;
 extern volatile APB_GPIO* g_ledGpioInPortActivity;
 extern volatile APB_GPIO* g_ledGpioOutPortActivity;
 extern volatile APB_SPIHostInterface* g_frontPanelSPI;
+extern volatile APB_BERTConfig*	g_bertConfig[2];
 
 void SfrMemcpy(volatile void* dst, void* src, uint32_t len);
 

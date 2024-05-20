@@ -224,6 +224,13 @@ volatile APB_GPIO* g_ledGpioOutPortActivity =
 volatile APB_SPIHostInterface* g_frontPanelSPI =
 	reinterpret_cast<volatile APB_SPIHostInterface*>(FPGA_MEM_BASE + BASE_FRONT_SPI);
 
+///@brief Low speed configuration for BERT channels
+volatile APB_BERTConfig* g_bertConfig[2] =
+{
+	reinterpret_cast<volatile APB_BERTConfig*>(FPGA_MEM_BASE + BASE_BERT_LANE0),
+	reinterpret_cast<volatile APB_BERTConfig*>(FPGA_MEM_BASE + BASE_BERT_LANE1)
+};
+
 ///@brief Ethernet RX buffer
 volatile ManagementRxFifo* g_ethRxFifo =
 	reinterpret_cast<volatile ManagementRxFifo*>(FPGA_MEM_BASE + BASE_ETH_RX);
