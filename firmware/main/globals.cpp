@@ -213,6 +213,13 @@ volatile APB_Curve25519* g_curve25519 =
 volatile uint16_t* g_irqStat =
 	reinterpret_cast<volatile uint16_t*>(FPGA_MEM_BASE + BASE_IRQ_STAT);
 
+///@brief GPIOs for LED status
+volatile APB_GPIO* g_ledGpioInPortActivity =
+	reinterpret_cast<volatile APB_GPIO*>(FPGA_MEM_BASE + BASE_IN_LED_GPIO);
+
+volatile APB_GPIO* g_ledGpioOutPortActivity =
+	reinterpret_cast<volatile APB_GPIO*>(FPGA_MEM_BASE + BASE_OUT_LED_GPIO);
+
 ///@brief Ethernet RX buffer
 volatile ManagementRxFifo* g_ethRxFifo =
 	reinterpret_cast<volatile ManagementRxFifo*>(FPGA_MEM_BASE + BASE_ETH_RX);

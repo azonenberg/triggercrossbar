@@ -307,8 +307,8 @@ void UpdateFrontPanelActivityLEDs()
 		return;
 
 	//Read LED state
-	uint16_t dinval = g_apbfpga.BlockingRead16(BASE_IN_LED_GPIO + REG_GPIO_IN);
-	uint16_t doutval = g_apbfpga.BlockingRead16(BASE_OUT_LED_GPIO + REG_GPIO_IN);
+	uint16_t dinval = g_ledGpioInPortActivity->in;
+	uint16_t doutval = g_ledGpioOutPortActivity->in;
 
 	//Convert to bytes and send
 	SetFrontPanelCS(0);

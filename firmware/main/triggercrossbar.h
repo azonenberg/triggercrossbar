@@ -226,6 +226,8 @@ extern volatile ManagementTxFifo* g_eth1GTxFifo;
 extern volatile ManagementTxFifo* g_eth10GTxFifo;
 extern volatile APB_Curve25519* g_curve25519;
 extern volatile uint16_t* g_irqStat;
+extern volatile APB_GPIO* g_ledGpioInPortActivity;
+extern volatile APB_GPIO* g_ledGpioOutPortActivity;
 
 void SfrMemcpy(volatile void* dst, void* src, uint32_t len);
 

@@ -126,11 +126,6 @@ enum regid_t
 	REG_SPI_STATUS		= 0x0020,
 	REG_SPI_STATUS2		= 0x0040,
 
-	//APB_GPIO
-	REG_GPIO_OUT		= 0x0000,
-	REG_GPIO_IN			= 0x0004,
-	REG_GPIO_TRIS		= 0x0008,
-
 	//APB_BertConfig
 	REG_TX_CONFIG		= 0x0000,
 	REG_TX_CLK			= 0x0004,
@@ -140,28 +135,18 @@ enum regid_t
 	REG_RX_CLK			= 0x0044,
 	REG_RX_RESET		= 0x0048,
 
-	//APB_Curve25519
-	REG_CRYPT_E			= 0x0000,
-	REG_CRYPT_STATUS	= 0x0020,
-	REG_CRYPT_RD_ADDR	= 0x0024,
-	REG_CRYPT_CMD		= 0x0028,
-	REG_CRYPT_STATUS2	= 0x0040,
-	REG_CRYPT_WORK		= 0x0060,
-	REG_CRYPT_Q_0		= 0x0080,
-	REG_CRYPT_Q_1		= 0x00a0,
-	REG_CRYPT_BASE_Q_0	= 0x0100,
-	REG_CRYPT_DATA_OUT	= 0x0140,
-
 	//APB_SerdesDRP
 	REG_DRP_ADDR		= 0x0000,
 	REG_DRP_DATA		= 0x0004,
 	REG_DRP_STATUS		= 0x0008,
 	REG_DRP_STATUS_2	= 0x0028,
+};
 
-	//Management10GTxFifo / ManagementTxFifo
-	REG_ETH_TX_COMMIT	= 0x0008,
-	REG_ETH_TX_LENGTH	= 0x0010,
-	REG_ETH_TX_BUF		= 0x0040
+struct __attribute__((packed)) APB_GPIO
+{
+	uint32_t		out;
+	uint32_t		in;
+	uint32_t		tris;
 };
 
 struct __attribute__((packed)) APB_SystemInfo
