@@ -176,10 +176,10 @@ module ManagementSubsystem(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Pipeline register on APB before the bridge
+	// Optional pipeline register on APB before the bridge
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(24), .USER_WIDTH(0)) bridgeUpstreamBus();
-	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(1))
+	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(0))
 		apb_regslice_root( .upstream(processorBus), .downstream(bridgeUpstreamBus) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -197,6 +197,14 @@ module ManagementSubsystem(
 		.downstream(rootDownstreamBus)
 	);
 
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(15), .USER_WIDTH(0)) rootDownstreamBusReg[1:0]();
+
+	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(1))
+		apb_regslice_root2smol( .upstream(rootDownstreamBus[0]), .downstream(rootDownstreamBusReg[0]) );
+
+	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(1))
+		apb_regslice_root2big( .upstream(rootDownstreamBus[1]), .downstream(rootDownstreamBusReg[1]) );
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Second level bridge for devices with smaller amounts of address space (starts at 0x00_0000)
 
@@ -209,7 +217,7 @@ module ManagementSubsystem(
 		.BLOCK_SIZE(32'h400),
 		.NUM_PORTS(NUM_SMOL_DEVS)
 	) apb_bridge_smol (
-		.upstream(rootDownstreamBus[0]),
+		.upstream(rootDownstreamBusReg[0]),
 		.downstream(smolDownstreamBus)
 	);
 
@@ -225,7 +233,7 @@ module ManagementSubsystem(
 		.BLOCK_SIZE(32'h1000),
 		.NUM_PORTS(NUM_BIG_DEVS)
 	) apb_bridge_big (
-		.upstream(rootDownstreamBus[1]),
+		.upstream(rootDownstreamBusReg[1]),
 		.downstream(bigDownstreamBus)
 	);
 
