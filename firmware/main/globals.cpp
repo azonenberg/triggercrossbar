@@ -231,6 +231,13 @@ volatile APB_BERTConfig* g_bertConfig[2] =
 	reinterpret_cast<volatile APB_BERTConfig*>(FPGA_MEM_BASE + BASE_BERT_LANE1)
 };
 
+///@brief DRP access for BERT channels
+volatile APB_SerdesDRP* g_bertDRP[2] =
+{
+	reinterpret_cast<volatile APB_SerdesDRP*>(FPGA_MEM_BASE + BASE_DRP_LANE0),
+	reinterpret_cast<volatile APB_SerdesDRP*>(FPGA_MEM_BASE + BASE_DRP_LANE1)
+};
+
 ///@brief Ethernet RX buffer
 volatile ManagementRxFifo* g_ethRxFifo =
 	reinterpret_cast<volatile ManagementRxFifo*>(FPGA_MEM_BASE + BASE_ETH_RX);

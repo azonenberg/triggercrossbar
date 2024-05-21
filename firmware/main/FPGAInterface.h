@@ -126,6 +126,17 @@ enum regid_t
 	REG_DRP_STATUS_2	= 0x0028,
 };
 
+struct __attribute__((packed)) APB_SerdesDRP
+{
+	uint16_t		addr;
+	uint16_t		field_02;
+	uint16_t		data;
+	uint16_t		field_06;
+	uint16_t		status;
+	uint16_t		field_0a[15];
+	uint16_t		status2;
+};
+
 struct __attribute__((packed)) APB_BERTConfig
 {
 	uint16_t		tx_config;
