@@ -518,7 +518,7 @@ void CrossbarSCPIServer::UpdateClocks(int lane)
 	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->rx_clk, regval);
 
 	//Done, clear resets
-	g_apbfpga.BlockingWrite16(g_bertConfig[lane]->tx_reset, 0);
+	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->tx_reset, 0);
 	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->rx_reset, 0);
 }
 
