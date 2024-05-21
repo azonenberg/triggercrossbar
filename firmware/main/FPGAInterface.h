@@ -114,18 +114,6 @@ enum baseaddr_t
 	BASE_ETH_RX			= 0x0000'a000		//ManagementRxFifo
 };
 
-enum regid_t
-{
-	//APB register IDs
-	//(must match register IDs in corresponding module)
-
-	//APB_SerdesDRP
-	REG_DRP_ADDR		= 0x0000,
-	REG_DRP_DATA		= 0x0004,
-	REG_DRP_STATUS		= 0x0008,
-	REG_DRP_STATUS_2	= 0x0028,
-};
-
 struct __attribute__((packed)) APB_SerdesDRP
 {
 	uint16_t		addr;

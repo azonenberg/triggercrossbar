@@ -834,36 +834,24 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 
 uint16_t CrossbarSCPIServer::SerdesDRPRead(uint8_t lane, uint16_t regid)
 {
-	uint32_t base = BASE_DRP_LANE0;
-	if(lane == 1)
-		base = BASE_DRP_LANE1;
-
 	//Send the command
-	g_apbfpga.BlockingWrite16(base + REG_DRP_ADDR, regid);
+	g_apbfpga.BlockingWrite16(&g_bertDRP[lane]->addr, regid);
 
 	//Make sure we're ready
-	//TODO: is this needed?
-	while(0 != (g_apbfpga.BlockingRead16(base + REG_DRP_STATUS) & 1))
-	{}
+	StatusRegisterMaskedWait(&g_bertDRP[lane]->status, &g_bertDRP[lane]->status2, 0x1, 0x0);
 
 	//Read the result
 	//(blocking poll shouldn't be needed after all of the CDC delays etc?
-	return g_apbfpga.BlockingRead16(base + REG_DRP_DATA);
+	return g_bertDRP[lane]->data;
 }
 
 void CrossbarSCPIServer::SerdesDRPWrite(uint8_t lane, uint16_t regid, uint16_t regval)
 {
-	uint32_t base = BASE_DRP_LANE0;
-	if(lane == 1)
-		base = BASE_DRP_LANE1;
+	g_apbfpga.BlockingWrite16(&g_bertDRP[lane]->data, regval);
+	g_apbfpga.BlockingWrite16(&g_bertDRP[lane]->addr, regid | 0x8000);
 
-	g_apbfpga.BlockingWrite16(base + REG_DRP_DATA, regval);
-	g_apbfpga.BlockingWrite16(base + REG_DRP_ADDR, regid | 0x8000);
-
-	//Make sure we're ready
-	//TODO: is this needed?
-	while(0 != (g_apbfpga.BlockingRead16(base + REG_DRP_STATUS) & 1))
-	{}
+	//wait for write to commit
+	StatusRegisterMaskedWait(&g_bertDRP[lane]->status, &g_bertDRP[lane]->status2, 0x1, 0x0);
 }
 
 void CrossbarSCPIServer::PrintFloat(CharacterDevice& buf, float f)
@@ -887,26 +875,18 @@ void CrossbarSCPIServer::PrintFloat(CharacterDevice& buf, float f)
 void CrossbarSCPIServer::SerdesPMAReset(uint8_t lane)
 {
 	//Reset the PMA
-	uint32_t base = BASE_BERT_LANE0;
-	if(lane)
-		base = BASE_BERT_LANE1;
 	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->rx_reset, 2);
 	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->rx_reset, 0);
 
 	//Read and throw away a few status values until reset takes effect
-	base = BASE_DRP_LANE0;
-	if(lane)
-		base = BASE_DRP_LANE1;
-	for(int i=0; i<3; i++)
-		g_apbfpga.BlockingRead16(base + REG_DRP_STATUS);
+	[[maybe_unused]] volatile uint16_t tmp = 0;
+	tmp |= g_bertDRP[lane]->status;
+	tmp |= g_bertDRP[lane]->status2;
+	tmp |= g_bertDRP[lane]->status;
+	tmp |= g_bertDRP[lane]->status2;
 
 	//Poll until reset completes
-	while(1)
-	{
-		auto stat = g_apbfpga.BlockingRead16(base + REG_DRP_STATUS);
-		if((stat & 0x2) == 2)
-			break;
-	}
+	StatusRegisterMaskedWait(&g_bertDRP[lane]->status, &g_bertDRP[lane]->status2, 0x2, 0x2);
 }
 
 /**
