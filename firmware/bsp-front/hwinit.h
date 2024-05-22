@@ -42,8 +42,12 @@ extern void App_Init();
 extern bool g_misoIsJtag;
 extern GPIOPin g_fpgaMiso;
 extern UART<16, 256> g_uart;
-extern SPI<1024, 64> g_fpgaSPI;
+extern SPI<2048, 64> g_fpgaSPI;
 extern GPIOPin* g_fpgaSPICS;
+void SetMisoToSPIMode();
+void SetMisoToJTAGMode();
+
+extern uint32_t g_spiRxFifoOverflows;
 
 //Common ISRs used by application and bootloader
 void SPI_CSHandler();

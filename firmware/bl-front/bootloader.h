@@ -30,46 +30,20 @@
 #ifndef frontpanel_h
 #define frontpanel_h
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
+#include <platform.h>
+#include "../bsp-front/hwinit.h"
 
 #include <peripheral/CRC.h>
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/Power.h>
-#include <peripheral/RCC.h>
-#include <peripheral/SPI.h>
-#include <peripheral/Timer.h>
-#include <peripheral/UART.h>
-#include <util/Logger.h>
 #include <util/FIFO.h>
 #include <util/StringBuffer.h>
 
 #include <microkvs/kvs/KVS.h>
 
-void InitPower();
-void InitClocks();
-void InitUART();
-void InitLog();
 void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-void InitSPI();
-
-extern UART<16, 256> g_uart;
-extern Logger g_log;
-extern Timer g_logTimer;
-extern SPI<2048, 64> g_fpgaSPI;
-extern GPIOPin* g_fpgaSPICS;
 
 extern GPIOPin* g_inmodeLED[4];
 extern GPIOPin* g_outmodeLED[4];
 
 extern KVS* g_kvs;
-
-void SetMisoToSPIMode();
-void SetMisoToJTAGMode();
-
-extern uint32_t g_spiRxFifoOverflows;
 
 #endif

@@ -44,11 +44,6 @@ void HardFault_Handler();
 void NMI_Handler();
 
 void defaultISR();
-void SPI_CSHandler();
-void SPI1_Handler();
-void USART2_Handler();
-
-uint32_t g_spiRxFifoOverflows = 0;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Interrupt vector table
@@ -219,51 +214,4 @@ void MMUFault_Handler()
 
 	while(1)
 	{}
-}
-
-/**
-	@brief GPIO interrupt used for SPI chip select
- */
-void __attribute__((isr)) SPI_CSHandler()
-{
-	//for now only trigger on falling edge so no need to check
-	g_fpgaSPI.OnIRQCSEdge(false);
-
-	//Acknowledge the interrupt
-	EXTI.PR1 |= 1;
-}
-
-/**
-	@brief SPI data interrupt
- */
-[[gnu::isr]]
-void SPI1_Handler()
-{
-	auto sr = SPI1.SR;
-	if(sr & SPI_RX_NOT_EMPTY)
-	{
-		if(!g_fpgaSPI.OnIRQRxData(SPI1.DR))
-			g_spiRxFifoOverflows ++;
-	}
-	if(sr & SPI_TX_EMPTY)
-	{
-		if(g_fpgaSPI.HasNextTxByte())
-			SPI1.DR = g_fpgaSPI.GetNextTxByte();
-
-		//if no data to send, disable the interrupt
-		else
-			SPI1.CR2 &= ~SPI_TXEIE;
-	}
-}
-
-/**
-	@brief UART1 interrupt
- */
-void __attribute__((isr)) USART2_Handler()
-{
-	if(USART2.ISR & USART_ISR_TXE)
-		g_uart.OnIRQTxEmpty();
-
-	if(USART2.ISR & USART_ISR_RXNE)
-		g_uart.OnIRQRxData();
 }

@@ -35,13 +35,16 @@
 #include <platform.h>
 #include "hwinit.h"
 
+uint32_t g_spiRxFifoOverflows = 0;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ISRs
 
 /**
 	@brief GPIO interrupt used for SPI chip select
  */
-void __attribute__((isr)) SPI_CSHandler()
+[[gnu::isr]]
+void SPI_CSHandler()
 {
 	//for now only trigger on falling edge so no need to check
 	g_fpgaSPI.OnIRQCSEdge(false);
@@ -53,10 +56,14 @@ void __attribute__((isr)) SPI_CSHandler()
 /**
 	@brief SPI data interrupt
  */
-void __attribute__((isr)) SPI1_Handler()
+[[gnu::isr]]
+void SPI1_Handler()
 {
 	if(SPI1.SR & SPI_RX_NOT_EMPTY)
-		g_fpgaSPI.OnIRQRxData(SPI1.DR);
+	{
+		if(!g_fpgaSPI.OnIRQRxData(SPI1.DR))
+			g_spiRxFifoOverflows ++;
+	}
 	if(SPI1.SR & SPI_TX_EMPTY)
 	{
 		if(g_fpgaSPI.HasNextTxByte())
@@ -71,7 +78,8 @@ void __attribute__((isr)) SPI1_Handler()
 /**
 	@brief UART1 interrupt
  */
-void __attribute__((isr)) USART2_Handler()
+[[gnu::isr]]
+void USART2_Handler()
 {
 	if(USART2.ISR & USART_ISR_TXE)
 		g_uart.OnIRQTxEmpty();

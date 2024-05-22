@@ -34,22 +34,8 @@
 #include "../front/regids.h"
 #include "../../staticnet/util/CircularFIFO.h"
 
-///@brief Logging UART
-///USART2 is on APB1 (40 MHz), so we need a divisor of 347.22, round to 347
-UART<16, 256> g_uart(&USART2, 347);
-
-///@brief Logging block
-Logger g_log;
-
-//APB1 is 40 MHz
-//Divide down to get 10 kHz ticks (note TIM2 is double rate)
-Timer g_logTimer(&TIM2, Timer::FEATURE_ADVANCED, 8000);
-
 GPIOPin* g_inmodeLED[4] = {nullptr};
 GPIOPin* g_outmodeLED[4] = {nullptr};
-
-SPI<2048, 64> g_fpgaSPI(&SPI1, true, 2, false);
-GPIOPin* g_fpgaSPICS = nullptr;
 
 ///@brief Key-value store used for storing firmware version config etc
 KVS* g_kvs = nullptr;
@@ -66,27 +52,15 @@ volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(
 const char* g_imageVersionKey = "firmware.imageVersion";
 const char* g_imageCRCKey = "firmware.crc";
 
-//Default MISO to be using alt mode 0 (NJTRST) so we can use JTAG for debug
-GPIOPin g_fpgaMiso(&GPIOB, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
-
-bool g_misoIsJtag = true;
-
 void EraseFlash();
 const char* GetImageVersion();
 
-int main()
+void App_Init()
 {
-	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
-	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
+	g_log("Front panel bootloader (%s %s)\n", __DATE__, __TIME__);
 
-	//Hardware setup
-	InitPower();
-	InitClocks();
-	InitUART();
-	InitLog();
 	RCCHelper::Enable(&_CRC);
 	RCCHelper::Enable(&_RTC);
-	InitSPI();
 
 	/**
 		@brief Use sectors 126 and 127 of flash for a for a 2 kB microkvs
@@ -96,7 +70,10 @@ int main()
 	static STM32StorageBank left(reinterpret_cast<uint8_t*>(0x0803f000), 0x800);
 	static STM32StorageBank right(reinterpret_cast<uint8_t*>(0x0803f800), 0x800);
 	InitKVS(&left, &right, 32);
+}
 
+void BSP_MainLoop()
+{
 	//Check bbram state
 	bool goStraightToDFU = false;
 	bool crashed = false;
@@ -195,57 +172,6 @@ int main()
 	//If we get to this point, the image is valid, boot it
 	else
 		BootApplication(appVector);
-}
-
-void InitSPI()
-{
-	g_log("Initializing SPI\n");
-
-	//Set up GPIOs for display bus
-	static GPIOPin display_sck(&GPIOD, 1, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
-	//PD0 used as route through, leave tristated
-	static GPIOPin display_mosi(&GPIOD, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
-
-	//Set up GPIOs for FPGA bus
-	static GPIOPin fpga_sck(&GPIOE, 13, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
-	static GPIOPin fpga_mosi(&GPIOE, 15, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
-	static GPIOPin fpga_cs_n(&GPIOB, 0, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
-	//DO NOT configure MISO initially since this pin doubles as JTRST
-	//If we enable it, JTAG will stop working!
-
-	//Save the CS# pin
-	g_fpgaSPICS = &fpga_cs_n;
-
-	//Set up IRQ6 for SPI CS# (PB0) change
-	//Use EXTI0 as PB0 interrupt on falling edge
-	//TODO: make a wrapper for this?
-	RCCHelper::EnableSyscfg();
-	NVIC_EnableIRQ(6);
-	SYSCFG.EXTICR1 = (SYSCFG.EXTICR1 & 0xfffffff8) | 0x1;
-	EXTI.IMR1 |= 1;
-	EXTI.FTSR1 |= 1;
-
-	//Set up IRQ35 as SPI1 interrupt
-	NVIC_EnableIRQ(35);
-	g_fpgaSPI.EnableRxInterrupt();
-}
-
-/**
-	@brief Puts the SPI MISO pin in SPI mode (disconnecting JTAG)
- */
-void SetMisoToSPIMode()
-{
-	g_fpgaMiso.SetMode(GPIOPin::MODE_PERIPHERAL, 5);
-	g_misoIsJtag = false;
-}
-
-/**
-	@brief Puts the SPI MISO pin in JTAG mode (reconnecting JTAG)
- */
-void SetMisoToJTAGMode()
-{
-	g_fpgaMiso.SetMode(GPIOPin::MODE_PERIPHERAL, 0);
-	g_misoIsJtag = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -658,52 +584,6 @@ bool ValidateAppPartition(const uint32_t* appVector)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Minimal hardware init
-
-void InitPower()
-{
-	RCCHelper::Enable(&PWR);
-	Power::ConfigureLDO(RANGE_VOS1);
-}
-
-void InitClocks()
-{
-	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
-	//A bit of extra latency is fine, the CPU being faster than flash is not.
-	Flash::SetConfiguration(80, RANGE_VOS1);
-
-	RCCHelper::InitializePLLFromHSI16(
-		2,	//Pre-divide by 2 (PFD frequency 8 MHz)
-		20,	//VCO at 8*20 = 160 MHz
-		4,	//Q divider is 40 MHz (nominal 48 but we're not using USB so this is fine)
-		2,	//R divider is 80 MHz (fmax for CPU)
-		1,	//no further division from SYSCLK to AHB (80 MHz)
-		2,	//APB1 at 40 MHz
-		2);	//APB2 at 40 MHz
-}
-
-void InitUART()
-{
-	//Initialize the UART for local console: 115.2 Kbps using PD4 for USART2 transmit and PD5 for USART2 receive
-	//TODO: nice interface for enabling UART interrupts
-	GPIOPin uart_tx(&GPIOD, 5, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 7);
-	GPIOPin uart_rx(&GPIOD, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 7);
-
-	//Enable the UART interrupt
-	NVIC_EnableIRQ(38);
-}
-
-void InitLog()
-{
-	//Wait 10ms to avoid resets during shutdown from destroying diagnostic output
-	g_logTimer.Sleep(100);
-
-	//Clear screen and move cursor to X0Y0
-	g_uart.Printf("\x1b[2J\x1b[0;0H");
-
-	//Start the logger
-	g_log.Initialize(&g_uart, &g_logTimer);
-	g_log("Front panel bootloader (%s %s)\n", __DATE__, __TIME__);
-}
 
 /**
 	@brief Set up the microkvs key-value store for persisting our configuration

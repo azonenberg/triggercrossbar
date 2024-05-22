@@ -7,6 +7,7 @@ CXXFLAGS=-g -O3 --std=c++17 -mcpu=cortex-m4 -DSTM32L431 -fno-exceptions -fno-rtt
 	-I$(ROOTDIR)/stm32-cpp/src \
 	-I$(ROOTDIR)/common-embedded-platform/core \
 	-DMICROKVS_WRITE_BLOCK_SIZE=8 \
+	-DNO_CLEAR_SCREEN \
 	-DKVS_NAMELEN=32
 
 LDFLAGS=-Wl,-T $(ROOTDIR)/stm32-cpp/devices/link/stm32l431_32kboot_app.ld \

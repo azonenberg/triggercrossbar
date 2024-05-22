@@ -406,24 +406,6 @@ void BSP_MainLoopIteration()
 }
 
 /**
-	@brief Puts the SPI MISO pin in SPI mode (disconnecting JTAG)
- */
-void SetMisoToSPIMode()
-{
-	g_fpgaMiso.SetMode(GPIOPin::MODE_PERIPHERAL, 5);
-	g_misoIsJtag = false;
-}
-
-/**
-	@brief Puts the SPI MISO pin in JTAG mode (reconnecting JTAG)
- */
-void SetMisoToJTAGMode()
-{
-	g_fpgaMiso.SetMode(GPIOPin::MODE_PERIPHERAL, 0);
-	g_misoIsJtag = true;
-}
-
-/**
 	@brief Receive a string, return true if value has changed
  */
 bool RxSPIString(uint8_t nbyte, char* buf, uint8_t size, uint8_t data)

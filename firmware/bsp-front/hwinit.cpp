@@ -46,11 +46,11 @@ void InitFPGASPI();
 UART<16, 256> g_uart(&USART2, 347);
 
 //APB1 is 40 MHz
-//Divide down to get 10 kHz ticks
-Timer g_logTimer(&TIM15, Timer::FEATURE_GENERAL_PURPOSE_16BIT, 4000);
+//Divide down to get 10 kHz ticks (note TIM2 is double rate)
+Timer g_logTimer(&TIM2, Timer::FEATURE_ADVANCED, 8000);
 
 //SPI bus to the FPGA
-SPI<1024, 64> g_fpgaSPI(&SPI1, true, 2, false);
+SPI<2048, 64> g_fpgaSPI(&SPI1, true, 2, false);
 GPIOPin* g_fpgaSPICS = nullptr;
 
 //Default MISO to be using alt mode 0 (NJTRST) so we can use JTAG for debug
@@ -95,8 +95,13 @@ void BSP_InitUART()
 
 void BSP_InitLog()
 {
-	//Do *not* clear the screen, since we want to see bootloader output
+	//Wait 10ms to avoid resets during shutdown from destroying diagnostic output
 	g_logTimer.Sleep(100);
+
+	//Clear screen and move cursor to X0Y0 (but only in bootloader)
+	#ifndef NO_CLEAR_SCREEN
+	g_uart.Printf("\x1b[2J\x1b[0;0H");
+	#endif
 
 	//Start the logger
 	g_log.Initialize(&g_uart, &g_logTimer);
@@ -137,4 +142,22 @@ void InitFPGASPI()
 	//Set up IRQ35 as SPI1 interrupt
 	NVIC_EnableIRQ(35);
 	g_fpgaSPI.EnableRxInterrupt();
+}
+
+/**
+	@brief Puts the SPI MISO pin in SPI mode (disconnecting JTAG)
+ */
+void SetMisoToSPIMode()
+{
+	g_fpgaMiso.SetMode(GPIOPin::MODE_PERIPHERAL, 5);
+	g_misoIsJtag = false;
+}
+
+/**
+	@brief Puts the SPI MISO pin in JTAG mode (reconnecting JTAG)
+ */
+void SetMisoToJTAGMode()
+{
+	g_fpgaMiso.SetMode(GPIOPin::MODE_PERIPHERAL, 0);
+	g_misoIsJtag = true;
 }
