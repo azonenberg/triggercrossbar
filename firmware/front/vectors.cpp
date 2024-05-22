@@ -160,24 +160,9 @@ fnptr __attribute__((section(".vector"))) vectorTable[] =
 // Firmware version string used for the bootloader
 
 extern "C" const char
-	__attribute__((section(".fwver")))
-	__attribute__((used))
-	g_firmwareVersion[] = __DATE__ " " __TIME__;
-
-extern "C" const char
 	__attribute__((section(".fwid")))
 	__attribute__((used))
 	g_firmwareID[] = "trigger-crossbar-frontpanel";
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Reboot if things go sideways
-
-void __attribute__((noreturn)) Reset()
-{
-	SCB.AIRCR = 0x05fa0004;
-	while(1)
-	{}
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Stub for unused interrupts
@@ -263,49 +248,4 @@ void MMUFault_Handler()
 	g_bbram->m_state = STATE_CRASH;
 	g_bbram->m_crashReason = CRASH_MMU_FAULT;
 	Reset();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// ISRs
-
-/**
-	@brief GPIO interrupt used for SPI chip select
- */
-void __attribute__((isr)) SPI_CSHandler()
-{
-	//for now only trigger on falling edge so no need to check
-	g_fpgaSPI.OnIRQCSEdge(false);
-
-	//Acknowledge the interrupt
-	EXTI.PR1 |= 1;
-}
-
-/**
-	@brief SPI data interrupt
- */
-void __attribute__((isr)) SPI1_Handler()
-{
-	if(SPI1.SR & SPI_RX_NOT_EMPTY)
-		g_fpgaSPI.OnIRQRxData(SPI1.DR);
-	if(SPI1.SR & SPI_TX_EMPTY)
-	{
-		if(g_fpgaSPI.HasNextTxByte())
-			SPI1.DR = g_fpgaSPI.GetNextTxByte();
-
-		//if no data to send, disable the interrupt
-		else
-			SPI1.CR2 &= ~SPI_TXEIE;
-	}
-}
-
-/**
-	@brief UART1 interrupt
- */
-void __attribute__((isr)) USART2_Handler()
-{
-	if(USART2.ISR & USART_ISR_TXE)
-		g_uart.OnIRQTxEmpty();
-
-	if(USART2.ISR & USART_ISR_RXNE)
-		g_uart.OnIRQRxData();
 }

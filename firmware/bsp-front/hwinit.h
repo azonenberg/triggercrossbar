@@ -27,42 +27,27 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef frontpanel_h
-#define frontpanel_h
+#ifndef hwinit_h
+#define hwinit_h
 
-#include <platform.h>
+#include <peripheral/Flash.h>
+#include <peripheral/GPIO.h>
+#include <peripheral/UART.h>
+#include <peripheral/SPI.h>
 
-#include <peripheral/ADC.h>
-#include <peripheral/I2C.h>
+///@brief Initialize application-specific hardware stuff
+extern void App_Init();
 
-#include <util/FIFO.h>
-#include <util/StringBuffer.h>
-
-#include "../bl-front/BootloaderAPI.h"
-#include "../bsp-front/hwinit.h"
-#include "TCA6424A.h"
-#include "Display.h"
-
-void InitGPIOs();
-void InitI2C();
-void InitSensors();
-void InitExpander();
-void InitSPI();
-void InitDisplay();
-
+//Global hardware config used by both app and bootloader
+extern bool g_misoIsJtag;
+extern GPIOPin g_fpgaMiso;
 extern UART<16, 256> g_uart;
-extern I2C g_i2c;
-extern TCA6424A* g_expander;
-extern DisplaySPIType g_displaySPI;
-extern Display* g_display;
+extern SPI<1024, 64> g_fpgaSPI;
+extern GPIOPin* g_fpgaSPICS;
 
-uint16_t ReadThermalSensor(uint8_t addr);
-extern const uint8_t g_tempI2cAddress;
-
-extern GPIOPin* g_inmodeLED[4];
-extern GPIOPin* g_outmodeLED[4];
-
-void SetMisoToSPIMode();
-void SetMisoToJTAGMode();
+//Common ISRs used by application and bootloader
+void SPI_CSHandler();
+void SPI1_Handler();
+void USART2_Handler();
 
 #endif

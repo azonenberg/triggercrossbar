@@ -27,42 +27,55 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef frontpanel_h
-#define frontpanel_h
-
+/**
+	@file
+	@author	Andrew D. Zonenberg
+	@brief	ISRs shared by bootloader and application
+ */
 #include <platform.h>
+#include "hwinit.h"
 
-#include <peripheral/ADC.h>
-#include <peripheral/I2C.h>
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ISRs
 
-#include <util/FIFO.h>
-#include <util/StringBuffer.h>
+/**
+	@brief GPIO interrupt used for SPI chip select
+ */
+void __attribute__((isr)) SPI_CSHandler()
+{
+	//for now only trigger on falling edge so no need to check
+	g_fpgaSPI.OnIRQCSEdge(false);
 
-#include "../bl-front/BootloaderAPI.h"
-#include "../bsp-front/hwinit.h"
-#include "TCA6424A.h"
-#include "Display.h"
+	//Acknowledge the interrupt
+	EXTI.PR1 |= 1;
+}
 
-void InitGPIOs();
-void InitI2C();
-void InitSensors();
-void InitExpander();
-void InitSPI();
-void InitDisplay();
+/**
+	@brief SPI data interrupt
+ */
+void __attribute__((isr)) SPI1_Handler()
+{
+	if(SPI1.SR & SPI_RX_NOT_EMPTY)
+		g_fpgaSPI.OnIRQRxData(SPI1.DR);
+	if(SPI1.SR & SPI_TX_EMPTY)
+	{
+		if(g_fpgaSPI.HasNextTxByte())
+			SPI1.DR = g_fpgaSPI.GetNextTxByte();
 
-extern UART<16, 256> g_uart;
-extern I2C g_i2c;
-extern TCA6424A* g_expander;
-extern DisplaySPIType g_displaySPI;
-extern Display* g_display;
+		//if no data to send, disable the interrupt
+		else
+			SPI1.CR2 &= ~SPI_TXEIE;
+	}
+}
 
-uint16_t ReadThermalSensor(uint8_t addr);
-extern const uint8_t g_tempI2cAddress;
+/**
+	@brief UART1 interrupt
+ */
+void __attribute__((isr)) USART2_Handler()
+{
+	if(USART2.ISR & USART_ISR_TXE)
+		g_uart.OnIRQTxEmpty();
 
-extern GPIOPin* g_inmodeLED[4];
-extern GPIOPin* g_outmodeLED[4];
-
-void SetMisoToSPIMode();
-void SetMisoToJTAGMode();
-
-#endif
+	if(USART2.ISR & USART_ISR_RXNE)
+		g_uart.OnIRQRxData();
+}
