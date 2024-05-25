@@ -40,72 +40,144 @@
 
 void TrimSpaces(char* str);
 
-void InitClocks()
+
+const IPv4Address g_defaultIP			= { .m_octets{192, 168,   1,   2} };
+const IPv4Address g_defaultNetmask		= { .m_octets{255, 255, 255,   0} };
+const IPv4Address g_defaultBroadcast	= { .m_octets{192, 168,   1, 255} };
+const IPv4Address g_defaultGateway		= { .m_octets{192, 168,   1,   1} };
+
+/**
+	@brief Bring up the control interface to the FPGA
+ */
+void InitFPGA()
 {
-	//With CPU_FREQ_BOOST not set, max frequency is 520 MHz
-	//
+	g_log("Initializing FPGA\n");
+	LogIndenter li(g_log);
 
-	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
-	//A bit of extra latency is fine, the CPU being faster than flash is not.
-	Flash::SetConfiguration(513, RANGE_VOS0);
+	//Wait for the DONE signal to go high
+	g_log("Waiting for FPGA boot\n");
+	static GPIOPin fpgaDone(&GPIOF, 6, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
+	while(!fpgaDone)
+	{}
 
-	//By default out of reset, we're clocked by the HSI clock at 64 MHz
-	//Initialize the external clock source at 25 MHz
-	RCCHelper::EnableHighSpeedExternalClock();
+	//Read the FPGA IDCODE and serial number
+	//Retry until we get a nonzero result indicating FPGA is up
+	while(true)
+	{
+		uint32_t idcode = g_sysInfo->idcode;
+		memcpy(g_fpgaSerial, (const void*)g_sysInfo->serial, 8);
 
-	//Set up PLL1 to run off the external oscillator
-	RCCHelper::InitializePLL(
-		1,		//PLL1
-		25,		//input is 25 MHz from the HSE
-		2,		//25/2 = 12.5 MHz at the PFD
-		40,		//12.5 * 40 = 500 MHz at the VCO
-		1,		//div P (primary output 500 MHz)
-		10,		//div Q (50 MHz kernel clock)
-		32,		//div R (not used for now),
-		RCCHelper::CLOCK_SOURCE_HSE
-	);
+		//If IDCODE is all zeroes, poll again
+		if(idcode == 0)
+			continue;
 
-	//Set up main system clock tree
-	RCCHelper::InitializeSystemClocks(
-		1,		//sysclk = 500 MHz
-		2,		//AHB = 250 MHz
-		4,		//APB1 = 62.5 MHz
-		4,		//APB2 = 62.5 MHz
-		4,		//APB3 = 62.5 MHz
-		4		//APB4 = 62.5 MHz
-	);
+		//Print status
+		switch(idcode & 0x0fffffff)
+		{
+			case 0x3647093:
+				g_log("IDCODE: %08x (XC7K70T rev %d)\n", idcode, idcode >> 28);
+				break;
 
-	//RNG clock should be >= HCLK/32
-	//AHB2 HCLK is 250 MHz so min 7.8125 MHz
-	//Select PLL1 Q clock (50 MHz)
-	RCC.D2CCIP2R = (RCC.D2CCIP2R & ~0x300) | (0x100);
+			case 0x364c093:
+				g_log("IDCODE: %08x (XC7K160T rev %d)\n", idcode, idcode >> 28);
+				break;
 
-	//Select PLL1 as system clock source
-	RCCHelper::SelectSystemClockFromPLL1();
+			default:
+				g_log("IDCODE: %08x (unknown device, rev %d)\n", idcode, idcode >> 28);
+				break;
+		}
+		g_log("Serial: %02x%02x%02x%02x%02x%02x%02x%02x\n",
+			g_fpgaSerial[7], g_fpgaSerial[6], g_fpgaSerial[5], g_fpgaSerial[4],
+			g_fpgaSerial[3], g_fpgaSerial[2], g_fpgaSerial[1], g_fpgaSerial[0]);
+
+		break;
+	}
+
+	//Read USERCODE
+	g_usercode = g_sysInfo->usercode;
+	g_log("Usercode: %08x\n", g_usercode);
+	{
+		LogIndenter li(g_log);
+
+		//Format per XAPP1232:
+		//31:27 day
+		//26:23 month
+		//22:17 year
+		//16:12 hr
+		//11:6 min
+		//5:0 sec
+		int day = g_usercode >> 27;
+		int mon = (g_usercode >> 23) & 0xf;
+		int yr = 2000 + ((g_usercode >> 17) & 0x3f);
+		int hr = (g_usercode >> 12) & 0x1f;
+		int min = (g_usercode >> 6) & 0x3f;
+		int sec = g_usercode & 0x3f;
+		g_log("Bitstream timestamp: %04d-%02d-%02d %02d:%02d:%02d\n",
+			yr, mon, day, hr, min, sec);
+	}
+
+	//Set all bidir ports to input so we know what state they're in
+	g_log("Setting all relays to input mode\n");
+	for(int chan=0; chan<4; chan++)
+	{
+		g_relayController->toggle = 0x8000 | chan;
+
+		//Ping-pong poll the two status registers until we're done
+		while( (0 != g_relayController->stat) && (0 != g_relayController->stat2) )
+		{}
+	}
 }
 
-void InitTimer()
+/**
+	@brief Set our IP address and initialize the IP stack
+ */
+void InitIP()
 {
-	//APB1 is 62.5 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
-	//Divide down to get 10 kHz ticks
-	static Timer logtim(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 12500);
-	g_logTimer = &logtim;
+	g_log("Initializing management IPv4 interface\n");
+	LogIndenter li(g_log);
+
+	ConfigureIP();
+
+	g_log("Our IP address is %d.%d.%d.%d\n",
+		g_ipConfig.m_address.m_octets[0],
+		g_ipConfig.m_address.m_octets[1],
+		g_ipConfig.m_address.m_octets[2],
+		g_ipConfig.m_address.m_octets[3]);
+
+	//ARP cache (shared by all interfaces)
+	static ARPCache cache;
+
+	//Per-interface protocol stacks
+	static EthernetProtocol eth(*g_ethIface, g_macAddress);
+	g_ethProtocol = &eth;
+	static ARPProtocol arp(eth, g_ipConfig.m_address, cache);
+
+	//Global protocol stacks
+	static IPv4Protocol ipv4(eth, g_ipConfig, cache);
+	static ICMPv4Protocol icmpv4(ipv4);
+	static ManagementTCPProtocol tcp(&ipv4);
+	static ManagementUDPProtocol udp(&ipv4);
+
+	//Register protocol handlers with the lower layer
+	eth.UseARP(&arp);
+	eth.UseIPv4(&ipv4);
+	ipv4.UseICMPv4(&icmpv4);
+	ipv4.UseTCP(&tcp);
+	ipv4.UseUDP(&udp);
+
+	//Save a few pointers
+	g_dhcpClient = &udp.GetDHCP();
 }
 
-void InitUART()
+/**
+	@brief Load our IP configuration from the KVS
+ */
+void ConfigureIP()
 {
-	//Initialize the UART for local console: 115.2 Kbps using PA12 for UART4 transmit and PA11 for UART2 receive
-	//TODO: nice interface for enabling UART interrupts
-	GPIOPin uart_tx(&GPIOA, 12, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6);
-	GPIOPin uart_rx(&GPIOA, 11, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6);
-
-	//Enable the UART interrupt
-	NVIC_EnableIRQ(52);
-
-	g_logTimer->Sleep(10);	//wait for UART pins to be high long enough to remove any glitches during powerup
-
-	//Clear screen and move cursor to X0Y0
-	g_cliUART.Printf("\x1b[2J\x1b[0;0H");
+	g_ipConfig.m_address = g_kvs->ReadObject<IPv4Address>(g_defaultIP, "ip.address");
+	g_ipConfig.m_netmask = g_kvs->ReadObject<IPv4Address>(g_defaultNetmask, "ip.netmask");
+	g_ipConfig.m_broadcast = g_kvs->ReadObject<IPv4Address>(g_defaultBroadcast, "ip.broadcast");
+	g_ipConfig.m_gateway = g_kvs->ReadObject<IPv4Address>(g_defaultGateway, "ip.gateway");
 }
 
 void InitRTC()
@@ -117,106 +189,6 @@ void InitRTC()
 	//Turn on the RTC APB clock so we can configure it, then set the clock source for it in the RCC
 	RCCHelper::Enable(&_RTC);
 	RTC::SetClockFromHSE(50);
-}
-
-void DetectHardware()
-{
-	g_log("Identifying hardware\n");
-	LogIndenter li(g_log);
-
-	uint16_t rev = DBGMCU.IDCODE >> 16;
-	uint16_t device = DBGMCU.IDCODE & 0xfff;
-
-	if(device == 0x483)
-	{
-		//Look up the stepping number
-		const char* srev = NULL;
-		switch(rev)
-		{
-			case 0x1000:
-				srev = "A";
-				break;
-
-			case 0x1001:
-				srev = "Z";
-				break;
-
-			default:
-				srev = "(unknown)";
-		}
-
-		uint8_t pkg = SYSCFG.PKGR;
-		const char* package = "";
-		switch(pkg)
-		{
-			case 0:
-				package = "VQFPN68 (industrial)";
-				break;
-			case 1:
-				package = "LQFP100/TFBGA100 (legacy)";
-				break;
-			case 2:
-				package = "LQFP100 (industrial)";
-				break;
-			case 3:
-				package = "TFBGA100 (industrial)";
-				break;
-			case 4:
-				package = "WLCSP115 (industrial)";
-				break;
-			case 5:
-				package = "LQFP144 (legacy)";
-				break;
-			case 6:
-				package = "UFBGA144 (legacy)";
-				break;
-			case 7:
-				package = "LQFP144 (industrial)";
-				break;
-			case 8:
-				package = "UFBGA169 (industrial)";
-				break;
-			case 9:
-				package = "UFBGA176+25 (industrial)";
-				break;
-			case 10:
-				package = "LQFP176 (industrial)";
-				break;
-			default:
-				package = "unknown package";
-				break;
-		}
-
-		g_log("STM32%c%c%c%c stepping %s, %s\n",
-			(L_ID >> 24) & 0xff,
-			(L_ID >> 16) & 0xff,
-			(L_ID >> 8) & 0xff,
-			(L_ID >> 0) & 0xff,
-			srev,
-			package
-			);
-		g_log("564 kB total SRAM, 128 kB DTCM, up to 256 kB ITCM, 4 kB backup SRAM\n");
-		g_log("%d kB Flash\n", F_ID);
-
-		//U_ID fields documented in 45.1 of STM32 programming manual
-		uint16_t waferX = U_ID[0] >> 16;
-		uint16_t waferY = U_ID[0] & 0xffff;
-		uint8_t waferNum = U_ID[1] & 0xff;
-		char waferLot[8] =
-		{
-			static_cast<char>((U_ID[1] >> 24) & 0xff),
-			static_cast<char>((U_ID[1] >> 16) & 0xff),
-			static_cast<char>((U_ID[1] >> 8) & 0xff),
-			static_cast<char>((U_ID[2] >> 24) & 0xff),
-			static_cast<char>((U_ID[2] >> 16) & 0xff),
-			static_cast<char>((U_ID[2] >> 8) & 0xff),
-			static_cast<char>((U_ID[2] >> 0) & 0xff),
-			'\0'
-		};
-		g_log("Lot %s, wafer %d, die (%d, %d)\n", waferLot, waferNum, waferX, waferY);
-	}
-	else
-		g_log(Logger::WARNING, "Unknown device (0x%06x)\n", device);
 }
 
 /**
@@ -269,7 +241,7 @@ void InitDACs()
 	dac_spi.SetClockInvert(true);
 
 	//Wait a while to make sure everything is deselected
-	g_logTimer->Sleep(5);
+	g_logTimer.Sleep(5);
 
 	//Initialize the DACs
 	static OctalDAC tx_dac(dac_spi, tx_dac_cs_n);
@@ -309,7 +281,7 @@ void InitSupervisor()
 	static GPIOPin super_cs_n(&GPIOE, 4, GPIOPin::MODE_OUTPUT, slew);
 	super_cs_n = 1;
 	g_superSPICS = &super_cs_n;
-	g_logTimer->Sleep(1);
+	g_logTimer.Sleep(1);
 
 	//Initialize the rest of our IOs
 	static GPIOPin spi_sck(&GPIOE, 2, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_MEDIUM, 5);
@@ -470,7 +442,7 @@ void InitSensors()
 	LogIndenter li(g_log);
 
 	//Wait 50ms to get accurate readings
-	g_logTimer->Sleep(500);
+	g_logTimer.Sleep(500);
 
 	//Read fans
 	for(uint8_t i=0; i<2; i++)
@@ -579,7 +551,7 @@ void PollSFP()
 	//Wait 300 ms (t_start_up) to make sure it's up
 	//TODO: we don't want to block incoming network frame handling during this time!
 	//This should be nonblocking
-	g_logTimer->Sleep(3000);
+	g_logTimer.Sleep(3000);
 
 	//Read the base EEPROM page from the optic
 	uint8_t basePage[128];

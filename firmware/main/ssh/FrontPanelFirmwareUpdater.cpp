@@ -75,7 +75,7 @@ void FrontPanelFirmwareUpdater::StartUpdate()
 			SetFrontPanelCS(1);
 
 			//Wait for reset
-			g_logTimer->Sleep(500);
+			g_logTimer.Sleep(500);
 
 			//Make sure we're back up in DFU mode
 			mode = GetFrontPanelMode();
@@ -103,14 +103,14 @@ void FrontPanelFirmwareUpdater::StartUpdate()
 	//Erase the application flash partition
 	//TODO: can we optimize to only erase sectors that have content?
 	g_log("Erasing application flash partition...\n");
-	auto start = g_logTimer->GetCount();
+	auto start = g_logTimer.GetCount();
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_ERASE_APP);
-	g_logTimer->Sleep(1);
+	g_logTimer.Sleep(1);
 	while(ReadFrontPanelByte() == 0)
 	{
 		//time out after 5 sec
-		auto delta = g_logTimer->GetCount() - start;
+		auto delta = g_logTimer.GetCount() - start;
 		if(delta > 50000)
 		{
 			g_log(Logger::ERROR, "Timed out waiting for flash erase\n");
@@ -118,7 +118,7 @@ void FrontPanelFirmwareUpdater::StartUpdate()
 			break;
 		}
 
-		g_logTimer->Sleep(1);
+		g_logTimer.Sleep(1);
 	}
 	SetFrontPanelCS(1);
 
@@ -126,7 +126,7 @@ void FrontPanelFirmwareUpdater::StartUpdate()
 	m_runningLength = 0;
 
 	LogIndenter li2(g_log);
-	auto delta = g_logTimer->GetCount() - start;
+	auto delta = g_logTimer.GetCount() - start;
 	g_log("Flash erase complete (in %d.%d ms)\n", delta / 10, delta % 10);
 }
 
@@ -202,18 +202,18 @@ void FrontPanelFirmwareUpdater::OnWriteData(uint32_t physicalAddress, uint8_t* d
 	SendFrontPanelByte((physicalAddress >> 24) & 0xff);
 	SetFrontPanelCS(1);
 
-	g_logTimer->Sleep(5);
+	g_logTimer.Sleep(5);
 
 	//Send the data
 	//TODO: if more than 1-2 kB, chunk it
-	auto start = g_logTimer->GetCount();
+	auto start = g_logTimer.GetCount();
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_FLASH_WRITE);
 	for(uint32_t i=0; i<len; i++)
 		SendFrontPanelByte(data[i]);
 	SetFrontPanelCS(1);
 
-	g_logTimer->Sleep(50);
+	g_logTimer.Sleep(50);
 
 	//Calculate the CRC32 of the data while we wait for the write to complete
 	CRC::ChecksumUpdate(data, len);
@@ -223,23 +223,23 @@ void FrontPanelFirmwareUpdater::OnWriteData(uint32_t physicalAddress, uint8_t* d
 	//Poll until the write has completed
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_FLASH_STATUS);
-	g_logTimer->Sleep(20);
+	g_logTimer.Sleep(20);
 	while(ReadFrontPanelByte() != 1)
-		g_logTimer->Sleep(50);
+		g_logTimer.Sleep(50);
 	SetFrontPanelCS(1);
 
 	//Flush the SPI buffer to make sure we don't get false "done" values
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_FLASH_SYNC);
-	g_logTimer->Sleep(20);
+	g_logTimer.Sleep(20);
 	while(ReadFrontPanelByte() != 0xcc)
-		g_logTimer->Sleep(50);
+		g_logTimer.Sleep(50);
 	SetFrontPanelCS(1);
 
 	//1K bits / 1 sec =
 	//1 bits / 1 ms =
 	//0.1 bits / tick
-	auto delta = g_logTimer->GetCount() - start;
+	auto delta = g_logTimer.GetCount() - start;
 	uint32_t kbps = 10 * len / delta;
 	g_log("Wrote %u bytes to 0x%08x in %d.%d ms (%u Kbps), running crc = %08x, length = %d\n",
 		len, physicalAddress, delta / 10, delta % 10, kbps, runningCRC, m_runningLength);
@@ -254,7 +254,7 @@ void FrontPanelFirmwareUpdater::FinishSegment()
 	g_log("Flushing remaining data to flash\n");
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_FLASH_FLUSH);
-	g_logTimer->Sleep(1);
+	g_logTimer.Sleep(1);
 	while(ReadFrontPanelByte() == 0)
 	{}
 	SetFrontPanelCS(1);
@@ -315,7 +315,7 @@ void FrontPanelFirmwareUpdater::FinishUpdate()
 
 	//Wait for reset
 	//TODO: we don't want to hang the whole chip for 1 sec, do this in some kind of timer state machine
-	g_logTimer->Sleep(15000);
+	g_logTimer.Sleep(15000);
 
 	//Make sure we're back up in application mode
 	auto mode = GetFrontPanelMode();

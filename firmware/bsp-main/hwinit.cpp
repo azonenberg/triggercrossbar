@@ -34,132 +34,116 @@
  */
 #include <core/platform.h>
 #include "hwinit.h"
+#include "LogSink.h"
 #include <peripheral/Power.h>
 
-void InitFPGASPI();
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Common peripherals used by application and bootloader
+
+//APB1 is 62.5 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
+//Divide down to get 10 kHz ticks
+Timer g_logTimer(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 12500);
+
+/**
+	@brief Character device for logging
+ */
+LogSink<MAX_LOG_SINKS>* g_logSink = nullptr;
+
+/**
+	@brief UART console
+
+	Default after reset is for UART4 to be clocked by PCLK1 (APB1 clock) which is 62.5 MHz
+	So we need a divisor of 542.53
+ */
+UART<32, 256> g_cliUART(&UART4, 543);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Common global hardware config used by both bootloader and application
-
-//UART console
-//USART2 is on APB1 (40 MHz), so we need a divisor of 347.22, round to 347
-UART<16, 256> g_uart(&USART2, 347);
-
-//APB1 is 40 MHz
-//Divide down to get 10 kHz ticks (note TIM2 is double rate)
-Timer g_logTimer(&TIM2, Timer::FEATURE_ADVANCED, 8000);
-
-//SPI bus to the FPGA
-SPI<2048, 64> g_fpgaSPI(&SPI1, true, 2, false);
-GPIOPin* g_fpgaSPICS = nullptr;
-
-//Default MISO to be using alt mode 0 (NJTRST) so we can use JTAG for debug
-GPIOPin g_fpgaMiso(&GPIOB, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
-
-bool g_misoIsJtag = true;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Low level init
-
-void BSP_InitPower()
-{
-	Power::ConfigureLDO(RANGE_VOS1);
-}
-
-void BSP_InitClocks()
-{
-	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
-	//A bit of extra latency is fine, the CPU being faster than flash is not.
-	Flash::SetConfiguration(80, RANGE_VOS1);
-
-	RCCHelper::InitializePLLFromHSI16(
-		2,	//Pre-divide by 2 (PFD frequency 8 MHz)
-		20,	//VCO at 8*20 = 160 MHz
-		4,	//Q divider is 40 MHz (nominal 48 but we're not using USB so this is fine)
-		2,	//R divider is 80 MHz (fmax for CPU)
-		1,	//no further division from SYSCLK to AHB (80 MHz)
-		2,	//APB1 at 40 MHz
-		2);	//APB2 at 40 MHz
-}
-
-void BSP_InitUART()
-{
-	//Initialize the UART for local console: 115.2 Kbps using PD4 for USART2 transmit and PD5 for USART2 receive
-	//TODO: nice interface for enabling UART interrupts
-	GPIOPin uart_tx(&GPIOD, 5, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 7);
-	GPIOPin uart_rx(&GPIOD, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 7);
-
-	g_logTimer.Sleep(10);	//wait for UART pins to be high long enough to remove any glitches during powerup
-
-	//Enable the UART interrupt
-	NVIC_EnableIRQ(38);
-}
-
-void BSP_InitLog()
-{
-	//Wait 10ms to avoid resets during shutdown from destroying diagnostic output
-	g_logTimer.Sleep(100);
-
-	//Clear screen and move cursor to X0Y0 (but only in bootloader)
-	#ifndef NO_CLEAR_SCREEN
-	g_uart.Printf("\x1b[2J\x1b[0;0H");
-	#endif
-
-	//Start the logger
-	g_log.Initialize(&g_uart, &g_logTimer);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Common features shared by both application and bootloader
+// Do other initialization
 
 void BSP_Init()
 {
 	App_Init();
-	InitFPGASPI();
 }
 
-void InitFPGASPI()
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// BSP overrides for low level init
+
+void BSP_InitPower()
 {
-	g_log("Initializing FPGA SPI\n");
-
-	//Set up GPIOs for FPGA bus
-	static GPIOPin fpga_sck(&GPIOE, 13, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
-	static GPIOPin fpga_mosi(&GPIOE, 15, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
-	static GPIOPin fpga_cs_n(&GPIOB, 0, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 5);
-	//DO NOT configure MISO initially since this pin doubles as JTRST
-	//If we enable it, JTAG will stop working!
-
-	//Save the CS# pin
-	g_fpgaSPICS = &fpga_cs_n;
-
-	//Set up IRQ6 for SPI CS# (PB0) change
-	//Use EXTI0 as PB0 interrupt on falling edge
-	//TODO: make a wrapper for this?
-	RCCHelper::EnableSyscfg();
-	NVIC_EnableIRQ(6);
-	SYSCFG.EXTICR1 = (SYSCFG.EXTICR1 & 0xfffffff8) | 0x1;
-	EXTI.IMR1 |= 1;
-	EXTI.FTSR1 |= 1;
-
-	//Set up IRQ35 as SPI1 interrupt
-	NVIC_EnableIRQ(35);
-	g_fpgaSPI.EnableRxInterrupt();
+	//Initialize power (must be the very first thing done after reset)
+	Power::ConfigureSMPSToLDOCascade(Power::VOLTAGE_1V8, RANGE_VOS0);
 }
 
-/**
-	@brief Puts the SPI MISO pin in SPI mode (disconnecting JTAG)
- */
-void SetMisoToSPIMode()
+void BSP_InitClocks()
 {
-	g_fpgaMiso.SetMode(GPIOPin::MODE_PERIPHERAL, 5);
-	g_misoIsJtag = false;
+	//With CPU_FREQ_BOOST not set, max frequency is 520 MHz
+
+	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
+	//A bit of extra latency is fine, the CPU being faster than flash is not.
+	Flash::SetConfiguration(513, RANGE_VOS0);
+
+	//By default out of reset, we're clocked by the HSI clock at 64 MHz
+	//Initialize the external clock source at 25 MHz
+	RCCHelper::EnableHighSpeedExternalClock();
+
+	//Set up PLL1 to run off the external oscillator
+	RCCHelper::InitializePLL(
+		1,		//PLL1
+		25,		//input is 25 MHz from the HSE
+		2,		//25/2 = 12.5 MHz at the PFD
+		40,		//12.5 * 40 = 500 MHz at the VCO
+		1,		//div P (primary output 500 MHz)
+		10,		//div Q (50 MHz kernel clock)
+		32,		//div R (not used for now),
+		RCCHelper::CLOCK_SOURCE_HSE
+	);
+
+	//Set up main system clock tree
+	RCCHelper::InitializeSystemClocks(
+		1,		//sysclk = 500 MHz
+		2,		//AHB = 250 MHz
+		4,		//APB1 = 62.5 MHz
+		4,		//APB2 = 62.5 MHz
+		4,		//APB3 = 62.5 MHz
+		4		//APB4 = 62.5 MHz
+	);
+
+	//RNG clock should be >= HCLK/32
+	//AHB2 HCLK is 250 MHz so min 7.8125 MHz
+	//Select PLL1 Q clock (50 MHz)
+	RCC.D2CCIP2R = (RCC.D2CCIP2R & ~0x300) | (0x100);
+
+	//Select PLL1 as system clock source
+	RCCHelper::SelectSystemClockFromPLL1();
 }
 
-/**
-	@brief Puts the SPI MISO pin in JTAG mode (reconnecting JTAG)
- */
-void SetMisoToJTAGMode()
+void BSP_InitUART()
 {
-	g_fpgaMiso.SetMode(GPIOPin::MODE_PERIPHERAL, 0);
-	g_misoIsJtag = true;
+	//Initialize the UART for local console: 115.2 Kbps using PA12 for UART4 transmit and PA11 for UART2 receive
+	//TODO: nice interface for enabling UART interrupts
+	static GPIOPin uart_tx(&GPIOA, 12, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6);
+	static GPIOPin uart_rx(&GPIOA, 11, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6);
+
+	//Enable the UART interrupt
+	NVIC_EnableIRQ(52);
+
+	g_logTimer.Sleep(10);	//wait for UART pins to be high long enough to remove any glitches during powerup
+
+	//Clear screen and move cursor to X0Y0
+	g_cliUART.Printf("\x1b[2J\x1b[0;0H");
+}
+
+void BSP_InitLog()
+{
+	static LogSink<MAX_LOG_SINKS> sink(&g_cliUART);
+	g_logSink = &sink;
+
+	g_log.Initialize(g_logSink, &g_logTimer);
+	g_log("trigger-crossbar by Andrew D. Zonenberg\n");
+	{
+		LogIndenter li(g_log);
+		g_log("This system is open hardware! Board design files and firmware/gateware source code are at:\n");
+		g_log("https://github.com/azonenberg/triggercrossbar\n");
+	}
+	g_log("Firmware compiled at %s on %s\n", __TIME__, __DATE__);
 }

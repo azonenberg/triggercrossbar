@@ -388,7 +388,8 @@ static const clikeyword_t g_rootCommands[] =
 CrossbarCLISessionContext::CrossbarCLISessionContext()
 	: CLISessionContext(g_rootCommands)
 {
-	LoadHostname();
+	//cannot LoadHostname or do anything else touching the KVS here because the local console session is a global,
+	//and is initialized before App_Init() calls InitKVS()
 }
 
 void CrossbarCLISessionContext::PrintPrompt()
@@ -817,9 +818,7 @@ void CrossbarCLISessionContext::OnReload()
 	//TODO: do this through the supervisor to do a whole-system reset instead of just rebooting the MCU
 
 	g_log("Reload requested\n");
-	SCB.AIRCR = 0x05fa0004;
-	while(1)
-	{}
+	Reset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

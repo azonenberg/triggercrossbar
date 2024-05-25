@@ -56,7 +56,7 @@ uint64_t ManagementNTPClient::GetLocalTimestamp()
 {
 	//TODO: use the RTC or a dedicated timer
 	//for now just use the log timer
-	uint64_t tnow = g_logTimer->GetCount();
+	uint64_t tnow = g_logTimer.GetCount();
 
 	//RTC is 100us steps, convert to native NTP units (2^-32 sec)
 	return tnow * 429497;

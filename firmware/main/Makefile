@@ -5,6 +5,8 @@ CXXFLAGS=-g -O3 --std=c++17 -Wall -Wextra \
 	-I$(SRCDIR) \
 	-I$(ROOTDIR)/stm32-cpp/devices/inc \
 	-I$(ROOTDIR)/stm32-cpp/src \
+	-I$(ROOTDIR)/common-embedded-platform/ \
+	-I$(SRCDIR)/../bsp-main/ \
 	-DMICROKVS_WRITE_BLOCK_SIZE=32 \
 	-DTEST_BANK_SIZE=131072 \
 	-DMAX_TOKEN_LEN=96 \
@@ -13,16 +15,14 @@ CXXFLAGS=-g -O3 --std=c++17 -Wall -Wextra \
 	-Wl,--wrap=calloc \
 	-Wl,--wrap=realloc \
 	-Wl,--wrap=alloca \
-	-Wl,--wrap=sbrk_aligned #\
-#	-flto=auto -pipe
+	-Wl,--wrap=sbrk_aligned
 
-LDFLAGS=-Wl,-T $(ROOTDIR)/stm32-cpp/devices/link/stm32h735.ld \
+LDFLAGS=-Wl,-T $(ROOTDIR)/stm32-cpp/devices/link/stm32h735_minitcm.ld \
 	 -L$(ROOTDIR)/stm32-cpp/devices/link/
 
 .ONESHELL:
 .SILENT: all
 
-# Actual on-device firmware
 all: CXX=arm-none-eabi-g++
 all: CXXFLAGS += -DSTM32H735 -fno-rtti -fno-exceptions --specs nano.specs -mcpu=cortex-m7
 
@@ -32,6 +32,8 @@ all:
 	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/net/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/ssh/*.cpp || exit 1
+	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/common-embedded-platform/core/*.cpp || exit 1
+	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/firmware/bsp-main/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/microkvs/kvs/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/microkvs/driver/STM32StorageBank.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/embedded-cli/*.cpp || exit 1

@@ -27,103 +27,18 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef LogSink_h
-#define LogSink_h
+#ifndef hwinit_h
+#define hwinit_h
 
-/**
-	@brief A destination for Logger that can output to multiple CLIOutputStream's
+#include <cli/UARTOutputStream.h>
 
-	TODO: look into refactoring Logger so it can write directly to a CLIOutputStream?
- */
-template<uint32_t MAX_SINKS>
-class LogSink : public CharacterDevice
-{
-public:
+#include <peripheral/Flash.h>
+#include <peripheral/GPIO.h>
 
-	LogSink(CharacterDevice* primary)
-		: m_primary(primary)
-	{
-		for(uint32_t i=0; i<MAX_SINKS; i++)
-			m_sinks[i] = nullptr;
-	}
+#include <staticnet-config.h>
 
-	///@brief unimplemented but the base class doesn't know that
-	virtual char BlockingRead() override
-	{ return 0; }
+#define MAX_LOG_SINKS SSH_TABLE_SIZE
 
-	/**
-		@brief Adds a new log sink
-	 */
-	void AddSink(CLIOutputStream* sink)
-	{
-		for(uint32_t i=0; i<MAX_SINKS; i++)
-		{
-			if(!m_sinks[i])
-			{
-				m_sinks[i] = sink;
-				break;
-			}
-		}
-	}
-
-	/**
-		@brief Removes a log sink
-	 */
-	void RemoveSink(CLIOutputStream* sink)
-	{
-		for(uint32_t i=0; i<MAX_SINKS; i++)
-		{
-			if(m_sinks[i] == sink)
-			{
-				m_sinks[i] = nullptr;
-				break;
-			}
-		}
-	}
-
-	virtual void PrintBinary(char ch)
-	{
-		m_primary->PrintBinary(ch);
-		for(uint32_t i=0; i<MAX_SINKS; i++)
-		{
-			if(m_sinks[i])
-			{
-				m_sinks[i]->PutCharacter(ch);
-				m_sinks[i]->Flush();
-			}
-		}
-	}
-
-	virtual void PrintText(char ch)
-	{
-		m_primary->PrintText(ch);
-		for(uint32_t i=0; i<MAX_SINKS; i++)
-		{
-			if(m_sinks[i])
-			{
-				m_sinks[i]->PutCharacter(ch);
-				m_sinks[i]->Flush();
-			}
-		}
-	}
-
-	virtual void PrintString(const char* str)
-	{
-		m_primary->PrintString(str);
-		for(uint32_t i=0; i<MAX_SINKS; i++)
-		{
-			if(m_sinks[i])
-			{
-				m_sinks[i]->PutString(str);
-				m_sinks[i]->Flush();
-			}
-		}
-	}
-
-protected:
-	CharacterDevice* m_primary;
-
-	CLIOutputStream* m_sinks[MAX_SINKS];
-};
+void App_Init();
 
 #endif

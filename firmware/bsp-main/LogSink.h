@@ -27,109 +27,105 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
+#ifndef LogSink_h
+#define LogSink_h
+
+#include "../../embedded-cli/CLIOutputStream.h"
+
 /**
-	@file
-	@brief Declaration of CrossbarCLISessionContext
+	@brief A destination for Logger that can output to multiple CLIOutputStream's
+
+	TODO: look into refactoring Logger so it can write directly to a CLIOutputStream?
  */
-#ifndef CrossbarCLISessionContext_h
-#define CrossbarCLISessionContext_h
-
-#include "FPGAInterface.h"
-#include <embedded-cli/CLIOutputStream.h>
-#include <embedded-cli/CLISessionContext.h>
-#include <staticnet/cli/SSHOutputStream.h>
-
-class CrossbarCLISessionContext : public CLISessionContext
+template<uint32_t MAX_SINKS>
+class LogSink : public CharacterDevice
 {
 public:
-	CrossbarCLISessionContext();
 
-	void Initialize(int sessid, TCPTableEntry* socket, SSHTransportServer* server, const char* username)
+	LogSink(CharacterDevice* primary)
+		: m_primary(primary)
 	{
-		m_sshstream.Initialize(sessid, socket, server);
-		Initialize(&m_sshstream, username);
+		for(uint32_t i=0; i<MAX_SINKS; i++)
+			m_sinks[i] = nullptr;
 	}
 
-	//Generic init for non-SSH streams
-	void Initialize(CLIOutputStream* stream, const char* username)
+	///@brief unimplemented but the base class doesn't know that
+	virtual char BlockingRead() override
+	{ return 0; }
+
+	/**
+		@brief Adds a new log sink
+	 */
+	void AddSink(CLIOutputStream* sink)
 	{
-		m_stream = stream;
-		LoadHostname();
-		CLISessionContext::Initialize(m_stream, username);
+		for(uint32_t i=0; i<MAX_SINKS; i++)
+		{
+			if(!m_sinks[i])
+			{
+				m_sinks[i] = sink;
+				break;
+			}
+		}
 	}
 
-	SSHOutputStream* GetSSHStream()
-	{ return &m_sshstream; }
+	/**
+		@brief Removes a log sink
+	 */
+	void RemoveSink(CLIOutputStream* sink)
+	{
+		for(uint32_t i=0; i<MAX_SINKS; i++)
+		{
+			if(m_sinks[i] == sink)
+			{
+				m_sinks[i] = nullptr;
+				break;
+			}
+		}
+	}
 
-	virtual ~CrossbarCLISessionContext()
-	{}
+	virtual void PrintBinary(char ch)
+	{
+		m_primary->PrintBinary(ch);
+		for(uint32_t i=0; i<MAX_SINKS; i++)
+		{
+			if(m_sinks[i])
+			{
+				m_sinks[i]->PutCharacter(ch);
+				m_sinks[i]->Flush();
+			}
+		}
+	}
 
-	virtual void PrintPrompt();
+	virtual void PrintText(char ch)
+	{
+		m_primary->PrintText(ch);
+		for(uint32_t i=0; i<MAX_SINKS; i++)
+		{
+			if(m_sinks[i])
+			{
+				m_sinks[i]->PutCharacter(ch);
+				m_sinks[i]->Flush();
+			}
+		}
+	}
+
+	virtual void PrintString(const char* str)
+	{
+		m_primary->PrintString(str);
+		for(uint32_t i=0; i<MAX_SINKS; i++)
+		{
+			if(m_sinks[i])
+			{
+				m_sinks[i]->PutString(str);
+				m_sinks[i]->Flush();
+			}
+		}
+	}
 
 protected:
-	bool ParseIPAddress(const char* addr, IPv4Address& ip);
-	bool ParseIPAddressWithSubnet(const char* addr, IPv4Address& ip, uint32_t& mask);
+	CharacterDevice* m_primary;
 
-	void LoadHostname();
-
-	virtual void OnExecute();
-	void OnExecuteRoot();
-
-	void OnCommit();
-	/*
-	void OnClearCounters(uint8_t interface);
-
-	void OnDescription();
-	void OnDebug();
-	*/
-	void OnIPCommand();
-	void OnIPAddress(const char* addr);
-	void OnIPGateway(const char* gw);
-
-	void OnNoCommand();
-	void OnNoFlashCommand();
-	void OnNoSSHCommand();
-	void OnNoSSHKeyCommand();
-
-	void OnNtpServer(const char* addr);
-
-	void OnReload();
-	void OnRollback();
-
-	void OnSetCommand();
-	void OnSetRegister();
-	void OnSetMmdRegister();
-	//void OnSpeed();
-
-	void OnShowARPCache();
-	void OnShowCommand();
-	void OnShowFlash();
-	void OnShowFlashDetail();
-	void OnShowHardware();
-	/*void OnShowInterfaceCommand();
-	void OnShowInterfaceCounters(uint8_t interface);
-	void OnShowInterfaceStatus();*/
-	void OnShowIPAddress();
-	void OnShowIPRoute();
-	void OnShowMMDRegister();
-	void OnShowNtp();
-	void OnShowRegister();
-	void OnShowSSHFingerprint();
-	void OnShowSSHKeys();
-	//void OnShowTemperature();
-	void OnShowVersion();
-	void OnSSHCommand();
-	void OnSSHKey();
-	/*
-	void OnTest();
-	*/
-	void OnZeroize();
-
-	SSHOutputStream m_sshstream;
-	CLIOutputStream* m_stream;
-
-	///@brief Hostname (only used for display)
-	char m_hostname[33];
+	CLIOutputStream* m_sinks[MAX_SINKS];
 };
 
 #endif

@@ -30,31 +30,23 @@
 #ifndef triggercrossbar_h
 #define triggercrossbar_h
 
-#include "stm32.h"
+#include <core/platform.h>
+#include <hwinit.h>
+#include <LogSink.h>
+
 #include <peripheral/CRC.h>
 #include <peripheral/DTS.h>
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
 #include <peripheral/I2C.h>
 #include <peripheral/MPU.h>
 #include <peripheral/OctoSPI.h>
 #include <peripheral/OctoSPIManager.h>
 #include <peripheral/Power.h>
-#include <peripheral/RCC.h>
 #include <peripheral/RTC.h>
 #include <peripheral/SPI.h>
-#include <peripheral/Timer.h>
 #include <peripheral/UART.h>
-#include <cli/UARTOutputStream.h>
 
-#include "LogSink.h"
-
-#include <microkvs/kvs/KVS.h>
-
-#include <util/Logger.h>
 #include <util/StringBuffer.h>
 
-#include <staticnet-config.h>
 #include <staticnet/stack/staticnet.h>
 #include <staticnet/ssh/SSHTransportServer.h>
 
@@ -70,13 +62,11 @@ void StatusRegisterMaskedWait(volatile uint16_t* a, volatile uint16_t* b, uint16
 
 #include "ssh/CrossbarSSHKeyManager.h"
 
-#define MAX_LOG_SINKS SSH_TABLE_SIZE
-
 extern KVS* g_kvs;
 extern LogSink<MAX_LOG_SINKS>* g_logSink;
 extern Logger g_log;
 extern APBFPGAInterface g_apbfpga;
-extern Timer* g_logTimer;
+extern Timer g_logTimer;
 extern EthernetInterface* g_ethIface;
 extern MACAddress g_macAddress;
 extern IPv4Config g_ipConfig;
@@ -105,11 +95,7 @@ extern const IPv4Address g_defaultNetmask;
 extern const IPv4Address g_defaultBroadcast;
 extern const IPv4Address g_defaultGateway;
 
-void InitClocks();
 void InitLEDs();
-void InitTimer();
-void InitUART();
-void InitLog(CharacterDevice* logdev, Timer* timer);
 
 void InitDTS();
 void InitQSPI();
@@ -137,8 +123,6 @@ uint16_t GetFPGAVCCBRAM();
 uint16_t GetSFPTemperature();
 
 void UpdateFrontPanelDisplay();
-
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
 
 void InitEthernet();
 void InitIP();

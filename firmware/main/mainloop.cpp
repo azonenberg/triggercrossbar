@@ -38,26 +38,18 @@ void SendFrontPanelSensor(uint8_t cmd, uint16_t value);
 void UpdateFrontPanelActivityLEDs();
 void InitFrontPanel();
 
-GPIOPin* g_irq = nullptr;
+GPIOPin g_irq(&GPIOH, 6, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
 
-int main()
+///@brief Output stream for local serial console
+UARTOutputStream g_localConsoleOutputStream;
+
+///@brief Context data structure for local serial console
+CrossbarCLISessionContext g_localConsoleSessionContext;
+
+void App_Init()
 {
-	//Initialize power (must be the very first thing done after reset)
-	Power::ConfigureSMPSToLDOCascade(Power::VOLTAGE_1V8, RANGE_VOS0);
-
-	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
-	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
-
-	//Enable SYSCFG before changing any settings on it
-	RCCHelper::EnableSyscfg();
-
 	//Basic hardware setup
-	InitClocks();
 	InitLEDs();
-	InitTimer();
-	InitUART();
-	InitLog(&g_cliUART, g_logTimer);
-	DetectHardware();
 	InitRTC();
 
 	/*
@@ -99,13 +91,9 @@ int main()
 	//Load instrument channel configuration from the KVS
 	LoadChannelConfig();
 
-	//Create a CLI stream for the UART
-	UARTOutputStream uartStream;
-	uartStream.Initialize(&g_cliUART);
-
-	//Initialize the CLI for the UART
-	CrossbarCLISessionContext uartContext;
-	uartContext.Initialize(&uartStream, "localadmin");
+	//Initialize the local console
+	g_localConsoleOutputStream.Initialize(&g_cliUART);
+	g_localConsoleSessionContext.Initialize(&g_localConsoleOutputStream, "localadmin");
 
 	//Bring up the front panel
 	InitFrontPanel();
@@ -114,78 +102,76 @@ int main()
 	EnableInterrupts();
 
 	//Show the initial prompt
-	uartContext.PrintPrompt();
+	g_localConsoleSessionContext.PrintPrompt();
 
 	//Initialize the FPGA IRQ pin
-	GPIOPin irq(&GPIOH, 6, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
-	irq.SetPullMode(GPIOPin::PULL_DOWN);
-	g_irq = &irq;
+	g_irq.SetPullMode(GPIOPin::PULL_DOWN);
+}
 
+void BSP_MainLoopIteration()
+{
 	//Main event loop
-	uint32_t secTillNext5MinTick = 0;
-	uint32_t next1HzTick = 0;
-	uint32_t next10HzTick = 0;
-	uint32_t nextPhyPoll = 0;
+	static uint32_t secTillNext5MinTick = 0;
+	static uint32_t next1HzTick = 0;
+	static uint32_t next10HzTick = 0;
+	static uint32_t nextPhyPoll = 0;
 	const uint32_t logTimerMax = 0xf0000000;
-	while(1)
+
+	//Wait for an interrupt
+	//asm("wfi");
+
+	//Check if anything happened on the FPGA
+	CheckForFPGAEvents();
+
+	//Check if we had a PHY link state change at 20 Hz
+	//TODO: add irq bit for this so we don't have to poll nonstop
+	if(g_logTimer.GetCount() >= nextPhyPoll)
 	{
-		//Wait for an interrupt
-		//asm("wfi");
-
-		//Check if anything happened on the FPGA
-		CheckForFPGAEvents();
-
-		//Check if we had a PHY link state change at 20 Hz
-		//TODO: add irq bit for this so we don't have to poll nonstop
-		if(g_logTimer->GetCount() >= nextPhyPoll)
-		{
-			PollPHYs();
-			nextPhyPoll = g_logTimer->GetCount() + 500;
-		}
-
-		//Check if we had an optic inserted or removed
-		PollSFP();
-
-		//Poll for UART input
-		if(g_cliUART.HasInput())
-			uartContext.OnKeystroke(g_cliUART.BlockingRead());
-
-		if(g_log.UpdateOffset(logTimerMax))
-		{
-			next1HzTick -= logTimerMax;
-			next10HzTick -= logTimerMax;
-		}
-
-		//Refresh of activity LEDs and TCP retransmits at 10 Hz
-		if(g_logTimer->GetCount() >= next10HzTick)
-		{
-			UpdateFrontPanelActivityLEDs();
-			g_ethProtocol->OnAgingTick10x();
-
-			next10HzTick = g_logTimer->GetCount() + 1000;
-		}
-
-		//1 Hz timer for various aging processes
-		if(g_logTimer->GetCount() >= next1HzTick)
-		{
-			g_ethProtocol->OnAgingTick();
-			next1HzTick = g_logTimer->GetCount() + 10000;
-
-			//Push channel config to KVS every 5 mins if it's changed
-			//DEBUG: every 10 sec
-			if(secTillNext5MinTick == 0)
-			{
-				secTillNext5MinTick = 300;
-				SaveChannelConfig();
-			}
-			else
-				secTillNext5MinTick --;
-
-			//Push new register values to front panel every second (it will refresh the panel whenever it wants to)
-			UpdateFrontPanelDisplay();
-		}
+		PollPHYs();
+		nextPhyPoll = g_logTimer.GetCount() + 500;
 	}
-	return 0;
+
+	//Check if we had an optic inserted or removed
+	PollSFP();
+
+	//Poll for UART input
+	if(g_cliUART.HasInput())
+		g_localConsoleSessionContext.OnKeystroke(g_cliUART.BlockingRead());
+
+	if(g_log.UpdateOffset(logTimerMax))
+	{
+		next1HzTick -= logTimerMax;
+		next10HzTick -= logTimerMax;
+	}
+
+	//Refresh of activity LEDs and TCP retransmits at 10 Hz
+	if(g_logTimer.GetCount() >= next10HzTick)
+	{
+		UpdateFrontPanelActivityLEDs();
+		g_ethProtocol->OnAgingTick10x();
+
+		next10HzTick = g_logTimer.GetCount() + 1000;
+	}
+
+	//1 Hz timer for various aging processes
+	if(g_logTimer.GetCount() >= next1HzTick)
+	{
+		g_ethProtocol->OnAgingTick();
+		next1HzTick = g_logTimer.GetCount() + 10000;
+
+		//Push channel config to KVS every 5 mins if it's changed
+		//DEBUG: every 10 sec
+		if(secTillNext5MinTick == 0)
+		{
+			secTillNext5MinTick = 300;
+			SaveChannelConfig();
+		}
+		else
+			secTillNext5MinTick --;
+
+		//Push new register values to front panel every second (it will refresh the panel whenever it wants to)
+		UpdateFrontPanelDisplay();
+	}
 }
 
 /**
@@ -195,10 +181,10 @@ int main()
  */
 bool CheckForFPGAEvents()
 {
-	if(*g_irq)
+	if(g_irq)
 		PollFPGA();
 
-	return *g_irq;
+	return g_irq;
 }
 
 /**
@@ -248,7 +234,7 @@ uint8_t GetFrontPanelMode()
 {
 	SetFrontPanelCS(0);
 	SendFrontPanelByte(FRONT_GET_STATUS);
-	g_logTimer->Sleep(1);
+	g_logTimer.Sleep(1);
 	auto ret = ReadFrontPanelByte();
 	SetFrontPanelCS(1);
 	return ret;
@@ -485,7 +471,7 @@ uint16_t SupervisorRegRead(uint8_t regid)
 	tmp |= (g_superSPI.BlockingRead() << 8);
 	*g_superSPICS = 1;
 
-	g_logTimer->Sleep(1);
+	g_logTimer.Sleep(1);
 
 	return tmp;
 }

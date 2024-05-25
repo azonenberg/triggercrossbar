@@ -35,26 +35,6 @@
 EthernetInterface* g_ethIface = nullptr;
 
 /**
-	@brief Global key-value store for persistent configuration
- */
-KVS* g_kvs = nullptr;
-
-/**
-	@brief Character device for logging
- */
-LogSink<MAX_LOG_SINKS>* g_logSink = nullptr;
-
-/**
-	@brief Logger for output stuff
- */
-Logger g_log;
-
-/**
-	@brief Timer used by logger
- */
-Timer* g_logTimer = nullptr;
-
-/**
 	@brief Interface to the FPGA via legacy bus protocol
  */
 FPGAInterface* g_fpga = nullptr;
@@ -83,14 +63,6 @@ EthernetProtocol* g_ethProtocol = nullptr;
 	@brief QSPI interface to FPGA
  */
 OctoSPI* g_qspi = nullptr;
-
-/**
-	@brief UART console
-
-	Default after reset is for UART4 to be clocked by PCLK1 (APB1 clock) which is 62.5 MHz
-	So we need a divisor of 542.53
- */
-UART<32, 256> g_cliUART(&UART4, 543);
 
 /**
 	@brief Digital temperature sensor
