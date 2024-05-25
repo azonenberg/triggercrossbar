@@ -27,7 +27,9 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "bootloader.h"
+#include <core/platform.h>
+#include <bootloader/bootloader-common.h>
+#include "../bsp-front/hwinit.h"
 
 typedef void(*fnptr)();
 
@@ -183,6 +185,8 @@ void HardFault_Handler()
 	SetMisoToJTAGMode();
 
 	//print any pending log messages so we can diagnose
+	g_uart.BlockingFlush();
+	g_uart.Printf("Hard fault\n");
 	g_uart.BlockingFlush();
 
 	while(1)

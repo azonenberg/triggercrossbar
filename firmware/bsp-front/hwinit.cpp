@@ -32,7 +32,7 @@
 	@author	Andrew D. Zonenberg
 	@brief	Boot-time hardware intialization
  */
-#include <platform.h>
+#include <core/platform.h>
 #include "hwinit.h"
 #include <peripheral/Power.h>
 

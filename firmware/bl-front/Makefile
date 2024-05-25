@@ -5,7 +5,7 @@ CXXFLAGS=-g -O3 --std=c++17 -mcpu=cortex-m4 -DSTM32L431 -fno-exceptions -fno-rtt
 	-I$(SRCDIR) \
 	-I$(ROOTDIR)/stm32-cpp/devices/inc \
 	-I$(ROOTDIR)/stm32-cpp/src \
-	-I$(ROOTDIR)/common-embedded-platform/core \
+	-I$(ROOTDIR)/common-embedded-platform/ \
 	-DMICROKVS_WRITE_BLOCK_SIZE=8 \
 	-DKVS_NAMELEN=32
 
@@ -21,9 +21,10 @@ all:
 	cd build
 	$(CXX) $(ROOTDIR)/stm32-cpp/src/cpu/*.* -c $(CXXFLAGS) || exit 1
 	$(CXX) $(ROOTDIR)/common-embedded-platform/core/*.cpp -c $(CXXFLAGS) || exit 1
+	$(CXX) $(ROOTDIR)/common-embedded-platform/bootloader/*.cpp -c $(CXXFLAGS) || exit 1
+	$(CXX) $(ROOTDIR)/common-embedded-platform/bootloader/*.S -c $(CXXFLAGS) || exit 1
 	$(CXX) $(ROOTDIR)/firmware/bsp-front/*.cpp -c $(CXXFLAGS) || exit 1
 	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/*.cpp || exit 1
-	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/*.S || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/microkvs/kvs/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/microkvs/driver/STM32StorageBank.cpp || exit 1
 	$(CXX) $(ROOTDIR)/stm32-cpp/src/newlib-stubs/*.cpp -c $(CXXFLAGS) || exit 1

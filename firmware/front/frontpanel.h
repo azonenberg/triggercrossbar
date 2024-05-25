@@ -30,7 +30,7 @@
 #ifndef frontpanel_h
 #define frontpanel_h
 
-#include <platform.h>
+#include <core/platform.h>
 
 #include <peripheral/ADC.h>
 #include <peripheral/I2C.h>
@@ -38,7 +38,7 @@
 #include <util/FIFO.h>
 #include <util/StringBuffer.h>
 
-#include "../bl-front/BootloaderAPI.h"
+#include <bootloader/BootloaderAPI.h>
 #include "../bsp-front/hwinit.h"
 #include "TCA6424A.h"
 #include "Display.h"

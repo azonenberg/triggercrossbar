@@ -44,6 +44,7 @@ void InitDisplaySPI();
 
 void App_Init()
 {
+	RCCHelper::Enable(&_RTC);
 	InitGPIOs();
 	InitI2C();
 	InitSensors();

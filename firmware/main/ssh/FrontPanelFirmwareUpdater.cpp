@@ -258,6 +258,16 @@ void FrontPanelFirmwareUpdater::FinishSegment()
 	while(ReadFrontPanelByte() == 0)
 	{}
 	SetFrontPanelCS(1);
+
+	//If the segment did not end on a flash write block (64 bit) boundary, append the necessary number of 0x00
+	//padding bytes and CRC them
+	static const uint8_t zero[8] = { 0 };
+	if(m_runningLength % 8)
+	{
+		auto zpad = 8 - (m_runningLength % 8);
+		CRC::ChecksumUpdate(zero, zpad);
+		m_runningLength += zpad;
+	}
 }
 
 void FrontPanelFirmwareUpdater::FinishUpdate()

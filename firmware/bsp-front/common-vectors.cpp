@@ -32,7 +32,7 @@
 	@author	Andrew D. Zonenberg
 	@brief	ISRs shared by bootloader and application
  */
-#include <platform.h>
+#include <core/platform.h>
 #include "hwinit.h"
 
 uint32_t g_spiRxFifoOverflows = 0;
