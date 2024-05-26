@@ -36,6 +36,7 @@
 #include "hwinit.h"
 #include "LogSink.h"
 #include <peripheral/Power.h>
+#include <ctype.h>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Common peripherals used by application and bootloader
@@ -121,10 +122,23 @@ bool g_usingDHCP = false;
 ///@brief The DHCP client
 ManagementDHCPClient* g_dhcpClient = nullptr;
 
+///@brief USERCODE of the FPGA (build timestamp)
+uint32_t g_usercode = 0;
+
+///@brief FPGA die serial number
+uint8_t g_fpgaSerial[8] = {0};
+
+///@brief IRQ line to the FPGA
+GPIOPin g_irq(&GPIOH, 6, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory mapped SFRs on the FPGA
 
 //TODO: use linker script to locate these rather than this ugly pointer code?
+
+///@brief System information
+volatile APB_SystemInfo* g_sysInfo =
+	reinterpret_cast<volatile APB_SystemInfo*>(FPGA_MEM_BASE + BASE_SYSINFO);
 
 ///@brief MDIO interface
 volatile APB_MDIO* g_mdio =
@@ -253,6 +267,196 @@ void InitRTC()
 	//Turn on the RTC APB clock so we can configure it, then set the clock source for it in the RCC
 	RCCHelper::Enable(&_RTC);
 	RTC::SetClockFromHSE(50);
+}
+
+void DoInitKVS()
+{
+	/*
+		Use sectors 6 and 7 of main flash (in single bank mode) for a 128 kB microkvs
+
+		Each log entry is 64 bytes, and we want to allocate ~50% of storage to the log since our objects are pretty
+		small (SSH keys, IP addresses, etc). A 1024-entry log is a nice round number, and comes out to 64 kB or 50%,
+		leaving the remaining 64 kB or 50% for data.
+	 */
+	static STM32StorageBank left(reinterpret_cast<uint8_t*>(0x080c0000), 0x20000);
+	static STM32StorageBank right(reinterpret_cast<uint8_t*>(0x080e0000), 0x20000);
+	InitKVS(&left, &right, 1024);
+}
+
+void InitI2C()
+{
+	g_log("Initializing I2C interfaces\n");
+
+	static GPIOPin mac_i2c_scl(&GPIOB, 8, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6, true);
+	static GPIOPin mac_i2c_sda(&GPIOB, 9, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6, true);
+
+	//Default kernel clock for I2C4 is pclk4 (68.75 MHz for our current config)
+	//Prescale by 16 to get 4.29 MHz
+	//Divide by 40 after that to get 107 kHz
+	static I2C mac_i2c(&I2C4, 16, 40);
+	g_macI2C = &mac_i2c;
+
+	static GPIOPin sfp_i2c_scl(&GPIOF, 1, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
+	static GPIOPin sfp_i2c_sda(&GPIOF, 0, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
+
+	//Default kernel clock for I2C2 is is APB1 clock (68.75 MHz for our current config)
+	//Prescale by 16 to get 4.29 MHz
+	//Divide by 40 after that to get 107 kHz
+	static I2C sfp_i2c(&I2C2, 16, 40);
+	g_sfpI2C = &sfp_i2c;
+}
+
+void InitQSPI()
+{
+	g_log("Initializing QSPI interface\n");
+
+	//Configure the I/O manager
+	OctoSPIManager::ConfigureMux(false);
+	OctoSPIManager::ConfigurePort(
+		1,							//Configuring port 1
+		false,						//DQ[7:4] disabled
+		OctoSPIManager::C1_HIGH,
+		true,						//DQ[3:0] enabled
+		OctoSPIManager::C1_LOW,		//DQ[3:0] from OCTOSPI1 DQ[3:0]
+		true,						//CS# enabled
+		OctoSPIManager::PORT_1,		//CS# from OCTOSPI1
+		false,						//DQS disabled
+		OctoSPIManager::PORT_1,
+		true,						//Clock enabled
+		OctoSPIManager::PORT_1);	//Clock from OCTOSPI1
+
+	//Configure the I/O pins
+	static GPIOPin qspi_cs_n(&GPIOE, 11, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_VERYFAST, 11);
+	static GPIOPin qspi_sck(&GPIOB, 2, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_VERYFAST, 9);
+	static GPIOPin qspi_dq0(&GPIOA, 2, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_VERYFAST, 6);
+	static GPIOPin qspi_dq1(&GPIOB, 0, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_VERYFAST, 4);
+	static GPIOPin qspi_dq2(&GPIOC, 2, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_VERYFAST, 9);
+	static GPIOPin qspi_dq3(&GPIOA, 1, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_VERYFAST, 9);
+
+	//Clock divider value
+	//Default is for AHB3 bus clock to be used as kernel clock (250 MHz for us)
+	//With 3.3V Vdd, we can go up to 140 MHz.
+	//FPGA currently requires <= 62.5 MHz due to the RX oversampling used (4x in 250 MHz clock domain)
+	//Dividing by 5 gives 50 MHz and a transfer rate of 200 Mbps
+	//Dividing by 10, but DDR, gives the same throughput and works around an errata
+	uint8_t prescale = 20;
+
+	//Configure the OCTOSPI itself
+	//Original code used "instruction", but we want "address" to enable memory mapping
+	static OctoSPI qspi(&OCTOSPI1, 0x02000000, prescale);
+	qspi.SetDoubleRateMode(false);
+	qspi.SetInstructionMode(OctoSPI::MODE_QUAD, 1);
+	qspi.SetAddressMode(OctoSPI::MODE_QUAD, 3);
+	qspi.SetAltBytesMode(OctoSPI::MODE_NONE);
+	qspi.SetDataMode(OctoSPI::MODE_QUAD);
+	qspi.SetDummyCycleCount(1);
+	qspi.SetDQSEnable(false);
+	qspi.SetDeselectTime(1);
+	qspi.SetSampleDelay(false, true);
+	qspi.SetDoubleRateMode(true);
+
+	//Poke MPU settings to disable caching etc on the QSPI memory range
+	MPU::Configure(MPU::KEEP_DEFAULT_MAP, MPU::DISABLE_IN_FAULT_HANDLERS);
+	MPU::ConfigureRegion(
+		0,
+		FPGA_MEM_BASE,
+		MPU::SHARED_DEVICE,
+		MPU::FULL_ACCESS,
+		MPU::EXECUTE_NEVER,
+		MPU::SIZE_16M);
+
+	//Configure memory mapping mode
+	qspi.SetMemoryMapMode(APBFPGAInterface::OP_APB_READ, APBFPGAInterface::OP_APB_WRITE);
+	g_qspi = &qspi;
+}
+
+/**
+	@brief Bring up the control interface to the FPGA
+ */
+void InitFPGA()
+{
+	g_log("Initializing FPGA\n");
+	LogIndenter li(g_log);
+
+	//Wait for the DONE signal to go high
+	g_log("Waiting for FPGA boot\n");
+	static GPIOPin fpgaDone(&GPIOF, 6, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
+	while(!fpgaDone)
+	{}
+
+	//Read the FPGA IDCODE and serial number
+	//Retry until we get a nonzero result indicating FPGA is up
+	while(true)
+	{
+		uint32_t idcode = g_sysInfo->idcode;
+		memcpy(g_fpgaSerial, (const void*)g_sysInfo->serial, 8);
+
+		//If IDCODE is all zeroes, poll again
+		if(idcode == 0)
+			continue;
+
+		//Print status
+		switch(idcode & 0x0fffffff)
+		{
+			case 0x3647093:
+				g_log("IDCODE: %08x (XC7K70T rev %d)\n", idcode, idcode >> 28);
+				break;
+
+			case 0x364c093:
+				g_log("IDCODE: %08x (XC7K160T rev %d)\n", idcode, idcode >> 28);
+				break;
+
+			default:
+				g_log("IDCODE: %08x (unknown device, rev %d)\n", idcode, idcode >> 28);
+				break;
+		}
+		g_log("Serial: %02x%02x%02x%02x%02x%02x%02x%02x\n",
+			g_fpgaSerial[7], g_fpgaSerial[6], g_fpgaSerial[5], g_fpgaSerial[4],
+			g_fpgaSerial[3], g_fpgaSerial[2], g_fpgaSerial[1], g_fpgaSerial[0]);
+
+		break;
+	}
+
+	//Read USERCODE
+	g_usercode = g_sysInfo->usercode;
+	g_log("Usercode: %08x\n", g_usercode);
+	{
+		LogIndenter li(g_log);
+
+		//Format per XAPP1232:
+		//31:27 day
+		//26:23 month
+		//22:17 year
+		//16:12 hr
+		//11:6 min
+		//5:0 sec
+		int day = g_usercode >> 27;
+		int mon = (g_usercode >> 23) & 0xf;
+		int yr = 2000 + ((g_usercode >> 17) & 0x3f);
+		int hr = (g_usercode >> 12) & 0x1f;
+		int min = (g_usercode >> 6) & 0x3f;
+		int sec = g_usercode & 0x3f;
+		g_log("Bitstream timestamp: %04d-%02d-%02d %02d:%02d:%02d\n",
+			yr, mon, day, hr, min, sec);
+	}
+}
+
+/**
+	@brief Remove spaces from trailing edge of a string
+ */
+void TrimSpaces(char* str)
+{
+	char* p = str + strlen(str) - 1;
+
+	while(p >= str)
+	{
+		if(isspace(*p))
+			*p = '\0';
+		else
+			break;
+
+		p --;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

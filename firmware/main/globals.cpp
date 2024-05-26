@@ -37,9 +37,6 @@ DigitalTempSensor* g_dts = nullptr;
 ///@brief GPIO LEDs
 GPIOPin* g_leds[4] = {0};
 
-///@brief FPGA die serial number
-uint8_t g_fpgaSerial[8] = {0};
-
 ///@brief DACs for RX channels
 OctalDAC* g_rxDacs[2] = {nullptr, nullptr};
 
@@ -63,9 +60,6 @@ char g_superVersion[20] = {0};
 ///@brief Version string for IBC MCU
 char g_ibcVersion[20] = {0};
 
-///@brief USERCODE of the FPGA (build timestamp)
-uint32_t g_usercode = 0;
-
 ///@brief Request refresh of the display if link state changes
 bool g_displayRefreshPending = false;
 
@@ -79,10 +73,6 @@ ManagementSSHTransportServer* g_sshd = nullptr;
 // Memory mapped SFRs on the FPGA
 
 //TODO: use linker script to locate these rather than this ugly pointer code?
-
-///@brief System information
-volatile APB_SystemInfo* g_sysInfo =
-	reinterpret_cast<volatile APB_SystemInfo*>(FPGA_MEM_BASE + BASE_SYSINFO);
 
 ///@brief Relay controller
 volatile APB_RelayController* g_relayController =

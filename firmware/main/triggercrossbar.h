@@ -35,7 +35,6 @@
 #include <LogSink.h>
 
 #include <peripheral/DTS.h>
-#include <peripheral/MPU.h>
 #include <peripheral/Power.h>
 #include <peripheral/SPI.h>
 
@@ -57,19 +56,18 @@ void InitDTS();
 void InitDACs();
 void InitSupervisor();
 void InitSensors();
+void InitRelays();
 
 uint16_t GetFanRPM(uint8_t channel);
 uint16_t GetFPGATemperature();
 uint16_t GetFPGAVCCINT();
 uint16_t GetFPGAVCCAUX();
 uint16_t GetFPGAVCCBRAM();
-uint16_t GetSFPTemperature();
 
 void UpdateFrontPanelDisplay();
 
 uint16_t SupervisorRegRead(uint8_t regid);
 
-extern uint8_t g_fpgaSerial[8];
 extern OctalDAC* g_rxDacs[2];
 extern OctalDAC* g_txDac;
 
@@ -80,7 +78,6 @@ extern bool g_displayRefreshPending;
 
 extern char g_superVersion[20];
 extern char g_ibcVersion[20];
-extern uint32_t g_usercode;
 
 void SetFrontPanelDirectionLEDs(uint8_t leds);
 void SetFrontPanelCS(bool b);
@@ -104,7 +101,6 @@ extern char g_outputDisplayNames[8][DISPLAY_NAME_MAX];
 extern char g_bidirDisplayNames[4][DISPLAY_NAME_MAX];
 
 //SFRs on the FPGA
-extern volatile APB_SystemInfo* g_sysInfo;
 extern volatile APB_RelayController* g_relayController;
 extern volatile APB_GPIO* g_ledGpioInPortActivity;
 extern volatile APB_GPIO* g_ledGpioOutPortActivity;

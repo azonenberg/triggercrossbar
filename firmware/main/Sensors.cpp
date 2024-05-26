@@ -68,16 +68,3 @@ uint16_t GetFPGAVCCAUX()
 {
 	return g_sysInfo->voltage_aux;
 }
-
-/**
-	@brief Gets the temperature of the SFP+
- */
-uint16_t GetSFPTemperature()
-{
-	//FIXME: assumes internally calibrated
-
-	g_sfpI2C->BlockingWrite8(0xa2, 96);
-	uint16_t temp = 0;
-	g_sfpI2C->BlockingRead16(0xa2, temp);
-	return temp;
-}

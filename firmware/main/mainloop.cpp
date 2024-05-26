@@ -29,7 +29,6 @@
 
 #include "triggercrossbar.h"
 #include "CrossbarCLISessionContext.h"
-#include <microkvs/driver/STM32StorageBank.h>
 #include "../front/regids.h"
 #include "../super/superregs.h"
 
@@ -37,8 +36,6 @@ void LogTemperatures();
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value);
 void UpdateFrontPanelActivityLEDs();
 void InitFrontPanel();
-
-GPIOPin g_irq(&GPIOH, 6, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
 
 ///@brief Output stream for local serial console
 UARTOutputStream g_localConsoleOutputStream;
@@ -54,20 +51,12 @@ void App_Init()
 	//Basic hardware setup
 	InitLEDs();
 
-	/*
-		Use sectors 6 and 7 of main flash (in single bank mode) for a 128 kB microkvs
-
-		Each log entry is 64 bytes, and we want to allocate ~50% of storage to the log since our objects are pretty
-		small (SSH keys, IP addresses, etc). A 1024-entry log is a nice round number, and comes out to 64 kB or 50%,
-		leaving the remaining 64 kB or 50% for data.
-	 */
-	static STM32StorageBank left(reinterpret_cast<uint8_t*>(0x080c0000), 0x20000);
-	static STM32StorageBank right(reinterpret_cast<uint8_t*>(0x080e0000), 0x20000);
-	InitKVS(&left, &right, 1024);
+	DoInitKVS();
 
 	//Set up the quad SPI and connect to the FPGA
 	InitQSPI();
 	InitFPGA();
+	InitRelays();
 
 	//Get our MAC address
 	InitI2C();

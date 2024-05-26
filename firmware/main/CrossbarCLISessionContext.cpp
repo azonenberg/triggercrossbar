@@ -45,6 +45,7 @@ enum cmdid_t
 	CMD_CACHE,
 	//CMD_CLEAR,
 	CMD_COMMIT,
+	CMD_COMPACT,
 	//CMD_COUNTERS,
 	//CMD_DESCRIPTION,
 	CMD_DETAIL,
@@ -106,6 +107,15 @@ static const clikeyword_t g_debugCommands[] =
 };
 
 */
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// "flash"
+
+static const clikeyword_t g_flashCommands[] =
+{
+	{"compact",		CMD_COMPACT,		nullptr,	"Force a compact operation on the key-value store, even if not full"},
+	{nullptr,		INVALID_COMMAND,	nullptr,	nullptr}
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // "hostname"
 
@@ -366,6 +376,7 @@ static const clikeyword_t g_rootCommands[] =
 	{"commit",		CMD_COMMIT,			nullptr,				"Commit volatile config changes to flash memory"},
 	//{"debug",		CMD_DEBUG,			g_debugCommands,		"Enable debug output"},
 	{"exit",		CMD_EXIT,			nullptr,				"Log out"},
+	{"flash",		CMD_FLASH,			g_flashCommands,		"Maintenance operations on flash"},
 	{"hostname",	CMD_HOSTNAME,		g_hostnameCommands,		"Change the host name"},
 	{"ip",			CMD_IP,				g_ipCommands,			"Configure IP addresses"},
 	{"no",			CMD_NO,				g_noCommands,			"Remove or disable features"},
@@ -456,6 +467,14 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 			//Local console? Nothing needed on real hardware (TODO logout)
 			else
 			{
+			}
+			break;
+
+		case CMD_FLASH:
+			if(m_command[1].m_commandID == CMD_COMPACT)
+			{
+				if(!g_kvs->Compact())
+					g_log(Logger::ERROR, "Compaction failed\n");
 			}
 			break;
 

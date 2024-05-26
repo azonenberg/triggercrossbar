@@ -36,10 +36,13 @@
 #include <peripheral/Flash.h>
 #include <peripheral/GPIO.h>
 #include <peripheral/I2C.h>
+#include <peripheral/MPU.h>
 #include <peripheral/OctoSPI.h>
 #include <peripheral/OctoSPIManager.h>
 #include <peripheral/RTC.h>
 #include <peripheral/UART.h>
+
+#include <microkvs/driver/STM32StorageBank.h>
 
 #include <staticnet-config.h>
 
@@ -76,6 +79,8 @@ void PollSFP();
 void PollFPGA();
 void PollPHYs();
 void ConfigureIP();
+void DoInitKVS();
+uint16_t GetSFPTemperature();
 
 uint16_t ManagementPHYRead(uint8_t regid);
 uint16_t ManagementPHYExtendedRead(uint8_t mmd, uint8_t regid);
@@ -103,6 +108,10 @@ extern GPIOPin* g_sfpTxDisablePin;
 extern GPIOPin* g_sfpTxFaultPin;
 extern bool g_sfpFaulted;
 extern bool g_sfpPresent;
+extern GPIOPin g_irq;
+
+extern uint8_t g_fpgaSerial[8];
+extern uint32_t g_usercode;
 
 extern const char* g_defaultSshUsername;
 extern const char* g_usernameObjectID;
@@ -115,6 +124,7 @@ extern const IPv4Address g_defaultBroadcast;
 extern const IPv4Address g_defaultGateway;
 
 //SFRs on the FPGA used by both bootloader and application
+extern volatile APB_SystemInfo* g_sysInfo;
 extern volatile APB_MDIO* g_mdio;
 extern volatile ManagementRxFifo* g_ethRxFifo;
 extern volatile ManagementTxFifo* g_eth1GTxFifo;
@@ -146,5 +156,7 @@ enum mdioreg_t
 void UART4_Handler();
 
 void OnEthernetLinkStateChanged();
+void TrimSpaces(char* str);
+void RegisterProtocolHandlers(IPv4Protocol& ipv4);
 
 #endif

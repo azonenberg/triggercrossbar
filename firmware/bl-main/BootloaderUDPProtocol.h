@@ -27,139 +27,28 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "bootloader.h"
+#ifndef BootloaderUDPProtocol_h
+#define BootloaderUDPProtocol_h
 
-//Application region of flash runs from the end of the bootloader (0x8020000)
-//to the start of the KVS (0x080c0000), so 640 kB
-//Firmware version string is put right after vector table by linker script at a constant address
-uint32_t* const g_appVector  = reinterpret_cast<uint32_t*>(0x8020000);
+#include "BootloaderDHCPClient.h"
 
-//@brief Size of the image
-const uint32_t g_appImageSize = 640 * 1024;
-
-//Offset of the version string (size of the vector table plus 32 byte alignment)
-const uint32_t g_appVersionOffset = 0x2e0;
-
-///@brief The battery-backed RAM used to store state across power cycles
-volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Hooks called by bootloader code
-
-void Bootloader_Init()
+/**
+	@brief UDP handlers for bootloader
+ */
+class BootloaderUDPProtocol : public UDPProtocol
 {
-	DoInitKVS();
-	InitQSPI();
-	InitFPGA();
-	InitI2C();
-	InitEEPROM();
-	InitSFP();
-	InitManagementPHY();
-	InitEthernet();
-	InitIP();
+public:
+	BootloaderUDPProtocol(IPv4Protocol* ipv4);
 
-	//Initialize the FPGA IRQ pin
-	g_irq.SetPullMode(GPIOPin::PULL_DOWN);
-}
+	BootloaderDHCPClient& GetDHCP()
+	{ return m_dhcp; }
 
-void Bootloader_ClearRxBuffer()
-{
-}
+	virtual void OnAgingTick();
 
-void Bootloader_FinalCleanup()
-{
-	g_cliUART.Flush();
-}
+protected:
+	virtual void OnRxData(IPv4Address srcip, uint16_t sport, uint16_t dport, uint8_t* payload, uint16_t payloadLen);
 
-void BSP_MainLoop()
-{
-	Bootloader_MainLoop();
-}
+	BootloaderDHCPClient m_dhcp;
+};
 
-void RegisterProtocolHandlers(IPv4Protocol& ipv4)
-{
-	/*
-	static ManagementTCPProtocol tcp(&ipv4);
-	static ManagementUDPProtocol udp(&ipv4);
-	ipv4.UseTCP(&tcp);
-	ipv4.UseUDP(&udp);
-	g_dhcpClient = &udp.GetDHCP();
-	*/
-	g_dhcpClient = nullptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Run the firmware updater
-
-void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow()
-{
-	g_log("In DFU mode\n");
-
-	while(1)
-	{
-		/*
-		//Main event loop
-		static uint32_t secTillNext5MinTick = 0;
-		static uint32_t next1HzTick = 0;
-		static uint32_t next10HzTick = 0;
-		static uint32_t nextPhyPoll = 0;
-		const uint32_t logTimerMax = 0xf0000000;
-
-		//Wait for an interrupt
-		//asm("wfi");
-
-		//Check if anything happened on the FPGA
-		CheckForFPGAEvents();
-
-		//Check if we had a PHY link state change at 20 Hz
-		//TODO: add irq bit for this so we don't have to poll nonstop
-		if(g_logTimer.GetCount() >= nextPhyPoll)
-		{
-			PollPHYs();
-			nextPhyPoll = g_logTimer.GetCount() + 500;
-		}
-
-		//Check if we had an optic inserted or removed
-		PollSFP();
-
-		//Poll for UART input
-		if(g_cliUART.HasInput())
-			g_localConsoleSessionContext.OnKeystroke(g_cliUART.BlockingRead());
-
-		if(g_log.UpdateOffset(logTimerMax))
-		{
-			next1HzTick -= logTimerMax;
-			next10HzTick -= logTimerMax;
-		}
-
-		//Refresh of activity LEDs and TCP retransmits at 10 Hz
-		if(g_logTimer.GetCount() >= next10HzTick)
-		{
-			UpdateFrontPanelActivityLEDs();
-			g_ethProtocol->OnAgingTick10x();
-
-			next10HzTick = g_logTimer.GetCount() + 1000;
-		}
-
-		//1 Hz timer for various aging processes
-		if(g_logTimer.GetCount() >= next1HzTick)
-		{
-			g_ethProtocol->OnAgingTick();
-			next1HzTick = g_logTimer.GetCount() + 10000;
-
-			//Push channel config to KVS every 5 mins if it's changed
-			//DEBUG: every 10 sec
-			if(secTillNext5MinTick == 0)
-			{
-				secTillNext5MinTick = 300;
-				SaveChannelConfig();
-			}
-			else
-				secTillNext5MinTick --;
-
-			//Push new register values to front panel every second (it will refresh the panel whenever it wants to)
-			UpdateFrontPanelDisplay();
-		}
-		*/
-	}
-}
+#endif
