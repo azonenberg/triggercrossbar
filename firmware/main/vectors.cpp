@@ -43,8 +43,6 @@ void BusFault_Handler();
 void HardFault_Handler();
 void NMI_Handler();
 
-void UART4_Handler();
-
 void defaultISR();
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -340,12 +338,4 @@ void MMUFault_Handler()
 
 	while(1)
 	{}
-}
-
-void __attribute__((isr)) UART4_Handler()
-{
-	if(UART4.ISR & USART_ISR_RXNE)
-		g_cliUART.OnIRQRxData();
-	if(UART4.ISR & USART_ISR_TXE)
-		g_cliUART.OnIRQTxEmpty();
 }

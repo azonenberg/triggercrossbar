@@ -26,3 +26,16 @@
 * POSSIBILITY OF SUCH DAMAGE.                                                                                          *
 *                                                                                                                      *
 ***********************************************************************************************************************/
+
+#include "hwinit.h"
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Common ISRs used by both bootloader and application
+
+void __attribute__((isr)) UART4_Handler()
+{
+	if(UART4.ISR & USART_ISR_RXNE)
+		g_cliUART.OnIRQRxData();
+	if(UART4.ISR & USART_ISR_TXE)
+		g_cliUART.OnIRQTxEmpty();
+}

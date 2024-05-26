@@ -27,7 +27,8 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "triggercrossbar.h"
+#include <core/platform.h>
+#include "hwinit.h"
 #include "ELFFirmwareUpdater.h"
 #include <algorithm>
 

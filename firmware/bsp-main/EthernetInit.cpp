@@ -27,124 +27,15 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef hwinit_h
-#define hwinit_h
+/**
+	@file
+	@author	Andrew D. Zonenberg
+	@brief	Common Ethernet initialization used by both bootloader and application
+ */
+#include <core/platform.h>
+#include "hwinit.h"
 
-#include <cli/UARTOutputStream.h>
-
-#include <peripheral/CRC.h>
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
-#include <peripheral/OctoSPI.h>
-#include <peripheral/OctoSPIManager.h>
-#include <peripheral/RTC.h>
-#include <peripheral/UART.h>
-
-#include <staticnet-config.h>
-
-#include <staticnet/stack/staticnet.h>
-#include <staticnet/ssh/SSHTransportServer.h>
-
-#include "ManagementDHCPClient.h"
-#include "QSPIEthernetInterface.h"
-
-//SFR poll (ignore warnings related to this, we know the alignment of the SFRs are correct)
-#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-void StatusRegisterMaskedWait(volatile uint16_t* a, volatile uint16_t* b, uint16_t mask, uint16_t target);
-
-//Memcpy-like function that uses indirect OCTOSPI register access
-void SfrMemcpy(volatile void* dst, void* src, uint32_t len);
-
-#include "FPGAInterface.h"
-#include "APBFPGAInterface.h"
-#include "CrossbarSSHKeyManager.h"
-
-#define MAX_LOG_SINKS SSH_TABLE_SIZE
-
-void App_Init();
-void InitRTC();
-void InitQSPI();
-void InitFPGA();
-void InitI2C();
-void InitEEPROM();
-void InitEthernet();
-void InitIP();
-void InitSFP();
-void InitManagementPHY();
-void PollSFP();
-void PollFPGA();
-void PollPHYs();
-void ConfigureIP();
-
-uint16_t ManagementPHYRead(uint8_t regid);
-uint16_t ManagementPHYExtendedRead(uint8_t mmd, uint8_t regid);
-void ManagementPHYWrite(uint8_t regid, uint16_t regval);
-void ManagementPHYExtendedWrite(uint8_t regid, uint8_t mmd, uint16_t regval);
-
-//Common hardware interface stuff (mostly Ethernet related)
-extern UART<32, 256> g_cliUART;
-extern APBFPGAInterface g_apbfpga;
-extern EthernetInterface* g_ethIface;
-extern MACAddress g_macAddress;
-extern IPv4Config g_ipConfig;
-extern bool g_usingDHCP;
-extern ManagementDHCPClient* g_dhcpClient;
-extern OctoSPI* g_qspi;
-extern I2C* g_macI2C;
-extern I2C* g_sfpI2C;
-extern EthernetProtocol* g_ethProtocol;
-extern bool g_basetLinkUp;
-extern uint8_t g_basetLinkSpeed;
-extern bool g_sfpLinkUp;
-extern CrossbarSSHKeyManager g_keyMgr;
-extern GPIOPin* g_sfpModAbsPin;
-extern GPIOPin* g_sfpTxDisablePin;
-extern GPIOPin* g_sfpTxFaultPin;
-extern bool g_sfpFaulted;
-extern bool g_sfpPresent;
-
-extern const char* g_defaultSshUsername;
-extern const char* g_usernameObjectID;
-extern char g_sshUsername[CLI_USERNAME_MAX];
-
-//IP address configuration
-extern const IPv4Address g_defaultIP;
-extern const IPv4Address g_defaultNetmask;
-extern const IPv4Address g_defaultBroadcast;
-extern const IPv4Address g_defaultGateway;
-
-//SFRs on the FPGA used by both bootloader and application
-extern volatile APB_MDIO* g_mdio;
-extern volatile ManagementRxFifo* g_ethRxFifo;
-extern volatile ManagementTxFifo* g_eth1GTxFifo;
-extern volatile ManagementTxFifo* g_eth10GTxFifo;
-extern volatile APB_Curve25519* g_curve25519;
-extern volatile uint16_t* g_irqStat;
-
-enum mdioreg_t
-{
-	//IEEE defined registers
-	REG_BASIC_CONTROL			= 0x0000,
-	REG_BASIC_STATUS			= 0x0001,
-	REG_PHY_ID_1				= 0x0002,
-	REG_PHY_ID_2				= 0x0003,
-	REG_AN_ADVERT				= 0x0004,
-	REG_GIG_CONTROL				= 0x0009,
-
-	//Extended register access
-	REG_PHY_REGCR				= 0x000d,
-	REG_PHY_ADDAR				= 0x000e,
-
-	//KSZ9031 specific
-	REG_KSZ9031_MDIX			= 0x001c,
-
-	//KSZ9031 MMD 2
-	REG_KSZ9031_MMD2_CLKSKEW	= 0x0008
-};
-
-void UART4_Handler();
-
-void OnEthernetLinkStateChanged();
-
-#endif
+const IPv4Address g_defaultIP			= { .m_octets{192, 168,   1,   2} };
+const IPv4Address g_defaultNetmask		= { .m_octets{255, 255, 255,   0} };
+const IPv4Address g_defaultBroadcast	= { .m_octets{192, 168,   1, 255} };
+const IPv4Address g_defaultGateway		= { .m_octets{192, 168,   1,   1} };

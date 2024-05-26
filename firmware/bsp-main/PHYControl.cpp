@@ -27,110 +27,126 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "triggercrossbar.h"
-#include "QSPIEthernetInterface.h"
-#include <peripheral/RCC.h>
-#include <ctype.h>
+/**
+	@file
+	@author	Andrew D. Zonenberg
+	@brief	PHY control code
+ */
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Construction / destruction
+#include <core/platform.h>
+#include "hwinit.h"
 
-QSPIEthernetInterface::QSPIEthernetInterface()
+/**
+	@brief Mapping of link speed IDs to printable names
+ */
+static const char* g_linkSpeedNamesLong[] =
 {
-	for(int i=0; i<QSPI_TX_BUFCOUNT; i++)
-		m_txFreeList.Push(&m_txBuffers[i]);
-	for(int i=0; i<QSPI_RX_BUFCOUNT; i++)
-		m_rxFreeList.Push(&m_rxBuffers[i]);
+	"10 Mbps",
+	"100 Mbps",
+	"1000 Mbps",
+	"10 Gbps"
+};
 
-	//TODO: Reset FPGA side buffers etc?
+/**
+	@brief Reads a register from the management PHY
+ */
+uint16_t ManagementPHYRead(uint8_t regid)
+{
+	//Request the read
+	g_mdio->cmd_addr = regid << 8;
+
+	//Poll until busy flag is cleared (in both status registers b/c caching)
+	StatusRegisterMaskedWait(&g_mdio->status, &g_mdio->status2, 0x1, 0x0);
+
+	return g_mdio->data;
 }
 
-QSPIEthernetInterface::~QSPIEthernetInterface()
+void ManagementPHYWrite(uint8_t regid, uint16_t regval)
 {
-	//nothing here
+	//Request the write
+	g_mdio->cmd_addr = (regid << 8) | 0x8000;
+	g_mdio->data = regval;
+
+	//Poll until busy flag is cleared (in both status registers b/c caching)
+	StatusRegisterMaskedWait(&g_mdio->status, &g_mdio->status2, 0x1, 0x0);
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Transmit path
-
-EthernetFrame* QSPIEthernetInterface::GetTxFrame()
+/**
+	@brief Reads an extended register from the management PHY
+ */
+uint16_t ManagementPHYExtendedRead(uint8_t mmd, uint8_t regid)
 {
-	if(m_txFreeList.IsEmpty())
-		return nullptr;
+	ManagementPHYWrite(REG_PHY_REGCR, mmd);			//set address
+	ManagementPHYWrite(REG_PHY_ADDAR, regid);
+	ManagementPHYWrite(REG_PHY_REGCR, 0x4000 | mmd);	//data, no post inc
+	return ManagementPHYRead(REG_PHY_ADDAR);
+}
+
+/**
+	@brief Writes an extended register to the management PHY
+ */
+void ManagementPHYExtendedWrite(uint8_t mmd, uint8_t regid, uint16_t regval)
+{
+	ManagementPHYWrite(REG_PHY_REGCR, mmd);				//set address
+	ManagementPHYWrite(REG_PHY_ADDAR, regid);
+	ManagementPHYWrite(REG_PHY_REGCR, 0x4000 | mmd);	//data, no post inc
+	ManagementPHYWrite(REG_PHY_ADDAR, regval);
+}
+
+/**
+	@brief Poll the PHYs for link state changes
+
+	TODO: use IRQ pin to trigger this vs doing it nonstop?
+ */
+void PollPHYs()
+{
+	//Get the baseT link state
+	uint16_t bctl = ManagementPHYRead(REG_BASIC_CONTROL);
+	uint16_t bstat = ManagementPHYRead(REG_BASIC_STATUS);
+	bool bup = (bstat & 4) == 4;
+	if(bup && !g_basetLinkUp)
+	{
+		g_basetLinkSpeed = 0;
+		if( (bctl & 0x40) == 0x40)
+			g_basetLinkSpeed |= 2;
+		if( (bctl & 0x2000) == 0x2000)
+			g_basetLinkSpeed |= 1;
+		g_log("Interface mgmt0: link is up at %s\n", g_linkSpeedNamesLong[g_basetLinkSpeed]);
+		OnEthernetLinkStateChanged();
+		g_ethProtocol->OnLinkUp();
+	}
+	else if(!bup && g_basetLinkUp)
+	{
+		g_log("Interface mgmt0: link is down\n");
+		g_basetLinkSpeed = 0xff;
+		OnEthernetLinkStateChanged();
+		g_ethProtocol->OnLinkDown();
+	}
+	g_basetLinkUp = bup;
+
+	//Get the SFP link status
+	auto stat = g_eth10GTxFifo->tx_stat;
+	if(stat & 1)
+	{
+		//Link went up?
+		if(!g_sfpLinkUp)
+		{
+			g_log("Interface xg0: link is up at 10 Gbps\n");
+			g_sfpLinkUp = true;
+			OnEthernetLinkStateChanged();
+			g_ethProtocol->OnLinkUp();
+		}
+	}
 
 	else
-		return m_txFreeList.Pop();
-}
-
-void QSPIEthernetInterface::SendTxFrame(EthernetFrame* frame, bool markFree)
-{
-	if(frame == nullptr)
 	{
-		//can't use logger to avoid infinite recursion
-		g_cliUART.Printf("tried to send a null frame\n");
-		return;
+		//Link went down?
+		if(g_sfpLinkUp)
+		{
+			g_log("Interface xg0: link is down\n");
+			g_sfpLinkUp = false;
+			OnEthernetLinkStateChanged();
+			g_ethProtocol->OnLinkDown();
+		}
 	}
-
-	//TODO: DMA optimizations?
-
-	//Separate TX buffers for 1G (8 bit datapath in FPGA) and 10G (32 bit datapath in FPGA)
-	//Memory mapped write here isnt working
-	volatile ManagementTxFifo* fifo = g_sfpLinkUp ? g_eth10GTxFifo : g_eth1GTxFifo;
-	g_apbfpga.BlockingWrite16(&fifo->tx_len, frame->Length());
-	g_apbfpga.BlockingWriteN((volatile void*)fifo->tx_buf, frame->RawData(), frame->Length());
-	g_apbfpga.BlockingWrite16(&fifo->tx_commit, 1);
-
-	//Done, put on free list
-	if(markFree)
-		m_txFreeList.Push(frame);
-}
-
-void QSPIEthernetInterface::CancelTxFrame(EthernetFrame* frame)
-{
-	//Return it to the free list
-	m_txFreeList.Push(frame);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Receive path
-
-EthernetFrame* QSPIEthernetInterface::GetRxFrame()
-{
-	//Read and sanity check length
-	uint16_t len = g_ethRxFifo->rx_len;
-	if(len > 1500)
-	{
-		g_log(Logger::ERROR, "Got a %d byte long frame (max size 1500, FPGA should not have done this)\n", (int)len);
-		return nullptr;
-	}
-	if(len == 0)
-	{
-		g_log(Logger::ERROR, "Got a zero-byte Ethernet frame, makes no sense\n");
-		g_ethRxFifo->rx_pop = 1;
-		return nullptr;
-	}
-
-	//Make sure we have somewhere to put the frame
-	if(m_rxFreeList.IsEmpty())
-	{
-		g_log("Frame dropped due to lack of buffers\n");
-
-		//Discard it
-		g_ethRxFifo->rx_pop = 1;
-		return nullptr;
-	}
-
-	//Read it
-	//TODO: DMA optimizations
-	auto frame = m_rxFreeList.Pop();
-	frame->SetLength(len);
-	memcpy(frame->RawData(), (void*)&g_ethRxFifo->rx_buf, len);
-	g_apbfpga.BlockingWrite16(&g_ethRxFifo->rx_pop, 1);
-
-	return frame;
-}
-
-void QSPIEthernetInterface::ReleaseRxFrame(EthernetFrame* frame)
-{
-	m_rxFreeList.Push(frame);
 }

@@ -34,82 +34,29 @@
 #include <hwinit.h>
 #include <LogSink.h>
 
-#include <peripheral/CRC.h>
 #include <peripheral/DTS.h>
-#include <peripheral/I2C.h>
 #include <peripheral/MPU.h>
-#include <peripheral/OctoSPI.h>
-#include <peripheral/OctoSPIManager.h>
 #include <peripheral/Power.h>
 #include <peripheral/SPI.h>
 
 #include <util/StringBuffer.h>
 
-#include <staticnet/stack/staticnet.h>
-#include <staticnet/ssh/SSHTransportServer.h>
-
-//SFR poll (ignore warnings related to this, we know the alignment of the SFRs are correct)
-#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-void StatusRegisterMaskedWait(volatile uint16_t* a, volatile uint16_t* b, uint16_t mask, uint16_t target);
-
 #include "net/ManagementTCPProtocol.h"
 #include "net/ManagementUDPProtocol.h"
-#include "FPGAInterface.h"
-#include "APBFPGAInterface.h"
 #include "OctalDAC.h"
 
-#include "ssh/CrossbarSSHKeyManager.h"
-
-extern KVS* g_kvs;
 extern LogSink<MAX_LOG_SINKS>* g_logSink;
-extern Logger g_log;
-extern APBFPGAInterface g_apbfpga;
-extern Timer g_logTimer;
-extern EthernetInterface* g_ethIface;
-extern MACAddress g_macAddress;
-extern IPv4Config g_ipConfig;
-extern bool g_usingDHCP;
-extern ManagementDHCPClient* g_dhcpClient;
 extern ManagementNTPClient* g_ntpClient;
-extern EthernetProtocol* g_ethProtocol;
-extern I2C* g_macI2C;
-extern I2C* g_sfpI2C;
-
-extern OctoSPI* g_qspi;
 
 extern DigitalTempSensor* g_dts;
 
 extern GPIOPin* g_leds[4];
 
-extern GPIOPin* g_sfpModAbsPin;
-extern GPIOPin* g_sfpTxDisablePin;
-extern GPIOPin* g_sfpTxFaultPin;
-extern bool g_sfpFaulted;
-extern bool g_sfpPresent;
-
-extern const IPv4Address g_defaultIP;
-extern const IPv4Address g_defaultNetmask;
-extern const IPv4Address g_defaultBroadcast;
-extern const IPv4Address g_defaultGateway;
-
 void InitLEDs();
-
 void InitDTS();
-void InitQSPI();
-void InitFPGA();
-
-void InitI2C();
-void InitEEPROM();
 void InitDACs();
 void InitSupervisor();
-
 void InitSensors();
-
-void InitSFP();
-void PollSFP();
-void InitManagementPHY();
-void PollFPGA();
-void PollPHYs();
 
 uint16_t GetFanRPM(uint8_t channel);
 uint16_t GetFPGATemperature();
@@ -120,47 +67,11 @@ uint16_t GetSFPTemperature();
 
 void UpdateFrontPanelDisplay();
 
-void InitEthernet();
-void InitIP();
-void ConfigureIP();
-
-void DetectHardware();
-
-uint16_t ManagementPHYRead(uint8_t regid);
-uint16_t ManagementPHYExtendedRead(uint8_t mmd, uint8_t regid);
-void ManagementPHYWrite(uint8_t regid, uint16_t regval);
-void ManagementPHYExtendedWrite(uint8_t regid, uint8_t mmd, uint16_t regval);
-
 uint16_t SupervisorRegRead(uint8_t regid);
-
-enum mdioreg_t
-{
-	//IEEE defined registers
-	REG_BASIC_CONTROL			= 0x0000,
-	REG_BASIC_STATUS			= 0x0001,
-	REG_PHY_ID_1				= 0x0002,
-	REG_PHY_ID_2				= 0x0003,
-	REG_AN_ADVERT				= 0x0004,
-	REG_GIG_CONTROL				= 0x0009,
-
-	//Extended register access
-	REG_PHY_REGCR				= 0x000d,
-	REG_PHY_ADDAR				= 0x000e,
-
-	//KSZ9031 specific
-	REG_KSZ9031_MDIX			= 0x001c,
-
-	//KSZ9031 MMD 2
-	REG_KSZ9031_MMD2_CLKSKEW	= 0x0008
-};
 
 extern uint8_t g_fpgaSerial[8];
 extern OctalDAC* g_rxDacs[2];
 extern OctalDAC* g_txDac;
-
-extern bool g_basetLinkUp;
-extern uint8_t g_basetLinkSpeed;
-extern bool g_sfpLinkUp;
 
 extern SPI<64, 64> g_superSPI;
 extern GPIOPin* g_superSPICS;
@@ -179,12 +90,7 @@ uint8_t GetFrontPanelMode();
 
 bool CheckForFPGAEvents();
 
-extern CrossbarSSHKeyManager g_keyMgr;
-
-extern const char* g_usernameObjectID;
-extern char g_sshUsername[CLI_USERNAME_MAX];
 extern ManagementSSHTransportServer* g_sshd;
-extern const char* g_defaultSshUsername;
 
 void LoadChannelConfig();
 void SaveChannelConfig();
@@ -200,18 +106,10 @@ extern char g_bidirDisplayNames[4][DISPLAY_NAME_MAX];
 //SFRs on the FPGA
 extern volatile APB_SystemInfo* g_sysInfo;
 extern volatile APB_RelayController* g_relayController;
-extern volatile APB_MDIO* g_mdio;
-extern volatile ManagementRxFifo* g_ethRxFifo;
-extern volatile ManagementTxFifo* g_eth1GTxFifo;
-extern volatile ManagementTxFifo* g_eth10GTxFifo;
-extern volatile APB_Curve25519* g_curve25519;
-extern volatile uint16_t* g_irqStat;
 extern volatile APB_GPIO* g_ledGpioInPortActivity;
 extern volatile APB_GPIO* g_ledGpioOutPortActivity;
 extern volatile APB_SPIHostInterface* g_frontPanelSPI;
 extern volatile APB_BERTConfig*	g_bertConfig[2];
 extern volatile APB_SerdesDRP* g_bertDRP[2];
-
-void SfrMemcpy(volatile void* dst, void* src, uint32_t len);
 
 #endif

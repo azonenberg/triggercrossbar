@@ -27,52 +27,111 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "triggercrossbar.h"
-#include "ManagementDHCPClient.h"
-
-///@brief KVS key for DHCP enable state
-static const char* g_dhcpEnableObjectID = "dhcp.enable";
+#include <core/platform.h>
+#include "hwinit.h"
+#include "QSPIEthernetInterface.h"
+#include <peripheral/RCC.h>
+#include <ctype.h>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Notification handlers from DHCP stack
+// Construction / destruction
 
-void ManagementDHCPClient::OnIPAddressChanged(IPv4Address addr)
+QSPIEthernetInterface::QSPIEthernetInterface()
 {
-	g_ipConfig.m_address = addr;
+	for(int i=0; i<QSPI_TX_BUFCOUNT; i++)
+		m_txFreeList.Push(&m_txBuffers[i]);
+	for(int i=0; i<QSPI_RX_BUFCOUNT; i++)
+		m_rxFreeList.Push(&m_rxBuffers[i]);
 
-	//recalculate broadcast address
-	for(int i=0; i<4; i++)
-		g_ipConfig.m_broadcast.m_octets[i] = g_ipConfig.m_address.m_octets[i] | ~g_ipConfig.m_netmask.m_octets[i];
+	//TODO: Reset FPGA side buffers etc?
 }
 
-void ManagementDHCPClient::OnDefaultGatewayChanged(IPv4Address addr)
+QSPIEthernetInterface::~QSPIEthernetInterface()
 {
-	g_ipConfig.m_gateway = addr;
-}
-
-void ManagementDHCPClient::OnSubnetMaskChanged(IPv4Address addr)
-{
-	g_ipConfig.m_netmask = addr;
-
-	//recalculate broadcast address
-	for(int i=0; i<4; i++)
-		g_ipConfig.m_broadcast.m_octets[i] = g_ipConfig.m_address.m_octets[i] | ~g_ipConfig.m_netmask.m_octets[i];
+	//nothing here
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Serialization
+// Transmit path
 
-void ManagementDHCPClient::LoadConfigFromKVS()
+EthernetFrame* QSPIEthernetInterface::GetTxFrame()
 {
-	//Check if we're using DHCP and, if so, enable it
-	bool enable = g_kvs->ReadObject(g_dhcpEnableObjectID, false);
-	if(enable)
-		Enable();
+	if(m_txFreeList.IsEmpty())
+		return nullptr;
+
 	else
-		Disable();
+		return m_txFreeList.Pop();
 }
 
-void ManagementDHCPClient::SaveConfigToKVS()
+void QSPIEthernetInterface::SendTxFrame(EthernetFrame* frame, bool markFree)
 {
-	g_kvs->StoreObjectIfNecessary(g_dhcpEnableObjectID, IsEnabled(), false);
+	if(frame == nullptr)
+	{
+		//can't use logger to avoid infinite recursion
+		g_cliUART.Printf("tried to send a null frame\n");
+		return;
+	}
+
+	//TODO: DMA optimizations?
+
+	//Separate TX buffers for 1G (8 bit datapath in FPGA) and 10G (32 bit datapath in FPGA)
+	//Memory mapped write here isnt working
+	volatile ManagementTxFifo* fifo = g_sfpLinkUp ? g_eth10GTxFifo : g_eth1GTxFifo;
+	g_apbfpga.BlockingWrite16(&fifo->tx_len, frame->Length());
+	g_apbfpga.BlockingWriteN((volatile void*)fifo->tx_buf, frame->RawData(), frame->Length());
+	g_apbfpga.BlockingWrite16(&fifo->tx_commit, 1);
+
+	//Done, put on free list
+	if(markFree)
+		m_txFreeList.Push(frame);
+}
+
+void QSPIEthernetInterface::CancelTxFrame(EthernetFrame* frame)
+{
+	//Return it to the free list
+	m_txFreeList.Push(frame);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Receive path
+
+EthernetFrame* QSPIEthernetInterface::GetRxFrame()
+{
+	//Read and sanity check length
+	uint16_t len = g_ethRxFifo->rx_len;
+	if(len > 1500)
+	{
+		g_log(Logger::ERROR, "Got a %d byte long frame (max size 1500, FPGA should not have done this)\n", (int)len);
+		return nullptr;
+	}
+	if(len == 0)
+	{
+		g_log(Logger::ERROR, "Got a zero-byte Ethernet frame, makes no sense\n");
+		g_ethRxFifo->rx_pop = 1;
+		return nullptr;
+	}
+
+	//Make sure we have somewhere to put the frame
+	if(m_rxFreeList.IsEmpty())
+	{
+		g_log("Frame dropped due to lack of buffers\n");
+
+		//Discard it
+		g_ethRxFifo->rx_pop = 1;
+		return nullptr;
+	}
+
+	//Read it
+	//TODO: DMA optimizations
+	auto frame = m_rxFreeList.Pop();
+	frame->SetLength(len);
+	memcpy(frame->RawData(), (void*)&g_ethRxFifo->rx_buf, len);
+	g_apbfpga.BlockingWrite16(&g_ethRxFifo->rx_pop, 1);
+
+	return frame;
+}
+
+void QSPIEthernetInterface::ReleaseRxFrame(EthernetFrame* frame)
+{
+	m_rxFreeList.Push(frame);
 }

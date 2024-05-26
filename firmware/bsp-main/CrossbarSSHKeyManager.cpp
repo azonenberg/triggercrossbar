@@ -27,7 +27,8 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "triggercrossbar.h"
+#include <core/platform.h>
+#include "hwinit.h"
 #include "CrossbarSSHKeyManager.h"
 #include <staticnet/contrib/base64.h>
 #include <staticnet/ssh/SSHCurve25519KeyBlob.h>

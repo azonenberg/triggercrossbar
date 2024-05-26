@@ -30,68 +30,12 @@
 #include "triggercrossbar.h"
 
 /**
-	@brief Global Ethernet interface
- */
-EthernetInterface* g_ethIface = nullptr;
-
-/**
-	@brief Interface to the FPGA via legacy bus protocol
- */
-FPGAInterface* g_fpga = nullptr;
-
-/**
-	@brief Interface to the FPGA via APB
- */
-APBFPGAInterface g_apbfpga;
-
-/**
-	@brief Our MAC address
- */
-MACAddress g_macAddress;
-
-/**
-	@brief Our IPv4 address
- */
-IPv4Config g_ipConfig;
-
-/**
-	@brief Ethernet protocol stack
- */
-EthernetProtocol* g_ethProtocol = nullptr;
-
-/**
-	@brief QSPI interface to FPGA
- */
-OctoSPI* g_qspi = nullptr;
-
-/**
 	@brief Digital temperature sensor
  */
 DigitalTempSensor* g_dts = nullptr;
 
-///@brief MAC address I2C EEPROM
-I2C* g_macI2C = nullptr;
-
-///@brief SFP+ DOM / ID EEPROM
-I2C* g_sfpI2C = nullptr;
-
 ///@brief GPIO LEDs
 GPIOPin* g_leds[4] = {0};
-
-///@brief SFP mod_abs
-GPIOPin* g_sfpModAbsPin = nullptr;
-
-///@brief SFP tx_disable
-GPIOPin* g_sfpTxDisablePin = nullptr;
-
-///@brief SFP tx_fault
-GPIOPin* g_sfpTxFaultPin = nullptr;
-
-///@brief SFP laser fault detected
-bool g_sfpFaulted = false;
-
-///@brief SFP module inserted (does not imply link is up)
-bool g_sfpPresent = false;
 
 ///@brief FPGA die serial number
 uint8_t g_fpgaSerial[8] = {0};
@@ -101,14 +45,6 @@ OctalDAC* g_rxDacs[2] = {nullptr, nullptr};
 
 ///@brief DACs for TX channels
 OctalDAC* g_txDac = nullptr;
-
-///@brief BaseT link status
-bool g_basetLinkUp = false;
-
-//Ethernet link speed
-uint8_t g_basetLinkSpeed = 0;
-
-//TODO: SFP+ link status
 
 /**
 	@brief SPI bus to supervisor
@@ -133,32 +69,11 @@ uint32_t g_usercode = 0;
 ///@brief Request refresh of the display if link state changes
 bool g_displayRefreshPending = false;
 
-///@brief SFP+ link state
-bool g_sfpLinkUp;
-
-///@brief Key manager
-CrossbarSSHKeyManager g_keyMgr;
-
-///@brief The single supported SSH username
-char g_sshUsername[CLI_USERNAME_MAX] = "";
-
-///@brief KVS key for the SSH username
-const char* g_usernameObjectID = "ssh.username";
+///@brief The NTP client
+ManagementNTPClient* g_ntpClient = nullptr;
 
 ///@brief The SSH server
 ManagementSSHTransportServer* g_sshd = nullptr;
-
-///@brief Default SSH username if not configured
-const char* g_defaultSshUsername = "admin";
-
-///@brief Selects whether the DHCP client is active or not
-bool g_usingDHCP = false;
-
-///@brief The DHCP client
-ManagementDHCPClient* g_dhcpClient = nullptr;
-
-///@brief The NTP client
-ManagementNTPClient* g_ntpClient = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory mapped SFRs on the FPGA
@@ -172,18 +87,6 @@ volatile APB_SystemInfo* g_sysInfo =
 ///@brief Relay controller
 volatile APB_RelayController* g_relayController =
 	reinterpret_cast<volatile APB_RelayController*>(FPGA_MEM_BASE + BASE_RELAY);
-
-///@brief MDIO interface
-volatile APB_MDIO* g_mdio =
-	reinterpret_cast<volatile APB_MDIO*>(FPGA_MEM_BASE + BASE_MDIO);
-
-///@brief Curve25519 controller
-volatile APB_Curve25519* g_curve25519 =
-	reinterpret_cast<volatile APB_Curve25519*>(FPGA_MEM_BASE + BASE_25519);
-
-///@brief Interrupt status
-volatile uint16_t* g_irqStat =
-	reinterpret_cast<volatile uint16_t*>(FPGA_MEM_BASE + BASE_IRQ_STAT);
 
 ///@brief GPIOs for LED status
 volatile APB_GPIO* g_ledGpioInPortActivity =
@@ -209,13 +112,3 @@ volatile APB_SerdesDRP* g_bertDRP[2] =
 	reinterpret_cast<volatile APB_SerdesDRP*>(FPGA_MEM_BASE + BASE_DRP_LANE0),
 	reinterpret_cast<volatile APB_SerdesDRP*>(FPGA_MEM_BASE + BASE_DRP_LANE1)
 };
-
-///@brief Ethernet RX buffer
-volatile ManagementRxFifo* g_ethRxFifo =
-	reinterpret_cast<volatile ManagementRxFifo*>(FPGA_MEM_BASE + BASE_ETH_RX);
-
-///@brief Ethernet TX buffers
-volatile ManagementTxFifo* g_eth1GTxFifo =
-	reinterpret_cast<volatile ManagementTxFifo*>(FPGA_MEM_BASE + BASE_1G_TX);
-volatile ManagementTxFifo* g_eth10GTxFifo =
-	reinterpret_cast<volatile ManagementTxFifo*>(FPGA_MEM_BASE + BASE_XG_TX);

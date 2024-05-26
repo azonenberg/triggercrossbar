@@ -27,7 +27,8 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "triggercrossbar.h"
+#include <core/platform.h>
+#include "hwinit.h"
 #include "DeviceCryptoEngine.h"
 #include "../../staticnet/contrib/tweetnacl_25519.h"
 

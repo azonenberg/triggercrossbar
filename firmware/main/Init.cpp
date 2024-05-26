@@ -30,21 +30,14 @@
 /**
 	@file
 	@author	Andrew D. Zonenberg
-	@brief	Initialization code only used by real hardware
+	@brief	System initialization
  */
 
 #include "triggercrossbar.h"
 #include <ctype.h>
-#include "net/QSPIEthernetInterface.h"
 #include "../super/superregs.h"
 
 void TrimSpaces(char* str);
-
-
-const IPv4Address g_defaultIP			= { .m_octets{192, 168,   1,   2} };
-const IPv4Address g_defaultNetmask		= { .m_octets{255, 255, 255,   0} };
-const IPv4Address g_defaultBroadcast	= { .m_octets{192, 168,   1, 255} };
-const IPv4Address g_defaultGateway		= { .m_octets{192, 168,   1,   1} };
 
 /**
 	@brief Bring up the control interface to the FPGA

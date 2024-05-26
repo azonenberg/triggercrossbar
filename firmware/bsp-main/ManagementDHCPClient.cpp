@@ -27,126 +27,53 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-/**
-	@file
-	@author	Andrew D. Zonenberg
-	@brief	PHY control code
- */
+#include <core/platform.h>
+#include "hwinit.h"
+#include "ManagementDHCPClient.h"
 
-#include "triggercrossbar.h"
+///@brief KVS key for DHCP enable state
+static const char* g_dhcpEnableObjectID = "dhcp.enable";
 
-/**
-	@brief Mapping of link speed IDs to printable names
- */
-static const char* g_linkSpeedNamesLong[] =
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Notification handlers from DHCP stack
+
+void ManagementDHCPClient::OnIPAddressChanged(IPv4Address addr)
 {
-	"10 Mbps",
-	"100 Mbps",
-	"1000 Mbps",
-	"10 Gbps"
-};
+	g_ipConfig.m_address = addr;
 
-/**
-	@brief Reads a register from the management PHY
- */
-uint16_t ManagementPHYRead(uint8_t regid)
-{
-	//Request the read
-	g_mdio->cmd_addr = regid << 8;
-
-	//Poll until busy flag is cleared (in both status registers b/c caching)
-	StatusRegisterMaskedWait(&g_mdio->status, &g_mdio->status2, 0x1, 0x0);
-
-	return g_mdio->data;
+	//recalculate broadcast address
+	for(int i=0; i<4; i++)
+		g_ipConfig.m_broadcast.m_octets[i] = g_ipConfig.m_address.m_octets[i] | ~g_ipConfig.m_netmask.m_octets[i];
 }
 
-void ManagementPHYWrite(uint8_t regid, uint16_t regval)
+void ManagementDHCPClient::OnDefaultGatewayChanged(IPv4Address addr)
 {
-	//Request the write
-	g_mdio->cmd_addr = (regid << 8) | 0x8000;
-	g_mdio->data = regval;
-
-	//Poll until busy flag is cleared (in both status registers b/c caching)
-	StatusRegisterMaskedWait(&g_mdio->status, &g_mdio->status2, 0x1, 0x0);
+	g_ipConfig.m_gateway = addr;
 }
 
-/**
-	@brief Reads an extended register from the management PHY
- */
-uint16_t ManagementPHYExtendedRead(uint8_t mmd, uint8_t regid)
+void ManagementDHCPClient::OnSubnetMaskChanged(IPv4Address addr)
 {
-	ManagementPHYWrite(REG_PHY_REGCR, mmd);			//set address
-	ManagementPHYWrite(REG_PHY_ADDAR, regid);
-	ManagementPHYWrite(REG_PHY_REGCR, 0x4000 | mmd);	//data, no post inc
-	return ManagementPHYRead(REG_PHY_ADDAR);
+	g_ipConfig.m_netmask = addr;
+
+	//recalculate broadcast address
+	for(int i=0; i<4; i++)
+		g_ipConfig.m_broadcast.m_octets[i] = g_ipConfig.m_address.m_octets[i] | ~g_ipConfig.m_netmask.m_octets[i];
 }
 
-/**
-	@brief Writes an extended register to the management PHY
- */
-void ManagementPHYExtendedWrite(uint8_t mmd, uint8_t regid, uint16_t regval)
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Serialization
+
+void ManagementDHCPClient::LoadConfigFromKVS()
 {
-	ManagementPHYWrite(REG_PHY_REGCR, mmd);				//set address
-	ManagementPHYWrite(REG_PHY_ADDAR, regid);
-	ManagementPHYWrite(REG_PHY_REGCR, 0x4000 | mmd);	//data, no post inc
-	ManagementPHYWrite(REG_PHY_ADDAR, regval);
-}
-
-/**
-	@brief Poll the PHYs for link state changes
-
-	TODO: use IRQ pin to trigger this vs doing it nonstop?
- */
-void PollPHYs()
-{
-	//Get the baseT link state
-	uint16_t bctl = ManagementPHYRead(REG_BASIC_CONTROL);
-	uint16_t bstat = ManagementPHYRead(REG_BASIC_STATUS);
-	bool bup = (bstat & 4) == 4;
-	if(bup && !g_basetLinkUp)
-	{
-		g_basetLinkSpeed = 0;
-		if( (bctl & 0x40) == 0x40)
-			g_basetLinkSpeed |= 2;
-		if( (bctl & 0x2000) == 0x2000)
-			g_basetLinkSpeed |= 1;
-		g_log("Interface mgmt0: link is up at %s\n", g_linkSpeedNamesLong[g_basetLinkSpeed]);
-		g_displayRefreshPending = true;
-
-		g_ethProtocol->OnLinkUp();
-	}
-	else if(!bup && g_basetLinkUp)
-	{
-		g_log("Interface mgmt0: link is down\n");
-		g_basetLinkSpeed = 0xff;
-		g_displayRefreshPending = true;
-		g_ethProtocol->OnLinkDown();
-	}
-	g_basetLinkUp = bup;
-
-	//Get the SFP link status
-	auto stat = g_eth10GTxFifo->tx_stat;
-	if(stat & 1)
-	{
-		//Link went up?
-		if(!g_sfpLinkUp)
-		{
-			g_log("Interface xg0: link is up at 10 Gbps\n");
-			g_sfpLinkUp = true;
-			g_displayRefreshPending = true;
-			g_ethProtocol->OnLinkUp();
-		}
-	}
-
+	//Check if we're using DHCP and, if so, enable it
+	bool enable = g_kvs->ReadObject(g_dhcpEnableObjectID, false);
+	if(enable)
+		Enable();
 	else
-	{
-		//Link went down?
-		if(g_sfpLinkUp)
-		{
-			g_log("Interface xg0: link is down\n");
-			g_sfpLinkUp = false;
-			g_displayRefreshPending = true;
-			g_ethProtocol->OnLinkDown();
-		}
-	}
+		Disable();
+}
+
+void ManagementDHCPClient::SaveConfigToKVS()
+{
+	g_kvs->StoreObjectIfNecessary(g_dhcpEnableObjectID, IsEnabled(), false);
 }
