@@ -82,6 +82,7 @@ protected:
 	void OnDescription();
 	void OnDebug();
 	*/
+	void OnDFU();
 	void OnIPCommand();
 	void OnIPAddress(const char* addr);
 	void OnIPGateway(const char* gw);

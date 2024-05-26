@@ -32,6 +32,7 @@
 #include "CrossbarCLISessionContext.h"
 #include <ctype.h>
 #include "../front/regids.h"
+#include <bootloader/BootloaderAPI.h>
 
 static const char* hostname_objid = "hostname";
 
@@ -50,6 +51,7 @@ enum cmdid_t
 	//CMD_DESCRIPTION,
 	CMD_DETAIL,
 	//CMD_DEBUG,
+	CMD_DFU,
 	CMD_DHCP,
 	CMD_EXIT,
 	CMD_FINGERPRINT,
@@ -375,6 +377,7 @@ static const clikeyword_t g_rootCommands[] =
 	//{"clear",		CMD_CLEAR,			g_clearCommands,		"Clear performance counters and other debugging state"},
 	{"commit",		CMD_COMMIT,			nullptr,				"Commit volatile config changes to flash memory"},
 	//{"debug",		CMD_DEBUG,			g_debugCommands,		"Enable debug output"},
+	{"dfu",			CMD_DFU,			nullptr,				"Reboot in DFU mode for firmware updating the main CPU"},
 	{"exit",		CMD_EXIT,			nullptr,				"Log out"},
 	{"flash",		CMD_FLASH,			g_flashCommands,		"Maintenance operations on flash"},
 	{"hostname",	CMD_HOSTNAME,		g_hostnameCommands,		"Change the host name"},
@@ -457,6 +460,17 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 			OnDebug();
 			break;
 		*/
+
+		case CMD_DFU:
+			{
+				//TODO: require confirmation or something
+				RTC::Unlock();
+				g_bbram->m_state = STATE_DFU;
+				RTC::Lock();
+				Reset();
+			}
+			break;
+
 		case CMD_EXIT:
 			m_stream->Flush();
 

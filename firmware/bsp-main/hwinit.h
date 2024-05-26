@@ -63,6 +63,8 @@ void SfrMemcpy(volatile void* dst, void* src, uint32_t len);
 #include "APBFPGAInterface.h"
 #include "CrossbarSSHKeyManager.h"
 
+#include <bootloader/BootloaderAPI.h>
+
 #define MAX_LOG_SINKS SSH_TABLE_SIZE
 
 void App_Init();
@@ -131,6 +133,9 @@ extern volatile ManagementTxFifo* g_eth1GTxFifo;
 extern volatile ManagementTxFifo* g_eth10GTxFifo;
 extern volatile APB_Curve25519* g_curve25519;
 extern volatile uint16_t* g_irqStat;
+
+//Backup SRAM used for communication with bootloader
+extern volatile BootloaderBBRAM* g_bbram;
 
 enum mdioreg_t
 {

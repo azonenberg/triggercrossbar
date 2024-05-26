@@ -47,9 +47,6 @@ const uint32_t g_appImageSize = 220 * 1024;
 //Offset of the version string
 const uint32_t g_appVersionOffset = 0x1a0;
 
-///@brief The battery-backed RAM used to store state across power cycles
-volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hooks called by bootloader code
 

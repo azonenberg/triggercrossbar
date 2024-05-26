@@ -40,9 +40,6 @@ const uint32_t g_appImageSize = 640 * 1024;
 //Offset of the version string (size of the vector table plus 32 byte alignment)
 const uint32_t g_appVersionOffset = 0x2e0;
 
-///@brief The battery-backed RAM used to store state across power cycles
-volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hooks called by bootloader code
 
@@ -57,6 +54,8 @@ void Bootloader_Init()
 	InitManagementPHY();
 	InitEthernet();
 	InitIP();
+
+	RTC::Unlock();
 
 	//Initialize the FPGA IRQ pin
 	g_irq.SetPullMode(GPIOPin::PULL_DOWN);
