@@ -30,8 +30,6 @@ all:
 	mkdir -p output
 	cd output/
 	$(CXX) $(CXXFLAGS) -c $(SRCDIR)/*.cpp || exit 1
-	#$(CXX) $(CXXFLAGS) -c $(SRCDIR)/net/*.cpp || exit 1
-	#$(CXX) $(CXXFLAGS) -c $(SRCDIR)/ssh/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/common-embedded-platform/core/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/common-embedded-platform/bootloader/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/common-embedded-platform/bootloader/*.S || exit 1
@@ -39,6 +37,7 @@ all:
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/microkvs/kvs/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/microkvs/driver/STM32StorageBank.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/embedded-cli/*.cpp || exit 1
+	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/cli/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/contrib/*.cpp -Wno-type-limits -Wno-implicit-fallthrough|| exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/crypt/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/dhcp/*.cpp || exit 1

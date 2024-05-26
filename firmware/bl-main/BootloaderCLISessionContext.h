@@ -27,132 +27,87 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "bootloader.h"
-#include "BootloaderUDPProtocol.h"
-#include "BootloaderCLISessionContext.h"
+/**
+	@file
+	@brief Declaration of BootloaderCLISessionContext
+ */
+#ifndef BootloaderCLISessionContext_h
+#define BootloaderCLISessionContext_h
 
-//Application region of flash runs from the end of the bootloader (0x8020000)
-//to the start of the KVS (0x080c0000), so 640 kB
-//Firmware version string is put right after vector table by linker script at a constant address
-uint32_t* const g_appVector  = reinterpret_cast<uint32_t*>(0x8020000);
+#include "FPGAInterface.h"
+#include <embedded-cli/CLIOutputStream.h>
+#include <embedded-cli/CLISessionContext.h>
+#include <staticnet/cli/SSHOutputStream.h>
 
-//@brief Size of the image
-const uint32_t g_appImageSize = 640 * 1024;
-
-//Offset of the version string (size of the vector table plus 32 byte alignment)
-const uint32_t g_appVersionOffset = 0x2e0;
-
-///@brief Output stream for local serial console
-UARTOutputStream g_localConsoleOutputStream;
-
-///@brief Context data structure for local serial console
-BootloaderCLISessionContext g_localConsoleSessionContext;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Hooks called by bootloader code
-
-void Bootloader_Init()
+class BootloaderCLISessionContext : public CLISessionContext
 {
-	DoInitKVS();
-	InitQSPI();
-	InitFPGA();
-	InitI2C();
-	InitEEPROM();
-	InitSFP();
-	InitManagementPHY();
-	InitEthernet();
-	InitIP();
+public:
+	BootloaderCLISessionContext();
 
-	RTC::Unlock();
-
-	//Initialize the FPGA IRQ pin
-	g_irq.SetPullMode(GPIOPin::PULL_DOWN);
-
-	//Initialize the local console
-	g_localConsoleOutputStream.Initialize(&g_cliUART);
-	g_localConsoleSessionContext.Initialize(&g_localConsoleOutputStream, "bootloader");
-}
-
-void Bootloader_ClearRxBuffer()
-{
-}
-
-void Bootloader_FinalCleanup()
-{
-	g_cliUART.Flush();
-}
-
-void BSP_MainLoop()
-{
-	Bootloader_MainLoop();
-}
-
-void RegisterProtocolHandlers(IPv4Protocol& ipv4)
-{
-	//static ManagementTCPProtocol tcp(&ipv4);
-	static BootloaderUDPProtocol udp(&ipv4);
-	//ipv4.UseTCP(&tcp);
-	ipv4.UseUDP(&udp);
-	g_dhcpClient = &udp.GetDHCP();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Run the firmware updater
-
-void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow()
-{
-	g_log("In DFU mode\n");
-
-	//Show the initial prompt
-	g_localConsoleSessionContext.PrintPrompt();
-
-	while(1)
+	void Initialize(int sessid, TCPTableEntry* socket, SSHTransportServer* server, const char* username)
 	{
-		//Main event loop
-		static uint32_t next1HzTick = 0;
-		static uint32_t next10HzTick = 0;
-		static uint32_t nextPhyPoll = 0;
-		const uint32_t logTimerMax = 0xf0000000;
-
-		//Wait for an interrupt
-		//asm("wfi");
-
-		//Check if anything happened on the FPGA
-		CheckForFPGAEvents();
-
-		//Check if we had a PHY link state change at 20 Hz
-		//TODO: add irq bit for this so we don't have to poll nonstop
-		if(g_logTimer.GetCount() >= nextPhyPoll)
-		{
-			PollPHYs();
-			nextPhyPoll = g_logTimer.GetCount() + 500;
-		}
-
-		//Check if we had an optic inserted or removed
-		PollSFP();
-
-		//Poll for UART input
-		if(g_cliUART.HasInput())
-			g_localConsoleSessionContext.OnKeystroke(g_cliUART.BlockingRead());
-
-		if(g_log.UpdateOffset(logTimerMax))
-		{
-			next1HzTick -= logTimerMax;
-			next10HzTick -= logTimerMax;
-		}
-
-		//Refresh of TCP retransmits at 10 Hz
-		if(g_logTimer.GetCount() >= next10HzTick)
-		{
-			g_ethProtocol->OnAgingTick10x();
-			next10HzTick = g_logTimer.GetCount() + 1000;
-		}
-
-		//1 Hz timer for various aging processes
-		if(g_logTimer.GetCount() >= next1HzTick)
-		{
-			g_ethProtocol->OnAgingTick();
-			next1HzTick = g_logTimer.GetCount() + 10000;
-		}
+		m_sshstream.Initialize(sessid, socket, server);
+		Initialize(&m_sshstream, username);
 	}
-}
+
+	//Generic init for non-SSH streams
+	void Initialize(CLIOutputStream* stream, const char* username)
+	{
+		m_stream = stream;
+		LoadHostname();
+		CLISessionContext::Initialize(m_stream, username);
+	}
+
+	SSHOutputStream* GetSSHStream()
+	{ return &m_sshstream; }
+
+	virtual ~BootloaderCLISessionContext()
+	{}
+
+	virtual void PrintPrompt();
+
+protected:
+	bool ParseIPAddress(const char* addr, IPv4Address& ip);
+	bool ParseIPAddressWithSubnet(const char* addr, IPv4Address& ip, uint32_t& mask);
+
+	void LoadHostname();
+
+	virtual void OnExecute();
+	void OnExecuteRoot();
+
+	void OnCommit();
+
+	void OnDFU();
+	void OnIPCommand();
+	void OnIPAddress(const char* addr);
+	void OnIPGateway(const char* gw);
+
+	void OnNoCommand();
+	void OnNoFlashCommand();
+	void OnNoSSHCommand();
+	void OnNoSSHKeyCommand();
+
+	void OnNtpServer(const char* addr);
+
+	void OnReload();
+	void OnRollback();
+
+	void OnShowCommand();
+	void OnShowFlash();
+	void OnShowFlashDetail();
+	void OnShowIPAddress();
+	void OnShowIPRoute();
+	void OnShowSSHFingerprint();
+	void OnShowSSHKeys();
+	void OnShowVersion();
+	void OnSSHCommand();
+	void OnSSHKey();
+
+	SSHOutputStream m_sshstream;
+	CLIOutputStream* m_stream;
+
+	///@brief Hostname (only used for display)
+	char m_hostname[33];
+};
+
+#endif
