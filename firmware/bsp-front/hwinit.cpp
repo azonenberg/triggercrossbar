@@ -33,6 +33,8 @@
 	@brief	Boot-time hardware initialization
  */
 #include <core/platform.h>
+#include <bootloader/bootloader-common.h>
+#include <bootloader/BootloaderAPI.h>
 #include "hwinit.h"
 #include <peripheral/Power.h>
 
@@ -57,6 +59,9 @@ GPIOPin* g_fpgaSPICS = nullptr;
 GPIOPin g_fpgaMiso(&GPIOB, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
 
 bool g_misoIsJtag = true;
+
+///@brief The battery-backed RAM used to store state across power cycles
+volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Low level init

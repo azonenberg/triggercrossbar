@@ -77,9 +77,6 @@ bool	g_mainMCUDown = true;
 
 bool RxSPIString(uint8_t nbyte, char* buf, uint8_t size, uint8_t data);
 
-///@brief The battery-backed RAM used to store state across power cycles
-volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
-
 void BSP_MainLoopIteration()
 {
 	const int logTimerMax = 60000;
