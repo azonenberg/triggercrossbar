@@ -28,6 +28,7 @@
 ***********************************************************************************************************************/
 
 #include "bootloader.h"
+#include "BootloaderUDPProtocol.h"
 
 //Application region of flash runs from the end of the bootloader (0x8020000)
 //to the start of the KVS (0x080c0000), so 640 kB
@@ -77,14 +78,11 @@ void BSP_MainLoop()
 
 void RegisterProtocolHandlers(IPv4Protocol& ipv4)
 {
-	/*
-	static ManagementTCPProtocol tcp(&ipv4);
-	static ManagementUDPProtocol udp(&ipv4);
-	ipv4.UseTCP(&tcp);
+	//static ManagementTCPProtocol tcp(&ipv4);
+	static BootloaderUDPProtocol udp(&ipv4);
+	//ipv4.UseTCP(&tcp);
 	ipv4.UseUDP(&udp);
 	g_dhcpClient = &udp.GetDHCP();
-	*/
-	g_dhcpClient = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -96,9 +94,7 @@ void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow()
 
 	while(1)
 	{
-		/*
 		//Main event loop
-		static uint32_t secTillNext5MinTick = 0;
 		static uint32_t next1HzTick = 0;
 		static uint32_t next10HzTick = 0;
 		static uint32_t nextPhyPoll = 0;
@@ -122,8 +118,8 @@ void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow()
 		PollSFP();
 
 		//Poll for UART input
-		if(g_cliUART.HasInput())
-			g_localConsoleSessionContext.OnKeystroke(g_cliUART.BlockingRead());
+		//if(g_cliUART.HasInput())
+		//	g_localConsoleSessionContext.OnKeystroke(g_cliUART.BlockingRead());
 
 		if(g_log.UpdateOffset(logTimerMax))
 		{
@@ -131,12 +127,10 @@ void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow()
 			next10HzTick -= logTimerMax;
 		}
 
-		//Refresh of activity LEDs and TCP retransmits at 10 Hz
+		//Refresh of TCP retransmits at 10 Hz
 		if(g_logTimer.GetCount() >= next10HzTick)
 		{
-			UpdateFrontPanelActivityLEDs();
 			g_ethProtocol->OnAgingTick10x();
-
 			next10HzTick = g_logTimer.GetCount() + 1000;
 		}
 
@@ -145,20 +139,6 @@ void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow()
 		{
 			g_ethProtocol->OnAgingTick();
 			next1HzTick = g_logTimer.GetCount() + 10000;
-
-			//Push channel config to KVS every 5 mins if it's changed
-			//DEBUG: every 10 sec
-			if(secTillNext5MinTick == 0)
-			{
-				secTillNext5MinTick = 300;
-				SaveChannelConfig();
-			}
-			else
-				secTillNext5MinTick --;
-
-			//Push new register values to front panel every second (it will refresh the panel whenever it wants to)
-			UpdateFrontPanelDisplay();
 		}
-		*/
 	}
 }

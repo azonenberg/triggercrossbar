@@ -162,35 +162,6 @@ void BSP_MainLoopIteration()
 	}
 }
 
-/**
-	@brief Checks if the FPGA needs any events serviced
-
-	@return true if there are more events to process
- */
-bool CheckForFPGAEvents()
-{
-	if(g_irq)
-		PollFPGA();
-
-	return g_irq;
-}
-
-/**
-	@brief Reads the FPGA status register to see why it sent us an IRQ
- */
-void PollFPGA()
-{
-	uint16_t fpgastat = *g_irqStat;
-
-	//New Ethernet frame ready?
-	if(fpgastat & 1)
-	{
-		auto frame = g_ethIface->GetRxFrame();
-		if(frame != nullptr)
-			g_ethProtocol->OnRxFrame(frame);
-	}
-}
-
 void InitFrontPanel()
 {
 	g_log("Initializing front panel\n");

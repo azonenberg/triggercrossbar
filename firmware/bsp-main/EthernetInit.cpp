@@ -35,10 +35,16 @@
 #include <core/platform.h>
 #include "hwinit.h"
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Globals
+
 const IPv4Address g_defaultIP			= { .m_octets{192, 168,   1,   2} };
 const IPv4Address g_defaultNetmask		= { .m_octets{255, 255, 255,   0} };
 const IPv4Address g_defaultBroadcast	= { .m_octets{192, 168,   1, 255} };
 const IPv4Address g_defaultGateway		= { .m_octets{192, 168,   1,   1} };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Peripheral init
 
 void InitEEPROM()
 {
@@ -363,4 +369,36 @@ uint16_t GetSFPTemperature()
 	uint16_t temp = 0;
 	g_sfpI2C->BlockingRead16(0xa2, temp);
 	return temp;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IRQ processing
+
+/**
+	@brief Checks if the FPGA needs any events serviced
+
+	@return true if there are more events to process
+ */
+bool CheckForFPGAEvents()
+{
+	if(g_irq)
+		PollFPGA();
+
+	return g_irq;
+}
+
+/**
+	@brief Reads the FPGA status register to see why it sent us an IRQ
+ */
+void PollFPGA()
+{
+	uint16_t fpgastat = *g_irqStat;
+
+	//New Ethernet frame ready?
+	if(fpgastat & 1)
+	{
+		auto frame = g_ethIface->GetRxFrame();
+		if(frame != nullptr)
+			g_ethProtocol->OnRxFrame(frame);
+	}
 }

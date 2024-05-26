@@ -30,7 +30,7 @@
 #ifndef BootloaderUDPProtocol_h
 #define BootloaderUDPProtocol_h
 
-#include "BootloaderDHCPClient.h"
+#include "ManagementDHCPClient.h"
 
 /**
 	@brief UDP handlers for bootloader
@@ -40,7 +40,7 @@ class BootloaderUDPProtocol : public UDPProtocol
 public:
 	BootloaderUDPProtocol(IPv4Protocol* ipv4);
 
-	BootloaderDHCPClient& GetDHCP()
+	ManagementDHCPClient& GetDHCP()
 	{ return m_dhcp; }
 
 	virtual void OnAgingTick();
@@ -48,7 +48,7 @@ public:
 protected:
 	virtual void OnRxData(IPv4Address srcip, uint16_t sport, uint16_t dport, uint8_t* payload, uint16_t payloadLen);
 
-	BootloaderDHCPClient m_dhcp;
+	ManagementDHCPClient m_dhcp;
 };
 
 #endif

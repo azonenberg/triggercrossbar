@@ -161,6 +161,7 @@ enum mdioreg_t
 void UART4_Handler();
 
 void OnEthernetLinkStateChanged();
+bool CheckForFPGAEvents();
 void TrimSpaces(char* str);
 void RegisterProtocolHandlers(IPv4Protocol& ipv4);
 
