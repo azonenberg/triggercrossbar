@@ -41,9 +41,7 @@
 #include <peripheral/OctoSPI.h>
 #include <peripheral/OctoSPIManager.h>
 #include <peripheral/Power.h>
-#include <peripheral/RTC.h>
 #include <peripheral/SPI.h>
-#include <peripheral/UART.h>
 
 #include <util/StringBuffer.h>
 
@@ -77,7 +75,6 @@ extern EthernetProtocol* g_ethProtocol;
 extern I2C* g_macI2C;
 extern I2C* g_sfpI2C;
 
-extern UART<32, 256> g_cliUART;
 extern OctoSPI* g_qspi;
 
 extern DigitalTempSensor* g_dts;
@@ -100,7 +97,6 @@ void InitLEDs();
 void InitDTS();
 void InitQSPI();
 void InitFPGA();
-void InitRTC();
 
 void InitI2C();
 void InitEEPROM();

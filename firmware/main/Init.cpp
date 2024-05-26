@@ -180,17 +180,6 @@ void ConfigureIP()
 	g_ipConfig.m_gateway = g_kvs->ReadObject<IPv4Address>(g_defaultGateway, "ip.gateway");
 }
 
-void InitRTC()
-{
-	g_log("Initializing RTC...\n");
-	LogIndenter li(g_log);
-	g_log("Using external clock divided by 50 (500 kHz)\n");
-
-	//Turn on the RTC APB clock so we can configure it, then set the clock source for it in the RCC
-	RCCHelper::Enable(&_RTC);
-	RTC::SetClockFromHSE(50);
-}
-
 /**
 	@brief Initialize global GPIO LEDs
  */

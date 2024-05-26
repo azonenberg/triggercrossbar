@@ -27,23 +27,62 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef hwinit_h
-#define hwinit_h
+#include "bootloader.h"
 
-#include <cli/UARTOutputStream.h>
+#include <microkvs/driver/STM32StorageBank.h>
 
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/RTC.h>
-#include <peripheral/UART.h>
+//Application region of flash runs from the end of the bootloader (0x8020000)
+//to the start of the KVS (0x080c0000), so 640 kB
+//Firmware version string is put right after vector table by linker script at a constant address
+uint32_t* const g_appVector  = reinterpret_cast<uint32_t*>(0x8020000);
 
-#include <staticnet-config.h>
+//@brief Size of the image
+const uint32_t g_appImageSize = 640 * 1024;
 
-#define MAX_LOG_SINKS SSH_TABLE_SIZE
+//Offset of the version string (size of the vector table plus 32 byte alignment)
+const uint32_t g_appVersionOffset = 0x2e0;
 
-void App_Init();
-void InitRTC();
+///@brief The battery-backed RAM used to store state across power cycles
+volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
 
-extern UART<32, 256> g_cliUART;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Hooks called by bootloader code
 
-#endif
+void Bootloader_Init()
+{
+	/*
+		Use sectors 6 and 7 of main flash (in single bank mode) for a 128 kB microkvs
+
+		Each log entry is 64 bytes, and we want to allocate ~50% of storage to the log since our objects are pretty
+		small (SSH keys, IP addresses, etc). A 1024-entry log is a nice round number, and comes out to 64 kB or 50%,
+		leaving the remaining 64 kB or 50% for data.
+	 */
+	static STM32StorageBank left(reinterpret_cast<uint8_t*>(0x080c0000), 0x20000);
+	static STM32StorageBank right(reinterpret_cast<uint8_t*>(0x080e0000), 0x20000);
+	InitKVS(&left, &right, 1024);
+}
+
+void Bootloader_ClearRxBuffer()
+{
+}
+
+void Bootloader_FinalCleanup()
+{
+	g_cliUART.Flush();
+}
+
+void BSP_MainLoop()
+{
+	Bootloader_MainLoop();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Run the firmware updater
+
+void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow()
+{
+	g_log("In DFU mode\n");
+
+	while(1)
+	{}
+}

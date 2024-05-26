@@ -27,23 +27,15 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef hwinit_h
-#define hwinit_h
+#ifndef bootloader_h
+#define bootloader_h
 
-#include <cli/UARTOutputStream.h>
+#include <core/platform.h>
+#include <bootloader/bootloader-common.h>
+#include <bootloader/BootloaderAPI.h>
+#include <hwinit.h>
+#include <LogSink.h>
 
-#include <peripheral/Flash.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/RTC.h>
-#include <peripheral/UART.h>
-
-#include <staticnet-config.h>
-
-#define MAX_LOG_SINKS SSH_TABLE_SIZE
-
-void App_Init();
-void InitRTC();
-
-extern UART<32, 256> g_cliUART;
+#include <microkvs/driver/STM32StorageBank.h>
 
 #endif

@@ -48,9 +48,11 @@ CrossbarCLISessionContext g_localConsoleSessionContext;
 
 void App_Init()
 {
+	//Enable interrupts early on since we use them for e.g. debug logging during boot
+	EnableInterrupts();
+
 	//Basic hardware setup
 	InitLEDs();
-	InitRTC();
 
 	/*
 		Use sectors 6 and 7 of main flash (in single bank mode) for a 128 kB microkvs
@@ -97,9 +99,6 @@ void App_Init()
 
 	//Bring up the front panel
 	InitFrontPanel();
-
-	//Enable interrupts only after all setup work is done
-	EnableInterrupts();
 
 	//Show the initial prompt
 	g_localConsoleSessionContext.PrintPrompt();

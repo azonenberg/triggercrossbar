@@ -62,6 +62,7 @@ UART<32, 256> g_cliUART(&UART4, 543);
 
 void BSP_Init()
 {
+	InitRTC();
 	App_Init();
 }
 
@@ -146,4 +147,18 @@ void BSP_InitLog()
 		g_log("https://github.com/azonenberg/triggercrossbar\n");
 	}
 	g_log("Firmware compiled at %s on %s\n", __TIME__, __DATE__);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Higher level initialization we used for a lot of stuff
+
+void InitRTC()
+{
+	g_log("Initializing RTC...\n");
+	LogIndenter li(g_log);
+	g_log("Using external clock divided by 50 (500 kHz)\n");
+
+	//Turn on the RTC APB clock so we can configure it, then set the clock source for it in the RCC
+	RCCHelper::Enable(&_RTC);
+	RTC::SetClockFromHSE(50);
 }
