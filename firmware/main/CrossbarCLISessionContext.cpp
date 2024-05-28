@@ -466,6 +466,7 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 				//TODO: require confirmation or something
 				RTC::Unlock();
 				g_bbram->m_state = STATE_DFU;
+				asm("dmb st");
 				RTC::Lock();
 				Reset();
 			}
