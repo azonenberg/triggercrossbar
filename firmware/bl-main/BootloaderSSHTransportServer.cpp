@@ -27,14 +27,14 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "triggercrossbar.h"
-#include "ManagementSSHTransportServer.h"
+#include "bootloader.h"
+#include "BootloaderSSHTransportServer.h"
 #include <algorithm>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
 
-ManagementSSHTransportServer::ManagementSSHTransportServer(TCPProtocol& tcp)
+BootloaderSSHTransportServer::BootloaderSSHTransportServer(TCPProtocol& tcp)
 	: SSHTransportServer(tcp)
 {
 	g_log("Initializing SSH server\n");
@@ -94,11 +94,11 @@ ManagementSSHTransportServer::ManagementSSHTransportServer(TCPProtocol& tcp)
 	UseSFTPServer(&m_sftp);
 }
 
-ManagementSSHTransportServer::~ManagementSSHTransportServer()
+BootloaderSSHTransportServer::~BootloaderSSHTransportServer()
 {
 }
 
-void ManagementSSHTransportServer::LoadUsername()
+void BootloaderSSHTransportServer::LoadUsername()
 {
 	memset(g_sshUsername, 0, sizeof(g_sshUsername));
 
@@ -113,34 +113,37 @@ void ManagementSSHTransportServer::LoadUsername()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Shell helpers
 
-void ManagementSSHTransportServer::InitializeShell(int id, TCPTableEntry* socket)
+void BootloaderSSHTransportServer::InitializeShell(int id, TCPTableEntry* socket)
 {
 	m_context[id].Initialize(id, socket, this, m_state[id].m_username);
 	m_context[id].PrintPrompt();
 
 	//TODO: only if we "terminal monitor" or similar?
-	g_logSink->AddSink(m_context[id].GetSSHStream());
+	//g_logSink->AddSink(m_context[id].GetSSHStream());
 }
 
-void ManagementSSHTransportServer::GracefulDisconnect(int id, TCPTableEntry* socket)
+void BootloaderSSHTransportServer::GracefulDisconnect(int id, TCPTableEntry* socket)
 {
 	g_logSink->RemoveSink(m_context[id].GetSSHStream());
 	SSHTransportServer::GracefulDisconnect(id, socket);
 }
 
-void ManagementSSHTransportServer::DropConnection(int id, TCPTableEntry* socket)
+void BootloaderSSHTransportServer::DropConnection(int id, TCPTableEntry* socket)
 {
 	g_logSink->RemoveSink(m_context[id].GetSSHStream());
+	g_log("Connection dropped\n");
+	g_cliUART.Flush();
+
 	SSHTransportServer::DropConnection(id, socket);
 }
 
-void ManagementSSHTransportServer::OnRxShellData(int id, TCPTableEntry* /*socket*/, char* data, uint16_t len)
+void BootloaderSSHTransportServer::OnRxShellData(int id, TCPTableEntry* /*socket*/, char* data, uint16_t len)
 {
 	for(uint16_t i=0; i<len; i++)
 		m_context[id].OnKeystroke(data[i]);
 }
 
-void ManagementSSHTransportServer::DoExecRequest(int id, TCPTableEntry* socket, const char* cmd, uint16_t len)
+void BootloaderSSHTransportServer::DoExecRequest(int id, TCPTableEntry* socket, const char* cmd, uint16_t len)
 {
 	m_context[id].Initialize(id, socket, this, m_state[id].m_username);
 

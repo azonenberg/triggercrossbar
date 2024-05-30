@@ -27,18 +27,39 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef bootloader_h
-#define bootloader_h
+/**
+	@file
+	@brief Declaration of BootloaderSFTPServer
+ */
+#ifndef BootloaderSFTPServer_h
+#define BootloaderSFTPServer_h
 
-#include <core/platform.h>
-#include <bootloader/bootloader-common.h>
-#include <bootloader/BootloaderAPI.h>
-#include <hwinit.h>
-#include <LogSink.h>
+#include "MainApplicationFirmwareUpdater.h"
 
-#include <microkvs/driver/STM32StorageBank.h>
+class BootloaderSFTPServer : public SFTPServer
+{
+public:
+	BootloaderSFTPServer()
+		: m_openFile(FILE_ID_NONE)
+	{}
 
-#include "BootloaderSSHTransportServer.h"
-extern BootloaderSSHTransportServer* g_sshd;
+	virtual bool DoesFileExist(const char* path) override;
+	virtual bool CanOpenFile(const char* path, uint32_t accessMask, uint32_t flags) override;
+	virtual uint32_t OpenFile(const char* path, uint32_t accessMask, uint32_t flags) override;
+	virtual void WriteFile(uint32_t handle, uint64_t offset, const uint8_t* data, uint32_t len) override;
+	virtual bool CloseFile(uint32_t handle) override;
+
+protected:
+
+	enum FileID
+	{
+		FILE_ID_NONE,
+
+		FILE_ID_MAIN_DFU
+	} m_openFile;
+
+	//Firmware updater drivers
+	MainApplicationFirmwareUpdater m_mainUpdater;
+};
 
 #endif

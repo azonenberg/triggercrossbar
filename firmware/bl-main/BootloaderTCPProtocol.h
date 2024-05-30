@@ -27,18 +27,27 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef bootloader_h
-#define bootloader_h
-
-#include <core/platform.h>
-#include <bootloader/bootloader-common.h>
-#include <bootloader/BootloaderAPI.h>
-#include <hwinit.h>
-#include <LogSink.h>
-
-#include <microkvs/driver/STM32StorageBank.h>
+#ifndef BootloaderTCPProtocol_h
+#define BootloaderTCPProtocol_h
 
 #include "BootloaderSSHTransportServer.h"
-extern BootloaderSSHTransportServer* g_sshd;
+
+class BootloaderTCPProtocol : public TCPProtocol
+{
+public:
+	BootloaderTCPProtocol(IPv4Protocol* ipv4);
+
+protected:
+	virtual bool IsPortOpen(uint16_t port) override;
+	virtual void OnConnectionAccepted(TCPTableEntry* state) override;
+	virtual void OnConnectionClosed(TCPTableEntry* state) override;
+	virtual void OnRxData(TCPTableEntry* state, uint8_t* payload, uint16_t payloadLen) override;
+
+	virtual uint32_t GenerateInitialSequenceNumber() override;
+
+	BootloaderSSHTransportServer m_ssh;
+
+	STM32CryptoEngine m_crypt;
+};
 
 #endif

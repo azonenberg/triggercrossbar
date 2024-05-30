@@ -29,15 +29,13 @@
 
 #include "bootloader.h"
 #include "BootloaderUDPProtocol.h"
+#include "BootloaderTCPProtocol.h"
 #include "BootloaderCLISessionContext.h"
 
 //Application region of flash runs from the end of the bootloader (0x8020000)
 //to the start of the KVS (0x080c0000), so 640 kB
 //Firmware version string is put right after vector table by linker script at a constant address
 uint32_t* const g_appVector  = reinterpret_cast<uint32_t*>(0x8020000);
-
-//@brief Size of the image
-const uint32_t g_appImageSize = 640 * 1024;
 
 //Offset of the version string (size of the vector table plus 32 byte alignment)
 const uint32_t g_appVersionOffset = 0x2e0;
@@ -47,6 +45,12 @@ UARTOutputStream g_localConsoleOutputStream;
 
 ///@brief Context data structure for local serial console
 BootloaderCLISessionContext g_localConsoleSessionContext;
+
+///@brief The SSH server
+BootloaderSSHTransportServer* g_sshd = nullptr;
+
+extern bool g_bootAppPending;
+extern uint32_t g_bootAppTimer;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hooks called by bootloader code
@@ -70,7 +74,7 @@ void Bootloader_Init()
 
 	//Initialize the local console
 	g_localConsoleOutputStream.Initialize(&g_cliUART);
-	g_localConsoleSessionContext.Initialize(&g_localConsoleOutputStream, "bootloader");
+	g_localConsoleSessionContext.Initialize(&g_localConsoleOutputStream, "localadmin");
 }
 
 void Bootloader_ClearRxBuffer()
@@ -89,9 +93,9 @@ void BSP_MainLoop()
 
 void RegisterProtocolHandlers(IPv4Protocol& ipv4)
 {
-	//static ManagementTCPProtocol tcp(&ipv4);
+	static BootloaderTCPProtocol tcp(&ipv4);
 	static BootloaderUDPProtocol udp(&ipv4);
-	//ipv4.UseTCP(&tcp);
+	ipv4.UseTCP(&tcp);
 	ipv4.UseUDP(&udp);
 	g_dhcpClient = &udp.GetDHCP();
 }
@@ -146,6 +150,14 @@ void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow()
 		{
 			g_ethProtocol->OnAgingTick10x();
 			next10HzTick = g_logTimer.GetCount() + 1000;
+
+			//also do boot-application timeout
+			if(g_bootAppPending)
+			{
+				g_bootAppTimer --;
+				if(g_bootAppTimer == 0)
+					BootApplication(g_appVector);
+			}
 		}
 
 		//1 Hz timer for various aging processes

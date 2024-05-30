@@ -27,18 +27,30 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef bootloader_h
-#define bootloader_h
+#ifndef MainApplicationFirmwareUpdater_h
+#define MainApplicationFirmwareUpdater_h
 
-#include <core/platform.h>
-#include <bootloader/bootloader-common.h>
-#include <bootloader/BootloaderAPI.h>
-#include <hwinit.h>
-#include <LogSink.h>
+#include "ELFFirmwareUpdater.h"
 
-#include <microkvs/driver/STM32StorageBank.h>
+/**
+	@brief Firmware update controller for the front panel MCU
+ */
+class MainApplicationFirmwareUpdater : public ELFFirmwareUpdater
+{
+public:
+	MainApplicationFirmwareUpdater();
+	virtual ~MainApplicationFirmwareUpdater();
 
-#include "BootloaderSSHTransportServer.h"
-extern BootloaderSSHTransportServer* g_sshd;
+protected:
+	virtual void StartUpdate() override;
+	virtual void OnWriteData(uint32_t physicalAddress, uint8_t* data, uint32_t len) override;
+	virtual void FinishSegment() override;
+	virtual void FinishUpdate() override;
+
+	uint32_t m_runningLength;
+
+	uint32_t m_pendingPhysicalAddress;
+	CircularFIFO<4096> m_pendingWriteData;
+};
 
 #endif

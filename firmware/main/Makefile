@@ -62,6 +62,6 @@ all:
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/devices/src/stm32h735.cpp || exit 1
 	$(CXX) $(CXXFLAGS) *.o $(LDFLAGS) -o ../firmware.elf
 	cd ../
-	arm-none-eabi-objcopy -O binary --only-section=.text --only-section=.data firmware.elf firmware.bin
+	arm-none-eabi-objcopy -O binary --only-section=.text --only-section=.rodata --only-section=.data firmware.elf firmware.bin
 	./imagesize.sh
 	arm-none-eabi-strip -s -o main-stripped.elf firmware.elf

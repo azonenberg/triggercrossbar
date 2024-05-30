@@ -66,6 +66,8 @@ void SfrMemcpy(volatile void* dst, void* src, uint32_t len);
 #include <bootloader/BootloaderAPI.h>
 
 #define MAX_LOG_SINKS SSH_TABLE_SIZE
+#include <LogSink.h>
+extern LogSink<MAX_LOG_SINKS>* g_logSink;
 
 void App_Init();
 void InitRTC();

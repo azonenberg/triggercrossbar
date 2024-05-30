@@ -27,18 +27,45 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef bootloader_h
-#define bootloader_h
+/**
+	@file
+	@brief Declaration of BootloaderSSHTransportServer
+ */
+#ifndef BootloaderSSHTransportServer_h
+#define BootloaderSSHTransportServer_h
 
-#include <core/platform.h>
-#include <bootloader/bootloader-common.h>
-#include <bootloader/BootloaderAPI.h>
-#include <hwinit.h>
-#include <LogSink.h>
+#include <staticnet/ssh/SSHTransportServer.h>
+#include "ManagementPubkeyAuthenticator.h"
+#include "BootloaderSFTPServer.h"
+#include "BootloaderCLISessionContext.h"
+#include "DeviceCryptoEngine.h"
 
-#include <microkvs/driver/STM32StorageBank.h>
+/**
+	@brief SSH server class for the bridge test
+ */
+class BootloaderSSHTransportServer : public SSHTransportServer
+{
+public:
+	BootloaderSSHTransportServer(TCPProtocol& tcp);
+	virtual ~BootloaderSSHTransportServer();
 
-#include "BootloaderSSHTransportServer.h"
-extern BootloaderSSHTransportServer* g_sshd;
+	void LoadUsername();
+
+protected:
+	virtual void InitializeShell(int id, TCPTableEntry* socket);
+	virtual void GracefulDisconnect(int id, TCPTableEntry* socket);
+	virtual void DropConnection(int id, TCPTableEntry* socket);
+	virtual void OnRxShellData(int id, TCPTableEntry* socket, char* data, uint16_t len);
+	virtual void DoExecRequest(int id, TCPTableEntry* socket, const char* cmd, uint16_t len) override;
+
+	ManagementPubkeyAuthenticator m_auth;
+
+	BootloaderCLISessionContext m_context[SSH_TABLE_SIZE];
+
+	DeviceCryptoEngine m_engine[SSH_TABLE_SIZE];
+	SFTPConnectionState m_sftpState[SSH_TABLE_SIZE];
+
+	BootloaderSFTPServer m_sftp;
+};
 
 #endif

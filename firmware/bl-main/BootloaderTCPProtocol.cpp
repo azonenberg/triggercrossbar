@@ -27,18 +27,74 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef bootloader_h
-#define bootloader_h
+#include "bootloader.h"
+#include "BootloaderTCPProtocol.h"
 
-#include <core/platform.h>
-#include <bootloader/bootloader-common.h>
-#include <bootloader/BootloaderAPI.h>
-#include <hwinit.h>
-#include <LogSink.h>
+#define SSH_PORT	22
 
-#include <microkvs/driver/STM32StorageBank.h>
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Construction / destruction
 
-#include "BootloaderSSHTransportServer.h"
-extern BootloaderSSHTransportServer* g_sshd;
+BootloaderTCPProtocol::BootloaderTCPProtocol(IPv4Protocol* ipv4)
+	: TCPProtocol(ipv4)
+	, m_ssh(*this)
+{
+}
 
-#endif
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Message handlers
+
+bool BootloaderTCPProtocol::IsPortOpen(uint16_t port)
+{
+	return (port == SSH_PORT);
+}
+
+void BootloaderTCPProtocol::OnConnectionAccepted(TCPTableEntry* state)
+{
+	switch(state->m_localPort)
+	{
+		case SSH_PORT:
+			m_ssh.OnConnectionAccepted(state);
+			break;
+
+		default:
+			break;
+	}
+}
+
+void BootloaderTCPProtocol::OnConnectionClosed(TCPTableEntry* state)
+{
+	//Call base class to free memory
+	TCPProtocol::OnConnectionClosed(state);
+
+	switch(state->m_localPort)
+	{
+		case SSH_PORT:
+			m_ssh.OnConnectionClosed(state);
+			break;
+
+		default:
+			break;
+	}
+}
+
+void BootloaderTCPProtocol::OnRxData(TCPTableEntry* state, uint8_t* payload, uint16_t payloadLen)
+{
+	switch(state->m_localPort)
+	{
+		case SSH_PORT:
+			m_ssh.OnRxData(state, payload, payloadLen);
+			break;
+
+		//ignore it
+		default:
+			break;
+	}
+}
+
+uint32_t BootloaderTCPProtocol::GenerateInitialSequenceNumber()
+{
+	uint32_t ret;
+	m_crypt.GenerateRandom(reinterpret_cast<uint8_t*>(&ret), sizeof(ret));
+	return ret;
+}

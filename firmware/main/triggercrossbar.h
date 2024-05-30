@@ -32,7 +32,6 @@
 
 #include <core/platform.h>
 #include <hwinit.h>
-#include <LogSink.h>
 
 #include <peripheral/DTS.h>
 #include <peripheral/Power.h>
@@ -44,7 +43,6 @@
 #include "net/ManagementUDPProtocol.h"
 #include "OctalDAC.h"
 
-extern LogSink<MAX_LOG_SINKS>* g_logSink;
 extern ManagementNTPClient* g_ntpClient;
 
 extern DigitalTempSensor* g_dts;

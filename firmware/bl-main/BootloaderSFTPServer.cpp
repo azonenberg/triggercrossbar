@@ -27,18 +27,123 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef bootloader_h
-#define bootloader_h
+/**
+	@file
+	@brief Implementation of BootloaderSFTPServer
+ */
+#include "bootloader.h"
+#include "BootloaderSFTPServer.h"
+#include <staticnet/sftp/SFTPOpenPacket.h>
 
-#include <core/platform.h>
-#include <bootloader/bootloader-common.h>
-#include <bootloader/BootloaderAPI.h>
-#include <hwinit.h>
-#include <LogSink.h>
+const char* g_mainMicroDfuPath = "/dfu/mcu";
 
-#include <microkvs/driver/STM32StorageBank.h>
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Filesystem wrapper APIs
 
-#include "BootloaderSSHTransportServer.h"
-extern BootloaderSSHTransportServer* g_sshd;
+bool BootloaderSFTPServer::DoesFileExist(const char* path)
+{
+	if(!strcmp(path, g_mainMicroDfuPath))
+		return true;
 
-#endif
+	//no other files to match
+	return false;
+}
+
+bool BootloaderSFTPServer::CanOpenFile(const char* path, uint32_t accessMask, uint32_t flags)
+{
+	//If we already have an open file, abort
+	//(we don't support concurrent file operations)
+	if(m_openFile != FILE_ID_NONE)
+		return false;
+
+	//Check if this is a DFU file path
+	bool isDFU = false;
+	if(!strcmp(path, g_mainMicroDfuPath))
+		isDFU = true;
+
+	//DFU files must be opened in overwrite/truncate mode
+	if(isDFU)
+	{
+		switch(flags & SFTPOpenPacket::SSH_FXF_ACCESS_DISPOSITION)
+		{
+			//valid modes
+			case SFTPOpenPacket::SSH_FXF_CREATE_NEW:
+			case SFTPOpenPacket::SSH_FXF_CREATE_TRUNCATE:
+			case SFTPOpenPacket::SSH_FXF_TRUNCATE_EXISTING:
+				break;
+
+			//anything else isn't allowed
+			default:
+				return false;
+		}
+
+		//access mask must request write data
+		if( (accessMask & SFTPPacket::ACE4_WRITE_DATA) == 0)
+			return false;
+
+		//no readback allowed for the ELF binaries
+		//(since they're not actually stored as ELF and we don't want to synthesize one on the fly!)
+		if( (accessMask & SFTPPacket::ACE4_READ_DATA) != 0)
+			return false;
+
+		//otherwise we're good
+		return true;
+	}
+
+	//If we get here, no go
+	return false;
+}
+
+uint32_t BootloaderSFTPServer::OpenFile(
+	const char* path,
+	[[maybe_unused]] uint32_t accessMask,
+	[[maybe_unused]] uint32_t flags)
+{
+	g_log("OpenFile(%s, access=%x, flags=%x)\n", path, accessMask, flags);
+
+	//For now, all of our files are stored in a single handle
+	//See which one to use
+	if(!strcmp(path, g_mainMicroDfuPath))
+	{
+		m_openFile = FILE_ID_MAIN_DFU;
+		m_mainUpdater.OnDeviceOpened();
+	}
+
+	//Return the constant handle zero for all open requests
+	return 0;
+}
+
+void BootloaderSFTPServer::WriteFile(
+	[[maybe_unused]] uint32_t handle,
+	[[maybe_unused]] uint64_t offset,
+	const uint8_t* data,
+	uint32_t len)
+{
+	//Ignore handle since we only support one right now
+	switch(m_openFile)
+	{
+		case FILE_ID_MAIN_DFU:
+			m_mainUpdater.OnRxData(data, len);
+			break;
+
+		default:
+			break;
+	}
+}
+
+bool BootloaderSFTPServer::CloseFile([[maybe_unused]] uint32_t handle)
+{
+	switch(m_openFile)
+	{
+		case FILE_ID_MAIN_DFU:
+			m_mainUpdater.OnDeviceClosed();
+			break;
+
+		default:
+			break;
+	}
+
+	//always allowed, we no longer have an open file
+	m_openFile = FILE_ID_NONE;
+	return true;
+}

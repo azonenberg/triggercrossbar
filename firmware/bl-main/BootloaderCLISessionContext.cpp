@@ -40,6 +40,7 @@ enum cmdid_t
 {
 	CMD_ADDRESS,
 	CMD_AUTHORIZED,
+	CMD_BOOT,
 	CMD_COMMIT,
 	CMD_DETAIL,
 	CMD_DHCP,
@@ -194,6 +195,7 @@ static const clikeyword_t g_sshCommands[] =
 //Top level commands in root mode
 static const clikeyword_t g_rootCommands[] =
 {
+	{"boot",		CMD_BOOT,			nullptr,				"Boot the application firmware"},
 	{"commit",		CMD_COMMIT,			nullptr,				"Commit volatile config changes to flash memory"},
 	{"exit",		CMD_EXIT,			nullptr,				"Log out"},
 	{"ip",			CMD_IP,				g_ipCommands,			"Configure IP addresses"},
@@ -218,7 +220,7 @@ BootloaderCLISessionContext::BootloaderCLISessionContext()
 void BootloaderCLISessionContext::PrintPrompt()
 {
 	if(m_rootCommands == g_rootCommands)
-		m_stream->Printf("%s@%s# ", m_username, m_hostname);
+		m_stream->Printf("%s@%s(bootloader)# ", m_username, m_hostname);
 	m_stream->Flush();
 }
 
@@ -231,7 +233,7 @@ void BootloaderCLISessionContext::LoadHostname()
 	if(hlog)
 		strncpy(m_hostname, (const char*)g_kvs->MapObject(hlog), std::min((size_t)hlog->m_len, sizeof(m_hostname)-1));
 	else
-		strncpy(m_hostname, "bootloader", sizeof(m_hostname)-1);
+		strncpy(m_hostname, "crossbar", sizeof(m_hostname)-1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -252,6 +254,11 @@ void BootloaderCLISessionContext::OnExecuteRoot()
 {
 	switch(m_command[0].m_commandID)
 	{
+		case CMD_BOOT:
+			if(ValidateAppPartition(g_appVector))
+				BootApplication(g_appVector);
+			break;
+
 		case CMD_COMMIT:
 			OnCommit();
 			break;
