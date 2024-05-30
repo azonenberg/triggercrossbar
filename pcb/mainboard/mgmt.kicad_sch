@@ -21353,6 +21353,17 @@
 		)
 		(uuid "e4ed416d-20d9-4c65-9b12-e073ccaf19ca")
 	)
+	(text "ERRATA: R134 should have connected here"
+		(exclude_from_sim no)
+		(at 352.806 48.26 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "f799a121-2ce4-4635-a278-59f3c5230264")
+	)
 	(label "3V3"
 		(at 289.56 175.26 180)
 		(fields_autoplaced yes)
