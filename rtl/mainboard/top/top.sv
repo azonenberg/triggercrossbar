@@ -119,7 +119,12 @@ module top(
 	input wire			rx1_n,
 
 	//PMOD connector
-	inout wire[7:0]		pmod_dq
+	inout wire[7:0]		pmod_dq,
+
+	//QSPI flash lines
+	inout wire[3:0]		flash_dq,
+	output wire			flash_cs_n
+	//flash SCK is CCLK pin from STARTUPE2
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -164,6 +169,46 @@ module top(
 		.qpll_refclk(qpll_refclk),
 		.qpll_refclk_lost(qpll_refclk_lost),
 		.qpll_clkout_10g3125(qpll_clkout_10g3125)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// SPI flash controller for storing bitstream
+
+	wire	cclk;
+
+	//DQ2 / WP and DQ3 / HOLD aren't used for now, tie high
+	assign flash_dq[3:2] = 2'b11;
+
+	//Drive DQ1 / SO to high-Z
+	assign flash_dq[1] = 1'bz;
+
+	//STARTUP block
+	wire	ring_clk;
+	STARTUPE2 startup(
+		.CLK(ring_clk),
+		.GSR(1'b0),
+		.GTS(1'b0),
+		.KEYCLEARB(1'b1),
+		.PACK(1'b0),
+		.PREQ(),
+		.USRCCLKO(cclk),
+		.USRCCLKTS(1'b0),
+		.USRDONEO(1'b1),
+		.USRDONETS(1'b0),
+		.CFGCLK(),
+		.CFGMCLK(ring_clk),
+		.EOS()
+		);
+
+	//SPI bus controller
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) flashBus();
+	APB_SPIHostInterface flash_spi(
+		.apb(flashBus),
+
+		.spi_sck(cclk),
+		.spi_mosi(flash_dq[0]),
+		.spi_miso(flash_dq[1]),
+		.spi_cs_n(flash_cs_n)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -488,6 +533,7 @@ module top(
 		.crossbarBus(crossbarBus),
 		.bertBus(bertBus),
 		.cryptBus(cryptBus),
+		.flashBus(flashBus),
 
 		.relay_state(relay_state),
 

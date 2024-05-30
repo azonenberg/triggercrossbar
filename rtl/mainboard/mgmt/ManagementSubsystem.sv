@@ -67,6 +67,7 @@ module ManagementSubsystem(
 	APB.requester					crossbarBus,
 	APB.requester					bertBus,
 	APB.requester					cryptBus,
+	APB.requester					flashBus,
 
 	//Tachometers for fans
 	input wire[1:0]					fan_tach,
@@ -208,7 +209,7 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Second level bridge for devices with smaller amounts of address space (starts at 0x00_0000)
 
-	localparam NUM_SMOL_DEVS		= 10;
+	localparam NUM_SMOL_DEVS		= 11;
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) smolDownstreamBus[NUM_SMOL_DEVS-1:0]();
 
@@ -355,6 +356,10 @@ module ManagementSubsystem(
 	//BERT configuration (0x00_2000)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_bert_lane0( .upstream(smolDownstreamBus[8]), .downstream(bertBus) );
+
+	//FPGA boot flash controller (0x00_2800)
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+		apb_regslice_flash( .upstream(smolDownstreamBus[10]), .downstream(flashBus) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Pipeline registers for external APB endpoints with large address space chunks
