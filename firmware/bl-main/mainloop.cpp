@@ -156,7 +156,14 @@ void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow()
 			{
 				g_bootAppTimer --;
 				if(g_bootAppTimer == 0)
-					BootApplication(g_appVector);
+				{
+					if(ValidateAppPartition(g_appVector))
+						BootApplication(g_appVector);
+					else
+						g_log(Logger::ERROR, "Application partition failed to boot\n");
+
+					g_bootAppPending = false;
+				}
 			}
 		}
 
