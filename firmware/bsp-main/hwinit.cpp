@@ -165,6 +165,11 @@ volatile ManagementTxFifo* g_eth1GTxFifo =
 volatile ManagementTxFifo* g_eth10GTxFifo =
 	reinterpret_cast<volatile ManagementTxFifo*>(FPGA_MEM_BASE + BASE_XG_TX);
 
+///@brief SPI flash controller
+volatile APB_SPIHostInterface* g_flashSpi =
+	reinterpret_cast<volatile APB_SPIHostInterface*>(FPGA_MEM_BASE + BASE_FLASH_SPI);
+
+APBSpiFlashInterface* g_fpgaFlash = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Do other initialization
@@ -442,6 +447,17 @@ void InitFPGA()
 		g_log("Bitstream timestamp: %04d-%02d-%02d %02d:%02d:%02d\n",
 			yr, mon, day, hr, min, sec);
 	}
+
+	InitFPGAFlash();
+}
+
+void InitFPGAFlash()
+{
+	g_log("Initializing FPGA flash\n");
+	LogIndenter li(g_log);
+
+	static APBSpiFlashInterface flash(g_flashSpi);
+	g_fpgaFlash = &flash;
 }
 
 /**

@@ -61,6 +61,7 @@ void SfrMemcpy(volatile void* dst, void* src, uint32_t len);
 
 #include "FPGAInterface.h"
 #include "APBFPGAInterface.h"
+#include "APBSpiFlashInterface.h"
 #include "CrossbarSSHKeyManager.h"
 
 #include <bootloader/BootloaderAPI.h>
@@ -73,6 +74,7 @@ void App_Init();
 void InitRTC();
 void InitQSPI();
 void InitFPGA();
+void InitFPGAFlash();
 void InitI2C();
 void InitEEPROM();
 void InitEthernet();
@@ -135,6 +137,7 @@ extern volatile ManagementTxFifo* g_eth1GTxFifo;
 extern volatile ManagementTxFifo* g_eth10GTxFifo;
 extern volatile APB_Curve25519* g_curve25519;
 extern volatile uint16_t* g_irqStat;
+extern volatile APB_SPIHostInterface* g_flashSpi;
 
 //Backup SRAM used for communication with bootloader
 extern volatile BootloaderBBRAM* g_bbram;
@@ -166,5 +169,8 @@ void OnEthernetLinkStateChanged();
 bool CheckForFPGAEvents();
 void TrimSpaces(char* str);
 void RegisterProtocolHandlers(IPv4Protocol& ipv4);
+
+//Flash controller for FPGA bitstream
+extern APBSpiFlashInterface* g_fpgaFlash;
 
 #endif

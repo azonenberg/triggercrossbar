@@ -27,41 +27,49 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-/**
-	@file
-	@brief Declaration of ManagementSFTPServer
- */
-#ifndef ManagementSFTPServer_h
-#define ManagementSFTPServer_h
+#ifndef FPGAFirmwareUpdater_h
+#define FPGAFirmwareUpdater_h
 
-#include "FrontPanelFirmwareUpdater.h"
-#include "FPGAFirmwareUpdater.h"
+#define BIT_RX_BUFFER_SIZE 2048
 
-class ManagementSFTPServer : public SFTPServer
+class FPGAFirmwareUpdater
 {
 public:
-	ManagementSFTPServer()
-		: m_openFile(FILE_ID_NONE)
-	{}
+	FPGAFirmwareUpdater();
 
-	virtual bool DoesFileExist(const char* path) override;
-	virtual bool CanOpenFile(const char* path, uint32_t accessMask, uint32_t flags) override;
-	virtual uint32_t OpenFile(const char* path, uint32_t accessMask, uint32_t flags) override;
-	virtual void WriteFile(uint32_t handle, uint64_t offset, const uint8_t* data, uint32_t len) override;
-	virtual bool CloseFile(uint32_t handle) override;
+	///@brief Called when the device file is opened
+	void OnDeviceOpened();
+
+	///@brief Called when new data arrives
+	void OnRxData(const uint8_t* data, uint32_t len);
+
+	///@brief Called when the device file is closed (update complete)
+	void OnDeviceClosed();
 
 protected:
-	enum FileID
+	void EraseFlashPartition();
+
+	enum
 	{
-		FILE_ID_NONE,
+		STATE_READ_BITHDR,
+		STATE_READ_BITHDR_RECORDS,
+		STATE_SYNC_WAIT,
+		STATE_BITSTREAM,
+		STATE_BIG_WRITE,
+		STATE_DONE,
+		STATE_FAILED
+	} m_state;
 
-		FILE_ID_FRONT_DFU,
-		FILE_ID_FPGA_DFU
-	} m_openFile;
+	bool ProcessDataFromBuffer();
+	bool PushWriteData();
 
-	//Firmware updater drivers
-	FrontPanelFirmwareUpdater m_frontUpdater;
-	FPGAFirmwareUpdater m_fpgaUpdater;
+	///@brief Buffer for handling incoming data
+	CircularFIFO<BIT_RX_BUFFER_SIZE> m_rxBuffer;
+
+	///@brief Buffer for handling write data
+	CircularFIFO<BIT_RX_BUFFER_SIZE> m_writeBuffer;
+
+	uint32_t m_bigWordLen;
 };
 
 #endif

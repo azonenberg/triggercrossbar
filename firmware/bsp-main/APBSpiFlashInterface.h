@@ -27,41 +27,43 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
+#ifndef APBSpiFlashInterface_h
+#define APBSpiFlashInterface_h
+
 /**
 	@file
-	@brief Declaration of ManagementSFTPServer
+	@brief Declaration of APBSpiFlashInterface
  */
-#ifndef ManagementSFTPServer_h
-#define ManagementSFTPServer_h
-
-#include "FrontPanelFirmwareUpdater.h"
-#include "FPGAFirmwareUpdater.h"
-
-class ManagementSFTPServer : public SFTPServer
+class APBSpiFlashInterface
 {
 public:
-	ManagementSFTPServer()
-		: m_openFile(FILE_ID_NONE)
-	{}
+	APBSpiFlashInterface(volatile APB_SPIHostInterface* device);
 
-	virtual bool DoesFileExist(const char* path) override;
-	virtual bool CanOpenFile(const char* path, uint32_t accessMask, uint32_t flags) override;
-	virtual uint32_t OpenFile(const char* path, uint32_t accessMask, uint32_t flags) override;
-	virtual void WriteFile(uint32_t handle, uint64_t offset, const uint8_t* data, uint32_t len) override;
-	virtual bool CloseFile(uint32_t handle) override;
+	void WriteEnable();
+	void WriteDisable();
+
+	bool EraseSector(uint32_t start);
+
+	uint8_t GetStatusRegister1();
+	uint8_t GetStatusRegister2();
+	uint8_t GetConfigRegister();
+
+	uint32_t GetEraseBlockSize()
+	{ return m_sectorSize; }
+
+	void ReadData(uint32_t addr, uint8_t* data, uint32_t len);
 
 protected:
-	enum FileID
-	{
-		FILE_ID_NONE,
 
-		FILE_ID_FRONT_DFU,
-		FILE_ID_FPGA_DFU
-	} m_openFile;
+	void SetCS(bool b);
+	void SendByte(uint8_t data);
+	uint8_t ReadByte();
 
-	//Firmware updater drivers
-	FrontPanelFirmwareUpdater m_frontUpdater;
-	FPGAFirmwareUpdater m_fpgaUpdater;
+	volatile APB_SPIHostInterface*	m_device;
+
+	uint32_t m_capacityBytes;
+	uint32_t m_maxWriteBlock;
+	uint32_t m_sectorSize;
 };
 
 #endif
