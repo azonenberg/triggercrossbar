@@ -52,6 +52,13 @@ public:
 	{ return m_sectorSize; }
 
 	void ReadData(uint32_t addr, uint8_t* data, uint32_t len);
+	bool WriteData(uint32_t addr, const uint8_t* data, uint32_t len);
+
+	uint32_t GetMinWriteBlockSize()
+	{ return 16; }
+
+	uint32_t GetMaxWriteBlockSize()
+	{ return m_maxWriteBlock; }
 
 protected:
 

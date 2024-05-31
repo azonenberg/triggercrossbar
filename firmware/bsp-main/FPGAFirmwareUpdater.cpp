@@ -77,7 +77,12 @@ const char* g_fpgaRegNames[32] =
 
 enum regids
 {
-	REG_CMD = 4
+	REG_CMD = 0x04
+};
+
+enum cmds
+{
+	CMD_DESYNC = 0x0d
 };
 
 const char* g_cmdNames[32] =
@@ -187,6 +192,7 @@ void FPGAFirmwareUpdater::OnDeviceOpened()
 	m_writeBuffer.Reset();
 	m_state = STATE_READ_BITHDR;
 	m_bigWordLen = 0;
+	m_wptr = g_fpgaImageStart;
 }
 
 void FPGAFirmwareUpdater::OnRxData(const uint8_t* data, uint32_t len)
@@ -201,20 +207,122 @@ void FPGAFirmwareUpdater::OnRxData(const uint8_t* data, uint32_t len)
 	//Process data until we run out of things to do with the current buffer contents
 	while(ProcessDataFromBuffer())
 		PushWriteData();
+	PushWriteData();
 }
 
 void FPGAFirmwareUpdater::OnDeviceClosed()
 {
+	g_log("Done, flushing remaining data\n");
+	FlushWriteData();
 
+	//TODO: reset the FPGA?
+}
+
+void FPGAFirmwareUpdater::FlushWriteData()
+{
+	if(m_state == STATE_FAILED)
+		return;
+
+	g_log("Flush: 0x%08x\n", m_wptr);
+
+	//Write any remaining full blocks
+	PushWriteData();
+
+	//Write the data
+	uint8_t rdbuf[512] = {0};
+	auto wbuf = m_writeBuffer.Rewind();
+	auto wblock = m_writeBuffer.ReadSize();
+	if(!g_fpgaFlash->WriteData(m_wptr, wbuf, wblock))
+	{
+		g_log(Logger::ERROR, "Flash write failed (at %08x)\n", m_wptr);
+		m_state = STATE_FAILED;
+		return;
+	}
+
+	//Verify it
+	g_fpgaFlash->ReadData(m_wptr, rdbuf, wblock);
+	if(0 != memcmp(rdbuf, wbuf, wblock))
+	{
+		g_log(Logger::ERROR, "Readback failed\n");
+
+		//Walk byte by byte and print out the first failing byte
+		for(uint32_t i=0; i<wblock; i++)
+		{
+			if(rdbuf[i] != wbuf[i])
+			{
+				g_log(Logger::ERROR, "At 0x%08x: read 0x%02x, expected 0x%02x\n",
+					m_wptr + i, rdbuf[i], wbuf[i]);
+				break;
+			}
+		}
+
+		m_state = STATE_FAILED;
+		return;
+	}
+
+	//Done, clear the write data
+	m_writeBuffer.Pop(wblock);
 }
 
 /**
-	@brief Push write data to the flash chip
+	@brief Push write data to the flash chip in max-sized chunks
  */
-bool FPGAFirmwareUpdater::PushWriteData()
+void FPGAFirmwareUpdater::PushWriteData()
 {
-	m_writeBuffer.Reset();
-	return false;
+	if(m_state == STATE_FAILED)
+		return;
+
+	//Make sure we have enough space for verification
+	auto wblock = g_fpgaFlash->GetMaxWriteBlockSize();
+	uint8_t rdbuf[512] = {0};
+	if(wblock > sizeof(rdbuf))
+	{
+		g_log(Logger::ERROR, "readback buffer too small\n");
+		m_state = STATE_FAILED;
+		return;
+	}
+
+	while(m_writeBuffer.ReadSize() >= wblock)
+	{
+		//Debug print
+		if( (m_wptr & 0xffff) == 0)
+			g_log("Write: 0x%08x\n", m_wptr);
+
+		//Write the data
+		auto wbuf = m_writeBuffer.Rewind();
+		if(!g_fpgaFlash->WriteData(m_wptr, wbuf, wblock))
+		{
+			g_log(Logger::ERROR, "Flash write failed (at %08x)\n", m_wptr);
+			m_state = STATE_FAILED;
+			return;
+		}
+
+		//Verify it
+		g_fpgaFlash->ReadData(m_wptr, rdbuf, wblock);
+
+		if(0 != memcmp(rdbuf, wbuf, wblock))
+		{
+			g_log(Logger::ERROR, "Readback failed\n");
+
+			//Walk byte by byte and print out the first failing byte
+			for(uint32_t i=0; i<wblock; i++)
+			{
+				if(rdbuf[i] != wbuf[i])
+				{
+					g_log(Logger::ERROR, "At 0x%08x: read 0x%02x, expected 0x%02x\n",
+						m_wptr + i, rdbuf[i], wbuf[i]);
+					break;
+				}
+			}
+
+			m_state = STATE_FAILED;
+			return;
+		}
+
+		//Done, move on
+		m_writeBuffer.Pop(wblock);
+		m_wptr += wblock;
+	}
 }
 
 /**
@@ -403,6 +511,10 @@ bool FPGAFirmwareUpdater::ProcessDataFromBuffer()
 					{
 						auto cmd = __builtin_bswap32(pheader[1]) & 0x1f;
 						g_log("Command: %02x (%s)\n", cmd, g_cmdNames[cmd]);
+
+						//we're finished after this word
+						if(cmd == CMD_DESYNC)
+							m_state = STATE_DONE;
 					}
 					else if(len == 1)
 					{
@@ -449,8 +561,33 @@ bool FPGAFirmwareUpdater::ProcessDataFromBuffer()
 		//Big write (normally to FDRI)
 		case STATE_BIG_WRITE:
 
-			//TODO: write whatever we can
-			m_rxBuffer.Reset();
+			if(m_rxBuffer.ReadSize() >= 4)
+			{
+				//See how many words we have in the buffer
+				uint32_t wordcount = m_rxBuffer.ReadSize() / 4;
+
+				//Figure out how many we actually want to process
+				//(don't run off the end of the bitstream and start reading finish-up commands)
+				if(wordcount >= m_bigWordLen)
+					wordcount = m_bigWordLen;
+
+				//Push to write buffer
+				auto ptr = m_rxBuffer.Rewind();
+				if(!m_writeBuffer.Push(ptr, 4*wordcount))
+				{
+					g_log(Logger::ERROR, "write buffer overflow\n");
+					m_state = STATE_FAILED;
+				}
+				m_rxBuffer.Pop(4*wordcount);
+				m_bigWordLen -= wordcount;
+
+				//If we're done, stop
+				if(m_bigWordLen == 0)
+				{
+					m_state = STATE_BITSTREAM;
+					return true;
+				}
+			}
 			return false;
 
 		//Clear buffer if we're done processing stuff

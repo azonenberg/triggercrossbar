@@ -38,8 +38,8 @@ APBSpiFlashInterface::APBSpiFlashInterface(volatile APB_SPIHostInterface* device
 	SetCS(1);
 	g_logTimer.Sleep(500);
 
-	//Set the clock divider to /10 (25 MHz) to start
-	g_apbfpga.BlockingWrite16(&m_device->clkdiv, 10);
+	//Set the clock divider to /50 (5 MHz) to start
+	g_apbfpga.BlockingWrite16(&m_device->clkdiv, 50);
 
 	//Read CFI data (TODO: support SFDP for SFDP flashes)
 	//The flash on the crossbar doesn't support it
@@ -196,4 +196,41 @@ void APBSpiFlashInterface::ReadData(uint32_t addr, uint8_t* data, uint32_t len)
 		data[i] = ReadByte();
 
 	SetCS(1);
+}
+
+//TODO: read back ECCSR to verify?
+
+bool APBSpiFlashInterface::WriteData(uint32_t addr, const uint8_t* data, uint32_t len)
+{
+	//TODO: chunk big writes
+	if(len > m_maxWriteBlock)
+	{
+		g_log(Logger::ERROR, "Length out of range\n");
+		return false;
+	}
+
+	WriteEnable();
+
+	//Write it
+	SetCS(0);
+	SendByte(0x12);
+	SendByte( (addr >> 24) & 0xff);
+	SendByte( (addr >> 16) & 0xff);
+	SendByte( (addr >> 8) & 0xff);
+	SendByte( (addr >> 0) & 0xff);
+	for(uint32_t i=0; i<len; i++)
+		SendByte(data[i]);
+	SetCS(1);
+
+	//Read status register and poll until write-in-progress bit is cleared
+	while( (GetStatusRegister1() & 1) == 1)
+	{}
+
+	WriteDisable();
+
+	//Check for write failure
+	if( (GetStatusRegister1() & 0x40) == 0x40)
+		return false;
+
+	return true;
 }

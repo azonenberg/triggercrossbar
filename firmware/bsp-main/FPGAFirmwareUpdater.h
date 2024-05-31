@@ -61,7 +61,8 @@ protected:
 	} m_state;
 
 	bool ProcessDataFromBuffer();
-	bool PushWriteData();
+	void PushWriteData();
+	void FlushWriteData();
 
 	///@brief Buffer for handling incoming data
 	CircularFIFO<BIT_RX_BUFFER_SIZE> m_rxBuffer;
@@ -70,6 +71,7 @@ protected:
 	CircularFIFO<BIT_RX_BUFFER_SIZE> m_writeBuffer;
 
 	uint32_t m_bigWordLen;
+	uint32_t m_wptr;
 };
 
 #endif
