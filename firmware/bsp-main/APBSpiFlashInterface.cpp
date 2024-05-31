@@ -38,6 +38,14 @@ APBSpiFlashInterface::APBSpiFlashInterface(volatile APB_SPIHostInterface* device
 	SetCS(1);
 	g_logTimer.Sleep(500);
 
+	//Reset the flash
+	SetCS(0);
+	SendByte(0xf0);
+	SetCS(1);
+
+	//Wait a bit
+	g_logTimer.Sleep(50);
+
 	//Set the clock divider to /25 (10 MHz) to start
 	g_apbfpga.BlockingWrite16(&m_device->clkdiv, 25);
 
