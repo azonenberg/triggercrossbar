@@ -30,7 +30,7 @@
 #ifndef FPGAFirmwareUpdater_h
 #define FPGAFirmwareUpdater_h
 
-#define BIT_RX_BUFFER_SIZE 2048
+#define BIT_RX_BUFFER_SIZE 4096
 
 class FPGAFirmwareUpdater
 {

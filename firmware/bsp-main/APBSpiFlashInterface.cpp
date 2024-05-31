@@ -38,8 +38,8 @@ APBSpiFlashInterface::APBSpiFlashInterface(volatile APB_SPIHostInterface* device
 	SetCS(1);
 	g_logTimer.Sleep(500);
 
-	//Set the clock divider to /50 (5 MHz) to start
-	g_apbfpga.BlockingWrite16(&m_device->clkdiv, 50);
+	//Set the clock divider to /25 (10 MHz) to start
+	g_apbfpga.BlockingWrite16(&m_device->clkdiv, 25);
 
 	//Read CFI data (TODO: support SFDP for SFDP flashes)
 	//The flash on the crossbar doesn't support it
