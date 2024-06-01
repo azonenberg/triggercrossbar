@@ -346,7 +346,7 @@ module top(
 	localparam SMOL_ADDR_WIDTH 		= 10;
 	localparam BIG_ADDR_WIDTH		= 12;
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) bertBus();
+	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) bertBus();
 
 	BERTSubsystem bert(
 

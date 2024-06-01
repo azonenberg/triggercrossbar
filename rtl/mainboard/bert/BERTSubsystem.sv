@@ -89,16 +89,16 @@ module BERTSubsystem(
 	BUFH bufh_lane1_tx(.I(lane1_txclk_raw), .O(lane1_txclk));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// APB bridge (base 0x00_2000) for SFRs
+	// APB bridge (base 0x00_b000) for SFRs
 
-	localparam ADDR_WIDTH			= 8;
+	localparam ADDR_WIDTH			= 12;
 	localparam NUM_DEVS				= 4;
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(ADDR_WIDTH), .USER_WIDTH(0)) downstreamBus[NUM_DEVS-1:0]();
 
 	APBBridge #(
 		.BASE_ADDR(24'h000_0000),
-		.BLOCK_SIZE(32'h100),
+		.BLOCK_SIZE(32'h400),
 		.NUM_PORTS(NUM_DEVS)
 	) apb_bridge (
 		.upstream(apb),
@@ -106,7 +106,7 @@ module BERTSubsystem(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Low speed GPIOs on lane 0 (0x0000_2000)
+	// Low speed GPIOs on lane 0 (0x0000_b000)
 
 	//TODO: refactor synchronizers into these blocks to reduce duplicated code
 	wire			lane0_serdes_config_updated;
@@ -121,7 +121,7 @@ module BERTSubsystem(
 		.config_updated(lane0_serdes_config_updated));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Low speed GPIOs on lane 1 (0x0000_2100)
+	// Low speed GPIOs on lane 1 (0x0000_b400)
 
 	//TODO: refactor synchronizers into these blocks to reduce duplicated code
 	wire			lane1_serdes_config_updated;
@@ -136,7 +136,7 @@ module BERTSubsystem(
 		.config_updated(lane1_serdes_config_updated));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// DRP on lane 0 (0x0000_2200)
+	// DRP on lane 0 (0x0000_b800)
 
 	wire		lane0_drp_en;
 	wire		lane0_drp_we;
@@ -163,7 +163,7 @@ module BERTSubsystem(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// DRP on lane 1 (0x0000_2300)
+	// DRP on lane 1 (0x0000_bc00)
 
 	wire		lane1_drp_en;
 	wire		lane1_drp_we;

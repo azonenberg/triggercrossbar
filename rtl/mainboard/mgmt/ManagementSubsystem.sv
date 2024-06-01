@@ -209,7 +209,7 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Second level bridge for devices with smaller amounts of address space (starts at 0x00_0000)
 
-	localparam NUM_SMOL_DEVS		= 11;
+	localparam NUM_SMOL_DEVS		= 10;
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) smolDownstreamBus[NUM_SMOL_DEVS-1:0]();
 
@@ -225,7 +225,7 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Second level bridge for devices with larger amounts of address space (starts at 0x00_8000)
 
-	localparam NUM_BIG_DEVS			= 3;
+	localparam NUM_BIG_DEVS			= 4;
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) bigDownstreamBus[NUM_BIG_DEVS-1:0]();
 
@@ -318,12 +318,12 @@ module ManagementSubsystem(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	//Interrupt status register (0x00_2400)
+	//Interrupt status register (0x00_2000)
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) irqStatusBus();
 
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_irq_status( .upstream(smolDownstreamBus[9]), .downstream(irqStatusBus) );
+		apb_regslice_irq_status( .upstream(smolDownstreamBus[8]), .downstream(irqStatusBus) );
 
 	APB_StatusRegister irqstat (
 		.apb(irqStatusBus),
@@ -353,13 +353,9 @@ module ManagementSubsystem(
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_crypt( .upstream(smolDownstreamBus[7]), .downstream(cryptBus) );
 
-	//BERT configuration (0x00_2000)
+	//FPGA boot flash controller (0x00_2400)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_bert_lane0( .upstream(smolDownstreamBus[8]), .downstream(bertBus) );
-
-	//FPGA boot flash controller (0x00_2800)
-	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
-		apb_regslice_flash( .upstream(smolDownstreamBus[10]), .downstream(flashBus) );
+		apb_regslice_flash( .upstream(smolDownstreamBus[9]), .downstream(flashBus) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Pipeline registers for external APB endpoints with large address space chunks
@@ -375,6 +371,10 @@ module ManagementSubsystem(
 	//Ethernet RX FIFO (0x00_a000)
 	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(0))
 		apb_regslice_eth_rx( .upstream(bigDownstreamBus[2]), .downstream(ethRxBus) );
+
+	//BERT configuration (00_b000)
+	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(0))
+		apb_regslice_bert_config( .upstream(bigDownstreamBus[3]), .downstream(bertBus) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Interrupt pin generation

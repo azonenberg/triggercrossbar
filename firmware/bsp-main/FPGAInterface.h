@@ -98,21 +98,19 @@ enum baseaddr_t
 	BASE_FRONT_SPI		= 0x0000'1400,		//APB_SPIHostInterface
 	BASE_MUXSEL			= 0x0000'1800,		//APB_CrossbarMatrix
 	BASE_25519			= 0x0000'1c00,		//APB_Curve25519
-
-	//BERT bridge (0x100 per node)
-	BASE_BERT_LANE0		= 0x0000'2000,		//APB_BertConfig
-	BASE_BERT_LANE1		= 0x0000'2100,		//APB_BertConfig
-	BASE_DRP_LANE0		= 0x0000'2200,		//APB_SerdesDRP
-	BASE_DRP_LANE1		= 0x0000'2300,		//APB_SerdesDRP
-
-	//More small stuff
-	BASE_IRQ_STAT		= 0x0000'2400,		//APB_StatusRegister
-	BASE_FLASH_SPI		= 0x0000'2800,		//APB_SPIHostInterface
+	BASE_IRQ_STAT		= 0x0000'2000,		//APB_StatusRegister
+	BASE_FLASH_SPI		= 0x0000'2400,		//APB_SPIHostInterface
 
 	//Root bridge, large-address branch (0x1000 per node)
 	BASE_XG_TX			= 0x0000'8000,		//Management10GTxFifo
 	BASE_1G_TX			= 0x0000'9000,		//ManagementTxFifo
-	BASE_ETH_RX			= 0x0000'a000		//ManagementRxFifo
+	BASE_ETH_RX			= 0x0000'a000,		//ManagementRxFifo
+
+	//BERT bridge (off large branch, 0x400 per node)
+	BASE_BERT_LANE0		= 0x0000'b000,		//APB_BertConfig
+	BASE_BERT_LANE1		= 0x0000'b400,		//APB_BertConfig
+	BASE_DRP_LANE0		= 0x0000'b800,		//APB_SerdesDRP
+	BASE_DRP_LANE1		= 0x0000'bc00		//APB_SerdesDRP
 };
 
 struct __attribute__((packed)) APB_SerdesDRP
