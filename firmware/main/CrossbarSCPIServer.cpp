@@ -76,6 +76,19 @@
 		[chan]:HBATHTUB?
 
 		[chan]:PRESCALE?
+
+	Logic analyzer commands:
+		LA:ARM
+		Arm the trigger
+
+		LA:TRIG?
+		Query trigger state (1=armed, 0=idle)
+
+		LA:MEMDEPTH?
+		Query total memory depth (in 32-bit words)
+
+		[chan]:DATA?
+		Read out the capture buffer
  */
 #include "triggercrossbar.h"
 #include <ctype.h>
@@ -830,6 +843,14 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 
 		UpdateClocks(chan);
 	}
+
+	//Arm the logic analyzer
+	else if(!strcmp(command, "ARM") && subject && !strcmp(subject, "LA"))
+	{
+		//TODO: single arm register for both or something?
+		//for now, only channel 0 is implemented
+		g_apbfpga.BlockingWrite16(&g_logicAnalyzer[0]->trigger, 1);
+	}
 }
 
 uint16_t CrossbarSCPIServer::SerdesDRPRead(uint8_t lane, uint16_t regid)
@@ -1334,6 +1355,51 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 			buf.Printf("%d\n", g_bertTxClkDiv[chan]);
 		else
 			buf.Printf("%d\n", g_bertRxClkDiv[chan]);
+	}
+
+	//Query LA trigger state
+	else if( !strcmp(command, "TRIG") && subject && !strcmp(subject, "LA") )
+	{
+		SocketReplyBuffer buf(m_tcp, socket);
+		buf.Printf("%d\n", g_logicAnalyzer[0]->trigger >> 7);
+	}
+
+	//Query LA memory depth
+	else if( !strcmp(command, "MEMDEPTH") && subject && !strcmp(subject, "LA") )
+	{
+		SocketReplyBuffer buf(m_tcp, socket);
+		buf.Printf("%d\n", g_logicAnalyzer[0]->buf_size);
+	}
+
+	//LA data
+	else if(!strcmp(command, "DATA"))
+	{
+		if(!subject)
+			return;
+		int chan = GetChannelID(subject);
+		if( (chan < 0) || (chan > 1) )
+			return;
+		if(subject[0] != 'R')
+			return;
+
+		//for now assume RX0
+		uint32_t bufsize = g_logicAnalyzer[0]->buf_size;
+		const uint32_t blocksize = 16;
+		uint32_t nblocks = bufsize / blocksize;
+		SocketReplyBuffer buf(m_tcp, socket);
+		for(uint32_t i=0; i<nblocks; i++)
+		{
+			uint32_t base = i*blocksize;
+			g_apbfpga.BlockingWrite32(&g_logicAnalyzer[0]->buf_addr, base);
+
+			for(uint32_t j=0; j<blocksize; j++)
+				buf.Printf("%08x,", g_logicAnalyzer[0]->rx_buf[j]);
+
+			//this outer loop takes a while, process any FPGA events that may have appeared each iteration
+			while(CheckForFPGAEvents())
+			{}
+		}
+		buf.Printf("\n");
 	}
 }
 

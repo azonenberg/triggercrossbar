@@ -83,6 +83,9 @@ public:
 	void BlockingWrite16(volatile void* addr, uint16_t data)
 	{ BlockingWrite16(reinterpret_cast<uint32_t>(addr) & 0xffffff, data); }
 
+	void BlockingWrite32(volatile void* addr, uint32_t data)
+	{ BlockingWrite32(reinterpret_cast<uint32_t>(addr) & 0xffffff, data); }
+
 	void BlockingWriteN(volatile void* addr, const void* data, uint32_t len)
 	{ BlockingWrite(reinterpret_cast<uint32_t>(const_cast<void*>(addr)) & 0xffffff, (const uint8_t*)data, len); }
 };
@@ -106,11 +109,24 @@ enum baseaddr_t
 	BASE_1G_TX			= 0x0000'9000,		//ManagementTxFifo
 	BASE_ETH_RX			= 0x0000'a000,		//ManagementRxFifo
 
-	//BERT bridge (off large branch, 0x400 per node)
+	//BERT bridge (off large branch, 0x100 per node)
 	BASE_BERT_LANE0		= 0x0000'b000,		//APB_BertConfig
-	BASE_BERT_LANE1		= 0x0000'b400,		//APB_BertConfig
-	BASE_DRP_LANE0		= 0x0000'b800,		//APB_SerdesDRP
-	BASE_DRP_LANE1		= 0x0000'bc00		//APB_SerdesDRP
+	BASE_BERT_LANE1		= 0x0000'b100,		//APB_BertConfig
+	BASE_DRP_LANE0		= 0x0000'b200,		//APB_SerdesDRP
+	BASE_DRP_LANE1		= 0x0000'b300,		//APB_SerdesDRP
+	BASE_LA_LANE0		= 0x0000'b400,		//LogicAnalyzer
+	BASE_LA_LANE1		= 0x0000'b500		//LogicAnalyzer
+};
+
+struct __attribute__((packed)) LogicAnalyzer
+{
+	uint16_t		trigger;
+	uint16_t		field_02;
+	uint32_t		buf_addr;
+	uint32_t		buf_size;
+	uint32_t		field_0c;
+	uint32_t		field_10[4];
+	uint32_t		rx_buf[16];
 };
 
 struct __attribute__((packed)) APB_SerdesDRP

@@ -103,5 +103,6 @@ extern volatile APB_GPIO* g_ledGpioOutPortActivity;
 extern volatile APB_SPIHostInterface* g_frontPanelSPI;
 extern volatile APB_BERTConfig*	g_bertConfig[2];
 extern volatile APB_SerdesDRP* g_bertDRP[2];
+extern volatile LogicAnalyzer* g_logicAnalyzer[2];
 
 #endif

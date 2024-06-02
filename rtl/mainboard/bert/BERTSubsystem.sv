@@ -92,13 +92,13 @@ module BERTSubsystem(
 	// APB bridge (base 0x00_b000) for SFRs
 
 	localparam ADDR_WIDTH			= 12;
-	localparam NUM_DEVS				= 4;
+	localparam NUM_DEVS				= 5;
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(ADDR_WIDTH), .USER_WIDTH(0)) downstreamBus[NUM_DEVS-1:0]();
 
 	APBBridge #(
 		.BASE_ADDR(24'h000_0000),
-		.BLOCK_SIZE(32'h400),
+		.BLOCK_SIZE(32'h100),
 		.NUM_PORTS(NUM_DEVS)
 	) apb_bridge (
 		.upstream(apb),
@@ -121,7 +121,7 @@ module BERTSubsystem(
 		.config_updated(lane0_serdes_config_updated));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Low speed GPIOs on lane 1 (0x0000_b400)
+	// Low speed GPIOs on lane 1 (0x0000_b100)
 
 	//TODO: refactor synchronizers into these blocks to reduce duplicated code
 	wire			lane1_serdes_config_updated;
@@ -136,7 +136,7 @@ module BERTSubsystem(
 		.config_updated(lane1_serdes_config_updated));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// DRP on lane 0 (0x0000_b800)
+	// DRP on lane 0 (0x0000_b200)
 
 	wire		lane0_drp_en;
 	wire		lane0_drp_we;
@@ -163,7 +163,7 @@ module BERTSubsystem(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// DRP on lane 1 (0x0000_bc00)
+	// DRP on lane 1 (0x0000_b300)
 
 	wire		lane1_drp_en;
 	wire		lane1_drp_we;
@@ -653,6 +653,18 @@ module BERTSubsystem(
 		lane0_8b10b_locked_or_no_commas	= lane0_8b10b_locked | lane0_8b10b_no_commas;
 		lane0_8b10b_locked_all			= &lane0_8b10b_locked_or_no_commas;
 	end
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Logic analyzer modules
+
+	//0x0000_b400
+	LogicAnalyzer la(
+		.apb(downstreamBus[4]),
+
+		.rx_clk(lane0_rxclk),
+		.rx_data(lane0_rx_data),
+		.rx_trigger(lane0_64b66b_symbol_valid && (lane0_64b66b_header == 2'b01) )
+	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Debug ILA

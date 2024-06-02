@@ -102,3 +102,10 @@ volatile APB_SerdesDRP* g_bertDRP[2] =
 	reinterpret_cast<volatile APB_SerdesDRP*>(FPGA_MEM_BASE + BASE_DRP_LANE0),
 	reinterpret_cast<volatile APB_SerdesDRP*>(FPGA_MEM_BASE + BASE_DRP_LANE1)
 };
+
+///@brief Logic analyzers
+volatile LogicAnalyzer* g_logicAnalyzer[2] =
+{
+	reinterpret_cast<volatile LogicAnalyzer*>(FPGA_MEM_BASE + BASE_LA_LANE0),
+	reinterpret_cast<volatile LogicAnalyzer*>(FPGA_MEM_BASE + BASE_LA_LANE1)
+};
