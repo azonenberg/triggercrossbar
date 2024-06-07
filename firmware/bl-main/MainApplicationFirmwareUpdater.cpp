@@ -88,31 +88,30 @@ void MainApplicationFirmwareUpdater::StartUpdate()
 
 	//Verify it's blank
 	g_log("Blank check...\n");
-	auto sr = SCB_DisableDataFaults();
-	Flash::ClearECCFaults();
-	for(uint32_t i=0; i<g_appImageSize; i+=4)
+	unsafe
 	{
-		auto rdata = g_appVector[i/4];
-		if(rdata != 0xffffffff)
+		Flash::ClearECCFaults();
+		for(uint32_t i=0; i<g_appImageSize; i+=4)
 		{
-			g_log(Logger::ERROR, "Flash is not blank (at 0x%08x, expected 0xffffffff, read 0x%08x\n",
-				g_appVector + (i/4),
-				rdata);
+			auto rdata = g_appVector[i/4];
+			if(rdata != 0xffffffff)
+			{
+				g_log(Logger::ERROR, "Flash is not blank (at 0x%08x, expected 0xffffffff, read 0x%08x\n",
+					g_appVector + (i/4),
+					rdata);
 
-			SCB_EnableDataFaults(sr);
+				m_state = STATE_FAILED;
+				return;
+			}
+		}
+		if(Flash::CheckForECCFaults())
+		{
+			g_log(Logger::ERROR, "Uncorrectable ECC error during blank check (at %08x)\n", Flash::GetFaultAddress());
+			Flash::ClearECCFaults();
 			m_state = STATE_FAILED;
 			return;
 		}
 	}
-	if(Flash::CheckForECCFaults())
-	{
-		g_log(Logger::ERROR, "Uncorrectable ECC error during blank check (at %08x)\n", Flash::GetFaultAddress());
-		Flash::ClearECCFaults();
-		SCB_EnableDataFaults(sr);
-		m_state = STATE_FAILED;
-		return;
-	}
-	SCB_EnableDataFaults(sr);
 
 	CRC::ChecksumInit();
 	m_runningLength = 0;

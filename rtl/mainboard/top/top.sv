@@ -553,12 +553,10 @@ module top(
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Debug LEDs etc
+	// Debug LEDs etc (TODO make this APB GPIO)
 
 	always_comb begin
-		led[3:2] = 0;
-		led[1] = bert.lane0_64b66b_locked;
-		led[0] = bert.lane0_8b10b_locked_all;
+		led[3:0] = 0;
 	end
 
 	assign pmod_dq[7:0] = 8'd0;

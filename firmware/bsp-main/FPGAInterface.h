@@ -115,7 +115,9 @@ enum baseaddr_t
 	BASE_DRP_LANE0		= 0x0000'b200,		//APB_SerdesDRP
 	BASE_DRP_LANE1		= 0x0000'b300,		//APB_SerdesDRP
 	BASE_LA_LANE0		= 0x0000'b400,		//LogicAnalyzer
-	BASE_LA_LANE1		= 0x0000'b500		//LogicAnalyzer
+	BASE_LA_LANE1		= 0x0000'b500,		//LogicAnalyzer
+	BASE_CDRTRIG_LANE0	= 0x0000'b600,		//CDRTrigger
+	BASE_CDRTRIG_LANE1	= 0x0000'b700		//CDRTrigger
 };
 
 struct __attribute__((packed)) LogicAnalyzer

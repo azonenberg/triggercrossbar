@@ -32,8 +32,8 @@
 module LogicAnalyzer #(
 
 	//Capture buffer size, in 32-bit words
-	//Default is 16K words so 512K bits
-	parameter		CAPTURE_BUF_SIZE = 32'h4000
+	//Default is 32K words so 1M bits
+	parameter		CAPTURE_BUF_SIZE = 32'h8000
 )(
 	APB.completer			apb,
 

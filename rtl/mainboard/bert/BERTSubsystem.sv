@@ -85,14 +85,14 @@ module BERTSubsystem(
 	wire lane1_rxclk_raw;
 	wire lane1_txclk_raw;
 
-	BUFH bufh_lane1_rx(.I(lane1_rxclk_raw), .O(lane1_rxclk));
+	BUFG bufg_lane1_rx(.I(lane1_rxclk_raw), .O(lane1_rxclk));
 	BUFH bufh_lane1_tx(.I(lane1_txclk_raw), .O(lane1_txclk));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// APB bridge (base 0x00_b000) for SFRs
 
 	localparam ADDR_WIDTH			= 12;
-	localparam NUM_DEVS				= 5;
+	localparam NUM_DEVS				= 8;
 
 	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(ADDR_WIDTH), .USER_WIDTH(0)) downstreamBus[NUM_DEVS-1:0]();
 
@@ -498,195 +498,56 @@ module BERTSubsystem(
 		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// 64b66b gearboxing for CDR triggers
+	// CDR triggers TODO
 
-	//32-to-66 is a really annoying path with a lot of muxes! Difficult to do in one clock cycle
-	//To get better performance, do 32-to-33 then 33-to-66 (simple 1:2 demux) which adds latency but is much cleaner
+	wire	lane0_cdrtrig;
+	wire	lane1_cdrtrig;
 
-	logic		lane0_64b66b_bitslip;
+	//0x0000_b600
+	CDRTrigger #(
+		.DEBUG_LA(1)
+	) lane0_cdr_trig (
+		.apb(downstreamBus[6]),
 
-	logic[65:0]	lane0_64b66b_gearbox_dout		= 0;
-	logic		lane0_64b66b_gearbox_dvalid		= 0;
+		.rx_clk(lane0_rxclk),
+		.rx_data(lane0_rx_data),
 
-	wire[32:0]	lane0_64b66b_gearbox_dout_internal;
-	wire		lane0_64b66b_gearbox_dvalid_internal;
-
-	Gearbox32ToN #(
-		.IN_WIDTH(32),
-		.OUT_WIDTH(33)
-	) lane0_gearbox66(
-		.clk(lane0_rxclk),
-		.data_in(lane0_rx_data),
-		.valid_in(1'b1),
-		.bitslip(lane0_64b66b_bitslip),
-
-		.data_out(lane0_64b66b_gearbox_dout_internal),
-		.valid_out(lane0_64b66b_gearbox_dvalid_internal)
+		.trig_out(lane0_cdrtrig)
 	);
 
-	//Demux logic
-	logic	lane0_66b_phase = 0;
-	always_ff @(posedge lane0_rxclk) begin
-		lane0_64b66b_gearbox_dvalid	<= 0;
+	//0x0000_b700
+	CDRTrigger #(
+		.DEBUG_LA(0)
+	) lane1_cdr_trig (
+		.apb(downstreamBus[7]),
 
-		if(lane0_64b66b_gearbox_dvalid_internal) begin
+		.rx_clk(lane1_rxclk),
+		.rx_data(lane1_rx_data),
 
-			lane0_66b_phase	<= !lane0_66b_phase;
-
-			//Second half
-			if(lane0_66b_phase) begin
-				lane0_64b66b_gearbox_dout[32:0]	<= lane0_64b66b_gearbox_dout_internal;
-				lane0_64b66b_gearbox_dvalid	<= 1;
-			end
-
-			else
-				lane0_64b66b_gearbox_dout[65:33]	<= lane0_64b66b_gearbox_dout_internal;
-
-		end
-
-	end
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// 64/66b decode subsystem
-
-	wire		lane0_64b66b_locked;
-
-	SymbolAligner64b66b lane0_64b66b_aligner(
-		.clk(lane0_rxclk),
-		.header_valid(lane0_64b66b_gearbox_dvalid),
-		.header(lane0_64b66b_gearbox_dout[65:64]),
-		.bitslip(lane0_64b66b_bitslip),
-		.block_sync_good(lane0_64b66b_locked));
-
-	wire		lane0_64b66b_symbol_valid;
-	wire[1:0]	lane0_64b66b_header;
-	wire[63:0]	lane0_64b66b_symbol;
-
-	Descrambler64b66b lane0_64b66b_descrambler(
-		.clk(lane0_rxclk),
-		.valid_in(lane0_64b66b_gearbox_dvalid),
-		.header_in(lane0_64b66b_gearbox_dout[65:64]),
-		.data_in(lane0_64b66b_gearbox_dout[63:0]),
-
-		.valid_out(lane0_64b66b_symbol_valid),
-		.header_out(lane0_64b66b_header),
-		.data_out(lane0_64b66b_symbol));
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// 8b0b gearboxing for CDR triggers
-
-	logic		lane0_8b10b_bitslip;
-
-	wire[39:0]	lane0_8b10b_gearbox_dout;
-	wire		lane0_8b10b_gearbox_dvalid;
-
-	Gearbox32ToN #(
-		.IN_WIDTH(32),
-		.OUT_WIDTH(40)
-	) lane0_gearbox40(
-		.clk(lane0_rxclk),
-		.data_in(lane0_rx_data),
-		.valid_in(1'b1),
-		.bitslip(lane0_8b10b_bitslip),
-
-		.data_out(lane0_8b10b_gearbox_dout),
-		.valid_out(lane0_8b10b_gearbox_dvalid)
+		.trig_out(lane1_cdrtrig)
 	);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// 8B/10B decode subsystem
-
-	//Per word decode output
-	wire[3:0]	lane0_8b10b_data_valid;
-	wire[7:0]	lane0_8b10b_data[3:0];
-	wire[3:0]	lane0_8b10b_data_is_ctl;
-	wire[3:0]	lane0_8b10b_disparity_err;
-	wire[3:0]	lane0_8b10b_symbol_err;
-
-	//Look for commas in each pair of adjacent lanes
-	wire[3:0]	lane0_8b10b_locked;
-	wire[3:0]	lane0_8b10b_no_commas;
-	wire[3:0]	lane0_8b10b_lane_bitslip;
-
-	//Sliding window of last 50 bits
-	logic[9:0]	old_lsb_ff = 0;
-	always_ff @(posedge lane0_rxclk) begin
-		if(lane0_8b10b_gearbox_dvalid)
-			old_lsb_ff	<= lane0_8b10b_gearbox_dout[9:0];
-	end
-	wire[49:0]	rx_window = {old_lsb_ff, lane0_8b10b_gearbox_dout};
-
-	for(genvar g=0; g<4; g=g+1) begin : decoders
-
-		//The actual line decoder block
-		Decode8b10b lane0_8b10b_decode(
-			.clk(lane0_rxclk),
-			.codeword_valid(lane0_8b10b_gearbox_dvalid),
-			.codeword_in(lane0_8b10b_gearbox_dout[10*g +: 10]),
-
-			.data_valid(lane0_8b10b_data_valid[g]),
-			.data(lane0_8b10b_data[g]),
-			.data_is_ctl(lane0_8b10b_data_is_ctl[g]),
-			.disparity_err(lane0_8b10b_disparity_err[g]),
-			.symbol_err(lane0_8b10b_symbol_err[g]),
-			.locked(),
-			.bitslip()
-		);
-
-		//Symbol aligner looking at a 20-bit sliding window around our symbol
-		SymbolAligner8b10b lane0_aligner(
-			.clk(lane0_rxclk),
-			.codeword_valid(lane0_8b10b_gearbox_dvalid),
-			.comma_window(rx_window[g*10 +: 20]),
-
-			.locked(lane0_8b10b_locked[g]),
-			.no_commas(lane0_8b10b_no_commas[g]),
-			.bitslip(lane0_8b10b_lane_bitslip[g])
-			);
-
-	end
-
-	logic		lane0_8b10b_locked_all;
-	logic[3:0]	lane0_8b10b_locked_or_no_commas;
-	always_comb begin
-		lane0_8b10b_bitslip 			= |lane0_8b10b_lane_bitslip;
-		lane0_8b10b_locked_or_no_commas	= lane0_8b10b_locked | lane0_8b10b_no_commas;
-		lane0_8b10b_locked_all			= &lane0_8b10b_locked_or_no_commas;
-	end
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Logic analyzer modules
 
+	//TODO: shared, synchronized trigger
+
 	//0x0000_b400
-	LogicAnalyzer la(
+	LogicAnalyzer lane0_la(
 		.apb(downstreamBus[4]),
 
 		.rx_clk(lane0_rxclk),
 		.rx_data(lane0_rx_data),
-		.rx_trigger(lane0_64b66b_symbol_valid && (lane0_64b66b_header == 2'b01) )
+		.rx_trigger(lane0_cdrtrig)
 	);
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Debug ILA
+	//0x0000_b500
+	LogicAnalyzer lane1_la(
+		.apb(downstreamBus[5]),
 
-	ila_0 ila(
-		.clk(lane0_rxclk),
-		.probe0(lane0_8b10b_locked),
-		.probe1(lane0_8b10b_symbol_err),
-		.probe2(lane0_8b10b_disparity_err),
-		.probe3(lane0_8b10b_data[0]),
-		.probe4(lane0_8b10b_data[1]),
-		.probe5(lane0_8b10b_data[2]),
-		.probe6(lane0_8b10b_data[3]),
-		.probe7(lane0_8b10b_data_is_ctl),
-		.probe8(lane0_8b10b_locked_all),
-		.probe9(lane0_8b10b_no_commas),
-		.probe10(lane0_64b66b_gearbox_dvalid),
-		.probe11(lane0_64b66b_gearbox_dout),
-		.probe12(lane0_64b66b_locked),
-		.probe13(lane0_64b66b_symbol_valid),
-		.probe14(lane0_64b66b_symbol),
-		.probe15(lane0_64b66b_header)
-		);
+		.rx_clk(lane1_rxclk),
+		.rx_data(lane1_rx_data),
+		.rx_trigger(1'b0)
+	);
 
 endmodule
