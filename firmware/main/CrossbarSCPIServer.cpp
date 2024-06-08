@@ -87,6 +87,9 @@
 		LA:MEMDEPTH?
 		Query total memory depth (in 32-bit words)
 
+		LA:TRIGPOS / TRIGPOS?
+		Set/query trigger position (in 32-bit words)
+
 		[chan]:DATA?
 		Read out the capture buffer
  */
@@ -848,8 +851,20 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 	else if(!strcmp(command, "ARM") && subject && !strcmp(subject, "LA"))
 	{
 		//TODO: single arm register for both or something?
-		//for now, only channel 0 is implemented
+		//for now, arm both and hope they both see the same trigger event
 		g_apbfpga.BlockingWrite16(&g_logicAnalyzer[0]->trigger, 1);
+		g_apbfpga.BlockingWrite16(&g_logicAnalyzer[1]->trigger, 1);
+	}
+
+	//Set trigger position
+	else if(!strcmp(command, "TRIGPOS") && subject && !strcmp(subject, "LA"))
+	{
+		if(!args)
+			return;
+
+		auto pos = atoi(args);
+		g_apbfpga.BlockingWrite32(&g_logicAnalyzer[0]->trig_offset, pos);
+		g_apbfpga.BlockingWrite32(&g_logicAnalyzer[1]->trig_offset, pos);
 	}
 }
 
@@ -1369,6 +1384,13 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 	{
 		SocketReplyBuffer buf(m_tcp, socket);
 		buf.Printf("%d\n", g_logicAnalyzer[0]->buf_size);
+	}
+
+	//Query LA trigger position
+	else if( !strcmp(command, "TRIGPOS") && subject && !strcmp(subject, "LA") )
+	{
+		SocketReplyBuffer buf(m_tcp, socket);
+		buf.Printf("%d\n", g_logicAnalyzer[0]->trig_offset);
 	}
 
 	//LA data

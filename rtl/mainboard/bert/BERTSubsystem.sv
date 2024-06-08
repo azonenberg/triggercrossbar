@@ -533,21 +533,48 @@ module BERTSubsystem(
 	//TODO: shared, synchronized trigger
 
 	//0x0000_b400
+	wire	la0_trig;
 	LogicAnalyzer lane0_la(
 		.apb(downstreamBus[4]),
 
 		.rx_clk(lane0_rxclk),
 		.rx_data(lane0_rx_data),
-		.rx_trigger(lane0_cdrtrig)
+		.rx_trigger(la0_trig)
 	);
 
 	//0x0000_b500
+	wire	la1_trig;
 	LogicAnalyzer lane1_la(
 		.apb(downstreamBus[5]),
 
 		.rx_clk(lane1_rxclk),
 		.rx_data(lane1_rx_data),
-		.rx_trigger(1'b0)
+		.rx_trigger(la1_trig)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Synchronize trigger source from wherever it came from down to each LA's clock domain
+
+	//muxed trigger signals without any CDC
+	wire	la0_trig_muxed = lane0_cdrtrig;
+	wire	la1_trig_muxed = lane0_cdrtrig;
+
+	ThreeStageSynchronizer #(
+		.IN_REG(0)
+	) sync_la0_trig (
+		.clk_in(),
+		.din(la0_trig_muxed),
+		.clk_out(lane0_rxclk),
+		.dout(la0_trig)
+	);
+
+	ThreeStageSynchronizer #(
+		.IN_REG(0)
+	) sync_la1_trig (
+		.clk_in(),
+		.din(la1_trig_muxed),
+		.clk_out(lane1_rxclk),
+		.dout(la1_trig)
 	);
 
 endmodule

@@ -126,7 +126,7 @@ struct __attribute__((packed)) LogicAnalyzer
 	uint16_t		field_02;
 	uint32_t		buf_addr;
 	uint32_t		buf_size;
-	uint32_t		field_0c;
+	uint32_t		trig_offset;
 	uint32_t		field_10[4];
 	uint32_t		rx_buf[16];
 };

@@ -155,7 +155,7 @@ module LogicAnalyzer #(
 				if(rx_trigger) begin
 					la_state	<= LA_STATE_CAPTURE;
 					trig_addr	<= mem_wr_addr;
-					end_addr	<= mem_wr_addr + trigger_pos;
+					end_addr	<= mem_wr_addr + (CAPTURE_BUF_SIZE - trigger_pos);
 				end
 
 			end	//LA_STATE_ARMED
@@ -184,20 +184,23 @@ module LogicAnalyzer #(
 
 	typedef enum logic[apb.ADDR_WIDTH-1:0]
 	{
-		REG_TRIGGER		= 'h00,		//0		Trigger arm request (write only)
-									//7 	Trigger idle flag (indicates we're in STATE_DISARMED)
+		REG_TRIGGER			= 'h00,		//0		Trigger arm request (write only)
+										//7 	Trigger idle flag (indicates we're in STATE_DISARMED)
 
-		REG_BUF_ADDR	= 'h04,		//Offset of RX_BUF within the capture buffer
-									//For example BUF_ADDR='h42 means APB address 10 maps to 'h42,
-									//address 11 maps to 'h43, etc
-		REG_BUF_ADDR_HI	= 'h06,		//high half of REG_BUF_ADDR
+		REG_BUF_ADDR		= 'h04,		//Offset of RX_BUF within the capture buffer
+										//For example BUF_ADDR='h42 means APB address 10 maps to 'h42,
+										//address 11 maps to 'h43, etc
+		REG_BUF_ADDR_HI		= 'h06,		//high half of REG_BUF_ADDR
 
-		REG_BUF_SIZE	= 'h08,		//size of the capture memory buffer
-									//(app is free to not read it all, but hardware always runs full depth)
-		REG_BUF_SIZE_HI	= 'h0a,
+		REG_BUF_SIZE		= 'h08,		//size of the capture memory buffer
+										//(app is free to not read it all, but hardware always runs full depth)
+		REG_BUF_SIZE_HI		= 'h0a,
+
+		REG_TRIG_OFFSET		= 'h0c,		//Offset of the trigger (in 32-sample words) within the capture buffer
+		REG_TRIG_OFFSET_HI	= 'h0e,
 
 
-		REG_RX_BUF		= 'h20		//Capture buffer window (memory mapped)
+		REG_RX_BUF			= 'h20		//Capture buffer window (memory mapped)
 	} regid_t;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -322,6 +325,9 @@ module LogicAnalyzer #(
 					REG_BUF_SIZE:		apb.prdata = CAPTURE_BUF_SIZE[15:0];
 					REG_BUF_SIZE_HI:	apb.prdata = CAPTURE_BUF_SIZE[31:16];
 
+					REG_TRIG_OFFSET:	apb.prdata = trigger_pos;
+					REG_TRIG_OFFSET_HI:	apb.prdata = 16'h0;
+
 					//assume it's a read from RX_BUF
 					default: begin
 						if(apb.paddr[1])
@@ -349,6 +355,9 @@ module LogicAnalyzer #(
 						if(ADDR_BITS > 16)
 							rd_base_addr[ADDR_BITS-1:16]	= apb.pwdata[ADDR_BITS-17:0];
 						prefetch_start			= 1;
+					end
+
+					REG_TRIG_OFFSET: begin
 					end
 
 					//nothing else is writable
@@ -395,6 +404,12 @@ module LogicAnalyzer #(
 			prefetch_count_ff	<= prefetch_count;
 			prefetch_count_ff2	<= prefetch_count_ff;
 			prefetch_valid		<= mem_rd_en;
+
+			//registered writes
+			if(apb.pready && apb.pwrite) begin
+				if(apb.paddr == REG_TRIG_OFFSET)
+					trigger_pos	<= apb.pwdata;
+			end
 
 		end
 

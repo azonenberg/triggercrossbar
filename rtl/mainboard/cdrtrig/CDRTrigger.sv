@@ -395,7 +395,9 @@ module CDRTrigger #(
 			.probe12(rx_64b66b_locked),
 			.probe13(rx_64b66b_symbol_valid),
 			.probe14(rx_64b66b_symbol),
-			.probe15(rx_64b66b_header)
+			.probe15(rx_64b66b_header),
+
+			.probe16(trig_out)
 			);
 	end
 
