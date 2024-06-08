@@ -1412,10 +1412,10 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		for(uint32_t i=0; i<nblocks; i++)
 		{
 			uint32_t base = i*blocksize;
-			g_apbfpga.BlockingWrite32(&g_logicAnalyzer[0]->buf_addr, base);
+			g_apbfpga.BlockingWrite32(&g_logicAnalyzer[chan]->buf_addr, base);
 
 			for(uint32_t j=0; j<blocksize; j++)
-				buf.Printf("%08x,", g_logicAnalyzer[0]->rx_buf[j]);
+				buf.Printf("%08x,", g_logicAnalyzer[chan]->rx_buf[j]);
 
 			//this outer loop takes a while, process any FPGA events that may have appeared each iteration
 			while(CheckForFPGAEvents())
