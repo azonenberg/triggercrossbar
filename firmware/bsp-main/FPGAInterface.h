@@ -162,9 +162,11 @@ struct __attribute__((packed)) APB_BERTConfig
 struct __attribute__((packed)) APB_SPIHostInterface
 {
 	uint16_t		clkdiv;
+	uint16_t		field_02;
 	uint16_t		data;
+	uint16_t		field_06;
 	uint16_t		cs_n;
-	uint16_t		field_06[13];
+	uint16_t		field_0a[11];
 	uint16_t		status;
 	uint16_t		field_22[15];
 	uint16_t		status2;
