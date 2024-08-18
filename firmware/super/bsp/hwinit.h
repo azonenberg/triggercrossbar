@@ -27,52 +27,34 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-/**
-	@file
-	@brief Declaration of QSPIEthernetInterface
- */
+#ifndef hwinit_h
+#define hwinit_h
 
-#ifndef QSPIEthernetInterface_h
-#define QSPIEthernetInterface_h
+#include <peripheral/ADC.h>
+#include <peripheral/EXTI.h>
+#include <peripheral/Flash.h>
+#include <peripheral/GPIO.h>
+#include <peripheral/I2C.h>
+#include <peripheral/SPI.h>
+#include <peripheral/UART.h>
 
-#include <stm32.h>
-#include <embedded-utils/FIFO.h>
-#include <staticnet/drivers/base/EthernetInterface.h>
+#include <supervisor/supervisor-common.h>
 
-///@brief Number of frame buffers to allocate for frame reception
-#define QSPI_RX_BUFCOUNT 8
+///@brief Initialize application-specific hardware stuff
+extern void App_Init();
 
-///@brief Number of frame buffers to allocate for frame transmission
-#define QSPI_TX_BUFCOUNT 32
+extern uint32_t g_spiRxFifoOverflows;
 
-/**
-	@brief Ethernet driver using FPGA based MAC attached over quad SPI
- */
-class QSPIEthernetInterface : public EthernetInterface
-{
-public:
-	QSPIEthernetInterface();
-	virtual ~QSPIEthernetInterface();
+//Common ISRs used by application and bootloader
+void SPI_CSHandler();
+void SPI1_Handler();
+void USART2_Handler();
 
-	virtual EthernetFrame* GetTxFrame() override;
-	virtual void SendTxFrame(EthernetFrame* frame, bool markFree=true) override;
-	virtual void CancelTxFrame(EthernetFrame* frame) override;
-	virtual EthernetFrame* GetRxFrame() override;
-	virtual void ReleaseRxFrame(EthernetFrame* frame) override;
+//GPIOs
+extern GPIOPin g_faultLED;
+extern GPIOPin g_sysokLED;
+extern GPIOPin g_1v2_pgood;
 
-protected:
-
-	///@brief RX packet buffers
-	EthernetFrame m_rxBuffers[QSPI_RX_BUFCOUNT];
-
-	///@brief FIFO of RX buffers available for use
-	FIFO<EthernetFrame*, QSPI_RX_BUFCOUNT> m_rxFreeList;
-
-	///@brief TX packet buffers
-	EthernetFrame m_txBuffers[QSPI_TX_BUFCOUNT];
-
-	///@brief FIFO of TX buffers available for use
-	FIFO<EthernetFrame*, QSPI_TX_BUFCOUNT> m_txFreeList;
-};
+void InitGPIOs();
 
 #endif

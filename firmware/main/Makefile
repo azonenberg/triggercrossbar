@@ -7,6 +7,7 @@ CXXFLAGS=-g -O3 --std=c++17 -Wall -Wextra \
 	-I$(ROOTDIR)/stm32-cpp/src \
 	-I$(ROOTDIR)/common-embedded-platform/ \
 	-I$(SRCDIR)/../bsp-main/ \
+	-I$(ROOTDIR)/antikernel-ipcores/cpp-wrappers \
 	-DMICROKVS_WRITE_BLOCK_SIZE=32 \
 	-DTEST_BANK_SIZE=131072 \
 	-DMAX_TOKEN_LEN=96 \
@@ -55,10 +56,9 @@ all:
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/ssh/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/cpu/*.* || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/cli/*.cpp || exit 1
-	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/util/*.cpp || exit 1
+	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/embedded-utils/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/newlib-stubs/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/peripheral/*.cpp || exit 1
-	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/util/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/devices/src/stm32h735.cpp || exit 1
 	$(CXX) $(CXXFLAGS) *.o $(LDFLAGS) -o ../firmware.elf
 	cd ../

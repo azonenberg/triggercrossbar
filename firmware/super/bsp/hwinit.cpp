@@ -29,50 +29,100 @@
 
 /**
 	@file
-	@brief Declaration of QSPIEthernetInterface
+	@author	Andrew D. Zonenberg
+	@brief	Boot-time hardware initialization
  */
+#include <core/platform.h>
+#include <supervisor/supervisor-common.h>
+#include "hwinit.h"
+#include <peripheral/Power.h>
 
-#ifndef QSPIEthernetInterface_h
-#define QSPIEthernetInterface_h
+void InitSPI();
 
-#include <stm32.h>
-#include <embedded-utils/FIFO.h>
-#include <staticnet/drivers/base/EthernetInterface.h>
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Common global hardware config used by both bootloader and application
 
-///@brief Number of frame buffers to allocate for frame reception
-#define QSPI_RX_BUFCOUNT 8
+//UART console
+//USART2 is on APB1 (32MHz), so we need a divisor of 277.77, round to 278
+UART<16, 256> g_uart(&USART2, 278);
 
-///@brief Number of frame buffers to allocate for frame transmission
-#define QSPI_TX_BUFCOUNT 32
+//SPI bus to the main MCU
+SPI<64, 64> g_spi(&SPI1, true, 2, false);
 
-/**
-	@brief Ethernet driver using FPGA based MAC attached over quad SPI
- */
-class QSPIEthernetInterface : public EthernetInterface
+//I2C1 runs off our kernel clock (32 MHz)
+//Prescale by 8 to get 4 MHz
+//Divide by 10 after that to get 400 kHz
+I2C g_i2c(&I2C1, 8, 10);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Low level init
+
+void BSP_InitUART()
 {
-public:
-	QSPIEthernetInterface();
-	virtual ~QSPIEthernetInterface();
+	//Initialize the UART for local console: 115.2 Kbps
+	GPIOPin uart_tx(&GPIOB, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 0);
+	GPIOPin uart_rx(&GPIOB, 7, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 0);
 
-	virtual EthernetFrame* GetTxFrame() override;
-	virtual void SendTxFrame(EthernetFrame* frame, bool markFree=true) override;
-	virtual void CancelTxFrame(EthernetFrame* frame) override;
-	virtual EthernetFrame* GetRxFrame() override;
-	virtual void ReleaseRxFrame(EthernetFrame* frame) override;
+	g_logTimer.Sleep(10);	//wait for UART pins to be high long enough to remove any glitches during powerup
 
-protected:
+	//Enable the UART interrupt
+	NVIC_EnableIRQ(28);
+}
 
-	///@brief RX packet buffers
-	EthernetFrame m_rxBuffers[QSPI_RX_BUFCOUNT];
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Common features shared by both application and bootloader
 
-	///@brief FIFO of RX buffers available for use
-	FIFO<EthernetFrame*, QSPI_RX_BUFCOUNT> m_rxFreeList;
+void BSP_Init()
+{
+	//Bring up the IBC before powering up the rest of the system
+	InitGPIOs();
+	Super_Init();
+	InitSPI();
 
-	///@brief TX packet buffers
-	EthernetFrame m_txBuffers[QSPI_TX_BUFCOUNT];
+	App_Init();
+}
 
-	///@brief FIFO of TX buffers available for use
-	FIFO<EthernetFrame*, QSPI_TX_BUFCOUNT> m_txFreeList;
-};
+void InitSPI()
+{
+	g_log("Initializing management SPI bus\n");
 
-#endif
+	//Set up GPIOs for management bus
+	static GPIOPin mgmt_sck(&GPIOA, 5, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
+	static GPIOPin mgmt_mosi(&GPIOA, 7, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
+	static GPIOPin mgmt_cs_n(&GPIOA, 4, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
+	static GPIOPin mgmt_miso(&GPIOA, 6, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_FAST, 0);
+
+	//Save the CS# pin
+	g_spiCS = &mgmt_cs_n;
+
+	//Set up IRQ7 for SPI CS# (PA4) change
+	RCCHelper::EnableSyscfg();
+	NVIC_EnableIRQ(7);
+	EXTI::SetExtInterruptMux(4, EXTI::PORT_A);
+	EXTI::EnableChannel(4);
+	EXTI::EnableFallingEdgeTrigger(4);
+
+	//Set up IRQ25 as SPI1 interrupt
+	NVIC_EnableIRQ(25);
+	g_spi.EnableRxInterrupt();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// GPIOs for all of the rail enables
+
+void InitGPIOs()
+{
+	g_log("Initializing GPIOs\n");
+
+	//all PGOOD have external resistors on this board, no need to add our own
+	//... except R28 got knocked off the prototype during rework and I didn't feel like putting it back on
+	g_1v2_pgood.SetPullMode(GPIOPin::PULL_UP);
+
+	//turn off all LEDs
+	g_faultLED = 0;
+	g_sysokLED = 0;
+
+	//Set up GPIOs for I2C bus
+	static GPIOPin i2c_scl(&GPIOA, 9, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 1, true);
+	static GPIOPin i2c_sda(&GPIOA, 10, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 1, true);
+}

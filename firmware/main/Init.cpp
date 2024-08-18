@@ -35,7 +35,7 @@
 
 #include "triggercrossbar.h"
 #include <ctype.h>
-#include "../super/superregs.h"
+#include <supervisor/SupervisorSPIRegisters.h>
 
 /**
 	@brief Set all bidir ports to input so we know what state they're in
@@ -155,6 +155,7 @@ void InitSupervisor()
 	g_superSPI.BlockingWrite(SUPER_REG_VERSION);
 	g_superSPI.WaitForWrites();
 	g_superSPI.DiscardRxData();
+	g_logTimer.Sleep(5);
 	g_superSPI.BlockingRead();	//discard dummy byte
 	for(size_t i=0; i<sizeof(g_superVersion); i++)
 		g_superVersion[i] = g_superSPI.BlockingRead();
@@ -167,6 +168,7 @@ void InitSupervisor()
 	g_superSPI.BlockingWrite(SUPER_REG_IBCVERSION);
 	g_superSPI.WaitForWrites();
 	g_superSPI.DiscardRxData();
+	g_logTimer.Sleep(5);
 	g_superSPI.BlockingRead();	//discard dummy byte
 	for(size_t i=0; i<sizeof(g_ibcVersion); i++)
 		g_ibcVersion[i] = g_superSPI.BlockingRead();

@@ -29,50 +29,60 @@
 
 /**
 	@file
-	@brief Declaration of QSPIEthernetInterface
+	@author	Andrew D. Zonenberg
+	@brief	ISRs shared by bootloader and application
  */
+#include <core/platform.h>
+#include "hwinit.h"
 
-#ifndef QSPIEthernetInterface_h
-#define QSPIEthernetInterface_h
+uint32_t g_spiRxFifoOverflows = 0;
 
-#include <stm32.h>
-#include <embedded-utils/FIFO.h>
-#include <staticnet/drivers/base/EthernetInterface.h>
+void USART2_Handler();
 
-///@brief Number of frame buffers to allocate for frame reception
-#define QSPI_RX_BUFCOUNT 8
-
-///@brief Number of frame buffers to allocate for frame transmission
-#define QSPI_TX_BUFCOUNT 32
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ISRs
 
 /**
-	@brief Ethernet driver using FPGA based MAC attached over quad SPI
+	@brief GPIO interrupt used for SPI chip select
  */
-class QSPIEthernetInterface : public EthernetInterface
+void SPI_CSHandler()
 {
-public:
-	QSPIEthernetInterface();
-	virtual ~QSPIEthernetInterface();
+	//for now only trigger on falling edge so no need to check
+	g_spi.OnIRQCSEdge(false);
 
-	virtual EthernetFrame* GetTxFrame() override;
-	virtual void SendTxFrame(EthernetFrame* frame, bool markFree=true) override;
-	virtual void CancelTxFrame(EthernetFrame* frame) override;
-	virtual EthernetFrame* GetRxFrame() override;
-	virtual void ReleaseRxFrame(EthernetFrame* frame) override;
+	//Acknowledge the interrupt
+	EXTI::ClearPending(4);
+}
 
-protected:
+/**
+	@brief SPI data interrupt
+ */
+void SPI1_Handler()
+{
+	if(SPI1.SR & SPI_RX_NOT_EMPTY)
+	{
+		if(!g_spi.OnIRQRxData(SPI1.DR))
+			g_spiRxFifoOverflows ++;
+	}
+	if(SPI1.SR & SPI_TX_EMPTY)
+	{
+		if(g_spi.HasNextTxByte())
+			SPI1.DR = g_spi.GetNextTxByte();
 
-	///@brief RX packet buffers
-	EthernetFrame m_rxBuffers[QSPI_RX_BUFCOUNT];
+		//if no data to send, disable the interrupt
+		else
+			SPI1.CR2 &= ~SPI_TXEIE;
+	}
+}
 
-	///@brief FIFO of RX buffers available for use
-	FIFO<EthernetFrame*, QSPI_RX_BUFCOUNT> m_rxFreeList;
+/**
+	@brief USART2 interrupt
+ */
+void USART2_Handler()
+{
+	if(USART2.ISR & USART_ISR_TXE)
+		g_uart.OnIRQTxEmpty();
 
-	///@brief TX packet buffers
-	EthernetFrame m_txBuffers[QSPI_TX_BUFCOUNT];
-
-	///@brief FIFO of TX buffers available for use
-	FIFO<EthernetFrame*, QSPI_TX_BUFCOUNT> m_txFreeList;
-};
-
-#endif
+	if(USART2.ISR & USART_ISR_RXNE)
+		g_uart.OnIRQRxData();
+}

@@ -37,7 +37,7 @@
 #include <peripheral/Power.h>
 #include <peripheral/SPI.h>
 
-#include <util/StringBuffer.h>
+#include <embedded-utils/StringBuffer.h>
 
 #include "net/ManagementTCPProtocol.h"
 #include "net/ManagementUDPProtocol.h"

@@ -27,52 +27,37 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-/**
-	@file
-	@brief Declaration of QSPIEthernetInterface
- */
+#ifndef supervisor_h
+#define supervisor_h
 
-#ifndef QSPIEthernetInterface_h
-#define QSPIEthernetInterface_h
+#include <supervisor/supervisor-common.h>
+#include <supervisor/PowerResetSupervisor.h>
 
-#include <stm32.h>
-#include <embedded-utils/FIFO.h>
-#include <staticnet/drivers/base/EthernetInterface.h>
+//#include <bootloader/BootloaderAPI.h>
+#include "../bsp/hwinit.h"
 
-///@brief Number of frame buffers to allocate for frame reception
-#define QSPI_RX_BUFCOUNT 8
-
-///@brief Number of frame buffers to allocate for frame transmission
-#define QSPI_TX_BUFCOUNT 32
-
-/**
-	@brief Ethernet driver using FPGA based MAC attached over quad SPI
- */
-class QSPIEthernetInterface : public EthernetInterface
+///@brief Project-specific supervisor class with hooks for controlling LEDs on panic
+class CrossbarPowerResetSupervisor : public PowerResetSupervisor
 {
 public:
-	QSPIEthernetInterface();
-	virtual ~QSPIEthernetInterface();
-
-	virtual EthernetFrame* GetTxFrame() override;
-	virtual void SendTxFrame(EthernetFrame* frame, bool markFree=true) override;
-	virtual void CancelTxFrame(EthernetFrame* frame) override;
-	virtual EthernetFrame* GetRxFrame() override;
-	virtual void ReleaseRxFrame(EthernetFrame* frame) override;
+	CrossbarPowerResetSupervisor(etl::ivector<RailDescriptor*>& rails, etl::ivector<ResetDescriptor*>& resets)
+	: PowerResetSupervisor(rails, resets)
+	{}
 
 protected:
+	virtual void OnFault() override
+	{
+		//Set LEDs to fault state
+		g_faultLED = 1;
+		g_sysokLED = 0;
+		//we have no pgood LED
 
-	///@brief RX packet buffers
-	EthernetFrame m_rxBuffers[QSPI_RX_BUFCOUNT];
-
-	///@brief FIFO of RX buffers available for use
-	FIFO<EthernetFrame*, QSPI_RX_BUFCOUNT> m_rxFreeList;
-
-	///@brief TX packet buffers
-	EthernetFrame m_txBuffers[QSPI_TX_BUFCOUNT];
-
-	///@brief FIFO of TX buffers available for use
-	FIFO<EthernetFrame*, QSPI_TX_BUFCOUNT> m_txFreeList;
+		//Hang until reset, don't attempt to auto restart
+		while(1)
+		{}
+	}
 };
+
+extern CrossbarPowerResetSupervisor g_super;
 
 #endif

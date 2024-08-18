@@ -30,7 +30,7 @@
 #include "triggercrossbar.h"
 #include "CrossbarCLISessionContext.h"
 #include "../front/regids.h"
-#include "../super/superregs.h"
+#include <supervisor/SupervisorSPIRegisters.h>
 
 void LogTemperatures();
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value);
@@ -425,6 +425,7 @@ uint16_t SupervisorRegRead(uint8_t regid)
 	g_superSPI.BlockingWrite(regid);
 	g_superSPI.WaitForWrites();
 	g_superSPI.DiscardRxData();
+	g_logTimer.Sleep(5);
 	g_superSPI.BlockingRead();	//discard dummy byte
 	uint16_t tmp = g_superSPI.BlockingRead();
 	tmp |= (g_superSPI.BlockingRead() << 8);

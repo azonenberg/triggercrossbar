@@ -16,3 +16,9 @@
 [submodule "common-embedded-platform"]
 	path = common-embedded-platform
 	url = ../common-embedded-platform.git
+[submodule "etl"]
+	path = etl
+	url = https://github.com/ETLCPP/etl
+[submodule "embedded-utils"]
+	path = embedded-utils
+	url = ../embedded-utils.git
