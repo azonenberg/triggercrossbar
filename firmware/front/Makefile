@@ -28,7 +28,9 @@ all:
 	$(CXX) $(ROOTDIR)/firmware/bsp-front/*.cpp -c $(CXXFLAGS) || exit 1
 	$(CXX) $(ROOTDIR)/stm32-cpp/src/newlib-stubs/*.cpp -c $(CXXFLAGS) || exit 1
 	$(CXX) $(ROOTDIR)/stm32-cpp/src/peripheral/*.cpp -c $(CXXFLAGS) || exit 1
-	$(CXX) $(ROOTDIR)/stm32-cpp/src/util/*.cpp -c $(CXXFLAGS) || exit 1
+	$(CXX) $(ROOTDIR)/embedded-utils/CharacterDevice.cpp -c $(CXXFLAGS) || exit 1
+	$(CXX) $(ROOTDIR)/embedded-utils/Logger.cpp -c $(CXXFLAGS) || exit 1
+	$(CXX) $(ROOTDIR)/embedded-utils/StringHelpers.cpp -c $(CXXFLAGS) || exit 1
 	$(CXX) $(ROOTDIR)/stm32-cpp/devices/src/stm32l431.cpp -c $(CXXFLAGS) || exit 1
 	$(CXX) $(CXXFLAGS) *.o $(LDFLAGS) -o ../firmware.elf
 	cd ..

@@ -30,6 +30,7 @@
 #ifndef hwinit_h
 #define hwinit_h
 
+#include <peripheral/EXTI.h>
 #include <peripheral/Flash.h>
 #include <peripheral/GPIO.h>
 #include <peripheral/UART.h>

@@ -50,7 +50,7 @@ void SPI_CSHandler()
 	g_fpgaSPI.OnIRQCSEdge(false);
 
 	//Acknowledge the interrupt
-	EXTI.PR1 |= 1;
+	EXTI::ClearPending(0);
 }
 
 /**

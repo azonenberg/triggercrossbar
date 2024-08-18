@@ -35,8 +35,8 @@
 #include <peripheral/ADC.h>
 #include <peripheral/I2C.h>
 
-#include <util/FIFO.h>
-#include <util/StringBuffer.h>
+#include <embedded-utils/FIFO.h>
+#include <embedded-utils/StringBuffer.h>
 
 #include <bootloader/BootloaderAPI.h>
 #include "../bsp-front/hwinit.h"

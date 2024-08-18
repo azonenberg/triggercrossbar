@@ -142,9 +142,9 @@ void InitFPGASPI()
 	//TODO: make a wrapper for this?
 	RCCHelper::EnableSyscfg();
 	NVIC_EnableIRQ(6);
-	SYSCFG.EXTICR1 = (SYSCFG.EXTICR1 & 0xfffffff8) | 0x1;
-	EXTI.IMR1 |= 1;
-	EXTI.FTSR1 |= 1;
+	EXTI::SetExtInterruptMux(0, EXTI::PORT_B);
+	EXTI::EnableChannel(0);
+	EXTI::EnableFallingEdgeTrigger(0);
 
 	//Set up IRQ35 as SPI1 interrupt
 	NVIC_EnableIRQ(35);
