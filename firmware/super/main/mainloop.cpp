@@ -43,11 +43,9 @@ GPIOPin g_sysokLED(&GPIOH, 0, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 // Power rail descriptors
 
 //12V ramp rate is slew rate controlled to about 2 kV/sec, so should take 0.5 ms to come up
-//Give it 5 ms to be safe (plus extra delay from UART messages)
-//TODO: add a new descriptor type that can get feedback from the IBC remote sense
-//to make sure we actually have correct voltage
+//Give it 5 ms to be safe (plus extra delay from UART messages) and check with the ADC
 GPIOPin g_12v0_en(&GPIOB, 5, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
-RailDescriptorWithEnable g_12v0("12V0", g_12v0_en, g_logTimer, 50);
+RailDescriptor12V0 g_12v0("12V0", g_12v0_en, g_logTimer, 50);
 
 GPIOPin g_1v0_en(&GPIOB, 9, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 GPIOPin g_1v0_pgood(&GPIOB, 8, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
@@ -57,9 +55,10 @@ GPIOPin g_gtx_1v0_en(&GPIOB, 10, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 GPIOPin g_gtx_1v0_pgood(&GPIOA, 2, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
 RailDescriptorWithEnableAndPGood g_gtx_1v0("GTX_1V0", g_gtx_1v0_en, g_gtx_1v0_pgood, g_logTimer, 75);
 
+//1V2 PGOOD also seems to be intermittent, ignore
 GPIOPin g_1v2_en(&GPIOC, 13, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
 GPIOPin g_1v2_pgood(&GPIOC, 0, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
-RailDescriptorWithEnableAndPGood g_1v2("1V2", g_1v2_en, g_1v2_pgood, g_logTimer, 75);
+RailDescriptorWithEnable g_1v2("1V2", g_1v2_en, g_logTimer, 75);
 
 //1V8 PGOOD isn't working (suspected solder defect) so ignore it
 GPIOPin g_1v8_en(&GPIOB, 14, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW);
@@ -151,10 +150,40 @@ void App_Init()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Local sensors
+
+uint16_t Get12VRailVoltage()
+{
+	//12V rail output is ADC_IN9
+	//5.094x division so one LSB = 4.105 mV at the input nominally
+	//Tweak with hard coded trim constants for now; TODO make thse go in flash
+	return g_adc->ReadChannel(9) * 4079 / 1000;
+}
+
+void PrintIBCSensors()
+{
+	{
+		g_log("IBC status\n");
+		LogIndenter li(g_log);
+		g_log("Temperature = %uhk C\n", g_ibcTemp);
+		g_log("vin         = %2d.%03d V\n", g_vin48 / 1000, g_vin48 % 1000);
+		g_log("vout        = %2d.%03d V\n", g_vout12 / 1000, g_vout12 % 1000);
+		g_log("vsense      = %2d.%03d V\n", g_voutsense / 1000, g_voutsense % 1000);
+		g_log("iin         = %2d.%03d A\n", g_iin / 1000, g_iin % 1000);
+		g_log("iout        = %2d.%03d A\n", g_iout / 1000, g_iout % 1000);
+	}
+
+	auto v = Get12VRailVoltage();
+	g_log("Local 12V0      = %2d.%03d V\n", v / 1000, v % 1000);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Main loop
 
 void UpdateLEDs();
 void UpdateResets();
+void CheckButtons();
+void CheckPowerFailure();
 
 const int g_logTimerMax = 60000;
 
@@ -167,14 +196,33 @@ void BSP_MainLoopIteration()
 	UpdateLEDs();
 	g_super.Iteration();
 
+	CheckButtons();
+
 	//Management and system health
 	static SupervisorSPIServer spiserver(g_spi);
-	PollIBCSensors();
+	if(PollIBCSensors())
+		g_super.PrintIfPending();
 	spiserver.Poll();
 }
 
 /**
-	@brief Updatethe system status indicator LEDs
+	@brief Run the button state machine
+ */
+void CheckButtons()
+{
+
+}
+
+/**
+	@brief Check for input power loss
+ */
+void CheckPowerFailure()
+{
+
+}
+
+/**
+	@brief Update the system status indicator LEDs
  */
 void UpdateLEDs()
 {

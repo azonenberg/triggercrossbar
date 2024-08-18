@@ -36,15 +36,30 @@
 //#include <bootloader/BootloaderAPI.h>
 #include "../bsp/hwinit.h"
 
+void PrintIBCSensors();
+
 ///@brief Project-specific supervisor class with hooks for controlling LEDs on panic
 class CrossbarPowerResetSupervisor : public PowerResetSupervisor
 {
 public:
 	CrossbarPowerResetSupervisor(etl::ivector<RailDescriptor*>& rails, etl::ivector<ResetDescriptor*>& resets)
 	: PowerResetSupervisor(rails, resets)
+	, m_printPending(false)
 	{}
 
+	void PrintIfPending()
+	{
+		if(m_printPending)
+		{
+			m_printPending = false;
+			PrintIBCSensors();
+		}
+	}
+
 protected:
+	virtual void OnPowerOn() override
+	{ m_printPending = true; }
+
 	virtual void OnFault() override
 	{
 		//Set LEDs to fault state
@@ -55,6 +70,46 @@ protected:
 		//Hang until reset, don't attempt to auto restart
 		while(1)
 		{}
+	}
+
+	bool m_printPending;
+};
+
+uint16_t Get12VRailVoltage();
+
+///@brief Rail descriptor for the 12V rail using ADC instead of PGOOD
+class RailDescriptor12V0 : public RailDescriptorWithEnable
+{
+public:
+	RailDescriptor12V0(const char* name, GPIOPin& enable, Timer& timer, uint16_t timeout)
+		: RailDescriptorWithEnable(name, enable, timer, timeout)
+	{}
+
+	virtual bool TurnOn() override
+	{
+		g_log("Turning on %s\n", m_name);
+
+		m_enable = 1;
+
+		for(uint32_t i=0; i<m_delay; i++)
+		{
+			if(IsPowerGood())
+				return true;
+			m_timer.Sleep(1);
+		}
+
+		if(!IsPowerGood())
+		{
+			g_log(Logger::ERROR, "Rail %s failed to come up\n", m_name);
+			return false;
+		}
+		return true;
+	}
+
+	virtual bool IsPowerGood() override
+	{
+		auto v12 = Get12VRailVoltage();
+		return (v12 <= 13000) && (v12 >= 11000);
 	}
 };
 
