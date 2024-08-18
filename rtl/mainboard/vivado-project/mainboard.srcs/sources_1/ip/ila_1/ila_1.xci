@@ -3,7 +3,7 @@
   "ip_inst": {
     "xci_name": "ila_1",
     "component_reference": "xilinx.com:ip:ila:6.2",
-    "ip_revision": "14",
+    "ip_revision": "15",
     "gen_directory": "../../../../mainboard.gen/sources_1/ip/ila_1",
     "parameters": {
       "component_parameters": {
@@ -3136,8 +3136,8 @@
         "C_ENABLE_ILA_AXI_MON": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_NUM_OF_PROBES": [ { "value": "8", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_DATA_DEPTH": [ { "value": "1024", "resolve_type": "generated", "format": "long", "usage": "all" } ],
-        "C_MAJOR_VERSION": [ { "value": "2023", "resolve_type": "generated", "format": "long", "usage": "all" } ],
-        "C_MINOR_VERSION": [ { "value": "2", "resolve_type": "generated", "format": "long", "usage": "all" } ],
+        "C_MAJOR_VERSION": [ { "value": "2024", "resolve_type": "generated", "format": "long", "usage": "all" } ],
+        "C_MINOR_VERSION": [ { "value": "1", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_BUILD_REVISION": [ { "value": "0", "format": "long", "usage": "all" } ],
         "C_CORE_MAJOR_VER": [ { "value": "6", "resolve_type": "generated", "format": "long", "enabled": false, "usage": "all" } ],
         "C_CORE_MINOR_VER": [ { "value": "0", "format": "long", "usage": "all" } ],
@@ -6249,6 +6249,7 @@
         "BASE_BOARD_PART": [ { "value": "" } ],
         "BOARD_CONNECTIONS": [ { "value": "" } ],
         "DEVICE": [ { "value": "xc7k70t" } ],
+        "NEXTGEN_VERSAL": [ { "value": "0" } ],
         "PACKAGE": [ { "value": "fbg484" } ],
         "PREFHDL": [ { "value": "VERILOG" } ],
         "SILICON_REVISION": [ { "value": "" } ],
@@ -6259,12 +6260,12 @@
       },
       "runtime_parameters": {
         "IPCONTEXT": [ { "value": "IP_Flow" } ],
-        "IPREVISION": [ { "value": "14" } ],
+        "IPREVISION": [ { "value": "15" } ],
         "MANAGED": [ { "value": "TRUE" } ],
         "OUTPUTDIR": [ { "value": "../../../../mainboard.gen/sources_1/ip/ila_1" } ],
         "SELECTEDSIMMODEL": [ { "value": "" } ],
         "SHAREDDIR": [ { "value": "." } ],
-        "SWVERSION": [ { "value": "2023.2" } ],
+        "SWVERSION": [ { "value": "2024.1" } ],
         "SYNTHESISFLOW": [ { "value": "OUT_OF_CONTEXT" } ]
       }
     },
