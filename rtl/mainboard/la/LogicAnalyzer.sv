@@ -45,10 +45,16 @@ module LogicAnalyzer #(
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// We only support 16-bit APB, throw synthesis error for anything else
+	// We only support 32-bit APB, throw synthesis error for anything else
 
-	if(apb.DATA_WIDTH != 16)
+	if(apb.DATA_WIDTH != 32)
 		apb_bus_width_is_invalid();
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Tie off unused APB signals
+
+	assign apb.pruser = 0;
+	assign apb.pbuser = 0;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Buffer memory
@@ -190,14 +196,11 @@ module LogicAnalyzer #(
 		REG_BUF_ADDR		= 'h04,		//Offset of RX_BUF within the capture buffer
 										//For example BUF_ADDR='h42 means APB address 10 maps to 'h42,
 										//address 11 maps to 'h43, etc
-		REG_BUF_ADDR_HI		= 'h06,		//high half of REG_BUF_ADDR
 
 		REG_BUF_SIZE		= 'h08,		//size of the capture memory buffer
 										//(app is free to not read it all, but hardware always runs full depth)
-		REG_BUF_SIZE_HI		= 'h0a,
 
 		REG_TRIG_OFFSET		= 'h0c,		//Offset of the trigger (in 32-sample words) within the capture buffer
-		REG_TRIG_OFFSET_HI	= 'h0e,
 
 
 		REG_RX_BUF			= 'h20		//Capture buffer window (memory mapped)
@@ -310,23 +313,9 @@ module LogicAnalyzer #(
 
 				case(apb.paddr)
 					REG_TRIGGER:		apb.prdata = { trigger_idle_sync, 7'h0 };
-					REG_BUF_ADDR: begin
-						if(ADDR_BITS > 16)
-							apb.prdata = rd_base_addr[15:0];
-						else
-							apb.prdata = rd_base_addr[ADDR_BITS-1:0];
-					end
-					REG_BUF_ADDR_HI: begin
-						if(ADDR_BITS > 16)
-							apb.prdata = rd_base_addr[ADDR_BITS-1:16];
-						else
-							apb.prdata = 0;
-					end
-					REG_BUF_SIZE:		apb.prdata = CAPTURE_BUF_SIZE[15:0];
-					REG_BUF_SIZE_HI:	apb.prdata = CAPTURE_BUF_SIZE[31:16];
-
+					REG_BUF_ADDR:		apb.prdata = rd_base_addr;
+					REG_BUF_SIZE:		apb.prdata = CAPTURE_BUF_SIZE;
 					REG_TRIG_OFFSET:	apb.prdata = trigger_pos;
-					REG_TRIG_OFFSET_HI:	apb.prdata = 16'h0;
 
 					//assume it's a read from RX_BUF
 					default: begin
@@ -345,17 +334,7 @@ module LogicAnalyzer #(
 				case(apb.paddr)
 					REG_TRIGGER:		arm = 1;
 
-					REG_BUF_ADDR: begin
-						if(ADDR_BITS > 16)
-							rd_base_addr[15:0]	= apb.pwdata;
-						else
-							rd_base_addr[ADDR_BITS-1:0] = apb.pwdata[ADDR_BITS-1:0];
-					end
-					REG_BUF_ADDR_HI: begin
-						if(ADDR_BITS > 16)
-							rd_base_addr[ADDR_BITS-1:16]	= apb.pwdata[ADDR_BITS-17:0];
-						prefetch_start			= 1;
-					end
+					REG_BUF_ADDR: 		rd_base_addr	= apb.pwdata;
 
 					REG_TRIG_OFFSET: begin
 					end

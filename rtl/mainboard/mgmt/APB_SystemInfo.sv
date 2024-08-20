@@ -39,13 +39,13 @@
 	Register map:
 		0x0000		idcode[31:0]
 		0x0004		serial[63:0]
-		0x0010		fan0_rpm
-		0x0012		fan1_rpm
+		0x000c		fan0_rpm
+		0x0010		fan1_rpm
 		0x0014		die_temp
-		0x0016		volt_core
-		0x0018		volt_ram
-		0x001a		volt_aux
-		0x001c		usercode[31:0]
+		0x0018		volt_core
+		0x001c		volt_ram
+		0x0020		volt_aux
+		0x0024		usercode[31:0]
  */
 module APB_SystemInfo(
 
@@ -61,9 +61,9 @@ module APB_SystemInfo(
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// We only support 16-bit APB, throw synthesis error for anything else
+	// We only support 32-bit APB, throw synthesis error for anything else
 
-	if(apb.DATA_WIDTH != 16)
+	if(apb.DATA_WIDTH != 32)
 		apb_bus_width_is_invalid();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -135,20 +135,16 @@ module APB_SystemInfo(
 		//Mux read data
 		case(apb.paddr)
 
-			8'h00:		apb.prdata = idcode[15:0];
-			8'h02:		apb.prdata = idcode[31:16];
-			8'h04:		apb.prdata = die_serial[15:0];
-			8'h06:		apb.prdata = die_serial[31:16];
-			8'h08:		apb.prdata = die_serial[47:32];
-			8'h0a:		apb.prdata = die_serial[63:48];
-			8'h10:		apb.prdata = fan0_rpm;
-			8'h12:		apb.prdata = fan1_rpm;
+			8'h00:		apb.prdata = idcode;
+			8'h04:		apb.prdata = die_serial[31:0];
+			8'h08:		apb.prdata = die_serial[63:32];
+			8'h0c:		apb.prdata = fan0_rpm;
+			8'h10:		apb.prdata = fan1_rpm;
 			8'h14:		apb.prdata = die_temp;
-			8'h16:		apb.prdata = volt_core;
-			8'h18:		apb.prdata = volt_ram;
-			8'h1a:		apb.prdata = volt_aux;
-			8'h1c:		apb.prdata = usercode[15:0];
-			8'h1e:		apb.prdata = usercode[31:16];
+			8'h18:		apb.prdata = volt_core;
+			8'h1c:		apb.prdata = volt_ram;
+			8'h20:		apb.prdata = volt_aux;
+			8'h24:		apb.prdata = usercode[31:0];
 
 			//Invalid / out of range
 			default:	apb.pslverr = 1;
@@ -162,7 +158,7 @@ module APB_SystemInfo(
 			apb.pslverr = 1;
 
 		//Throw error on unaligned register access
-		if(apb.paddr[0] != 0)
+		if(apb.paddr[1:0] != 0)
 			apb.pslverr	= 1;
 
 	end

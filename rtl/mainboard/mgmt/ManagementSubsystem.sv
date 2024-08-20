@@ -110,51 +110,34 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// FIFO for storing inbound/outbound Ethernet frames
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) ethRxBus();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) ethRxBus();
 
 	wire	rx_frame_ready;
-	ManagementRxFifo eth_rx_fifo(
+
+	APB_EthernetRxBuffer_x32 eth_rx_fifo(
 		.apb(ethRxBus),
 		.eth_rx_bus(eth_rx_bus),
 		.eth_link_up(eth_link_up),
-
 		.rx_frame_ready(rx_frame_ready)
 	);
 
-	wire		eth_link_up_txclk;
-	ThreeStageSynchronizer sync_link_up_txclk(
-		.clk_in(eth_rx_clk),
-		.din(eth_link_up),
-		.clk_out(mgmt0_tx_clk),
-		.dout(eth_link_up_txclk)
-	);
-
-	wire		xg0_link_up_txclk;
-	ThreeStageSynchronizer sync_xg0_link_up_txclk(
-		.clk_in(xg0_rx_clk),
-		.din(xg0_link_up),
-		.clk_out(xg0_tx_clk),
-		.dout(xg0_link_up_txclk)
-	);
-
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) gigTxBus();
-
-	ManagementTxFifo tx_fifo(
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) gigTxBus();
+	APB_EthernetTxBuffer_x32_1G tx_fifo(
 		.apb(gigTxBus),
 
 		.tx_clk(mgmt0_tx_clk),
-		.link_up(eth_link_up_txclk),
+		.link_up_pclk(eth_link_up),
 		.tx_ready(mgmt0_tx_ready),
 		.tx_bus(mgmt0_tx_bus)
 	);
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) xgTxBus();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) xgTxBus();
 
-	Management10GTxFifo xg_tx_fifo(
+	APB_EthernetTxBuffer_x32_10G xg_tx_fifo(
 		.apb(xgTxBus),
 
 		.tx_clk(xg0_tx_clk),
-		.link_up(xg0_link_up_txclk),
+		.link_up(eth_link_up),
 		.tx_bus(xg0_tx_bus)
 	);
 
@@ -162,7 +145,7 @@ module ManagementSubsystem(
 	// QSPI device bridge to internal legacy bus plus APB
 
 	//The top level APB bus from the QSPI bridge to everything else
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(24), .USER_WIDTH(0)) processorBus();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(24), .USER_WIDTH(0)) processorBus();
 
 	//Prevent any logic from the rest of this module from being optimized into the bridge
 	(* keep_hierarchy = "yes" *)
@@ -179,7 +162,7 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Optional pipeline register on APB before the bridge
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(24), .USER_WIDTH(0)) bridgeUpstreamBus();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(24), .USER_WIDTH(0)) bridgeUpstreamBus();
 	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(0))
 		apb_regslice_root( .upstream(processorBus), .downstream(bridgeUpstreamBus) );
 
@@ -187,7 +170,7 @@ module ManagementSubsystem(
 	// Top level APB interconnect bridge
 
 	//Allocate 0x8000 bytes of address space to each half of the root
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(15), .USER_WIDTH(0)) rootDownstreamBus[1:0]();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(15), .USER_WIDTH(0)) rootDownstreamBus[1:0]();
 
 	APBBridge #(
 		.BASE_ADDR(24'h00_0000),
@@ -198,12 +181,12 @@ module ManagementSubsystem(
 		.downstream(rootDownstreamBus)
 	);
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(15), .USER_WIDTH(0)) rootDownstreamBusReg[1:0]();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(15), .USER_WIDTH(0)) rootDownstreamBusReg[1:0]();
 
-	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(1))
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(1))
 		apb_regslice_root2smol( .upstream(rootDownstreamBus[0]), .downstream(rootDownstreamBusReg[0]) );
 
-	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(0))
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_root2big( .upstream(rootDownstreamBus[1]), .downstream(rootDownstreamBusReg[1]) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -211,7 +194,7 @@ module ManagementSubsystem(
 
 	localparam NUM_SMOL_DEVS		= 10;
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) smolDownstreamBus[NUM_SMOL_DEVS-1:0]();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) smolDownstreamBus[NUM_SMOL_DEVS-1:0]();
 
 	APBBridge #(
 		.BASE_ADDR(24'h000_0000),
@@ -227,7 +210,7 @@ module ManagementSubsystem(
 
 	localparam NUM_BIG_DEVS			= 4;
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) bigDownstreamBus[NUM_BIG_DEVS-1:0]();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) bigDownstreamBus[NUM_BIG_DEVS-1:0]();
 
 	APBBridge #(
 		.BASE_ADDR(24'h000_0000),
@@ -241,7 +224,7 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// System health + information (0x00_0000)
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) sysinfoBus();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) sysinfoBus();
 
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_sysinfo( .upstream(smolDownstreamBus[0]), .downstream(sysinfoBus) );
@@ -259,7 +242,7 @@ module ManagementSubsystem(
 	//Front panel LED indicator state
 
 	//Virtual GPIO bank 0 (input LEDs, 0x00_0400)
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) ledBus0();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) ledBus0();
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_gpio_0( .upstream(smolDownstreamBus[1]), .downstream(ledBus0) );
 
@@ -282,7 +265,7 @@ module ManagementSubsystem(
 	end
 
 	//Virtual GPIO bank 1 (output LEDs, 0x000_800)
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) ledBus1();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) ledBus1();
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_gpio_1( .upstream(smolDownstreamBus[2]), .downstream(ledBus1) );
 
@@ -306,8 +289,7 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Front panel SPI interface
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) frontSpiBus();
-
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) frontSpiBus();
 	APB_SPIHostInterface iface(
 		.apb(frontSpiBus),
 
@@ -320,14 +302,14 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	//Interrupt status register (0x00_2000)
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) irqStatusBus();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) irqStatusBus();
 
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_irq_status( .upstream(smolDownstreamBus[8]), .downstream(irqStatusBus) );
 
 	APB_StatusRegister irqstat (
 		.apb(irqStatusBus),
-		.status({15'h0, rx_frame_ready})
+		.status({31'h0, rx_frame_ready})
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

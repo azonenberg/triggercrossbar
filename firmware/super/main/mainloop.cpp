@@ -210,7 +210,22 @@ void BSP_MainLoopIteration()
  */
 void CheckButtons()
 {
+	static GPIOPin pwr_button(&GPIOA, 12, GPIOPin::MODE_INPUT, 0, false);
+	static GPIOPin rst_button(&GPIOA, 15, GPIOPin::MODE_INPUT, 0, false);
 
+	static bool buttonDown = false;
+
+	if(pwr_button && !buttonDown)
+	{
+		g_log("Power button pressed\n");
+		if(g_super.IsPowerOn())
+			g_super.PowerOff();
+		else
+			g_super.PowerOn();
+
+	}
+
+	buttonDown = pwr_button;
 }
 
 /**

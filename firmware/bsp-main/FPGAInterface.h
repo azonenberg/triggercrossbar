@@ -133,13 +133,11 @@ struct __attribute__((packed)) LogicAnalyzer
 
 struct __attribute__((packed)) APB_SerdesDRP
 {
-	uint16_t		addr;
-	uint16_t		field_02;
-	uint16_t		data;
-	uint16_t		field_06;
-	uint16_t		status;
-	uint16_t		field_0a[15];
-	uint16_t		status2;
+	uint32_t		addr;
+	uint32_t		data;
+	uint32_t		status;
+	uint32_t		field_0a[7];
+	uint32_t		status2;
 };
 
 struct __attribute__((packed)) APB_BERTConfig
@@ -159,18 +157,8 @@ struct __attribute__((packed)) APB_BERTConfig
 	uint16_t		rx_reset;
 };
 
-struct __attribute__((packed)) APB_SPIHostInterface
-{
-	uint16_t		clkdiv;
-	uint16_t		field_02;
-	uint16_t		data;
-	uint16_t		field_06;
-	uint16_t		cs_n;
-	uint16_t		field_0a[11];
-	uint16_t		status;
-	uint16_t		field_22[15];
-	uint16_t		status2;
-};
+#include <APB_SPIHostInterface.h>
+#include <APB_MDIO.h>
 
 struct __attribute__((packed)) APB_GPIO
 {
@@ -179,16 +167,15 @@ struct __attribute__((packed)) APB_GPIO
 	uint32_t		tris;
 };
 
-struct __attribute__((packed)) APB_SystemInfo
+struct APB_SystemInfo
 {
 	uint32_t		idcode;
 	uint8_t			serial[8];
-	uint32_t		field_0c;
-	uint16_t		fan_rpm[2];
-	uint16_t		die_temp;
-	uint16_t		voltage_core;
-	uint16_t		voltage_ram;
-	uint16_t		voltage_aux;
+	uint32_t		fan_rpm[2];
+	uint32_t		die_temp;
+	uint32_t		voltage_core;
+	uint32_t		voltage_ram;
+	uint32_t		voltage_aux;
 	uint32_t		usercode;
 };
 
@@ -201,46 +188,18 @@ struct __attribute__((packed)) APB_RelayController
 	uint16_t		stat2;
 };
 
-struct __attribute__((packed)) APB_MDIO
-{
-	uint16_t		cmd_addr;
-	uint16_t		field_02[3];
-	uint16_t		data;
-	uint16_t		field_04[27];
-	uint16_t		status;
-	uint16_t		field_22[15];
-	uint16_t		status2;
-};
-
-struct __attribute__((packed)) ManagementRxFifo
-{
-	uint8_t			rx_buf[4088];
-	uint16_t		rx_pop;
-	uint16_t		field_ffa;
-	uint16_t		rx_len;
-};
-
-struct __attribute__((packed)) ManagementTxFifo
-{
-	uint16_t		tx_stat;
-	uint16_t		field_02[3];
-	uint64_t		tx_commit;
-	uint64_t		tx_len;
-	uint16_t		field_14[20];
-	uint8_t			tx_buf[4032];
-};
+#include <APB_EthernetRxBuffer.h>
+#include <APB_EthernetTxBuffer_10G.h>
 
 struct __attribute__((packed)) APB_Curve25519
 {
 	uint8_t			e[32];
-	uint16_t		status;
-	uint16_t		field_22;
-	uint16_t		rd_addr;
-	uint16_t		field_26;
-	uint16_t		cmd;
-	uint16_t		field_2a[11];
-	uint16_t		status2;
-	uint16_t		field_42[15];
+	uint32_t		status;
+	uint32_t		rd_addr;
+	uint32_t		cmd;
+	uint32_t		field_2a[5];
+	uint32_t		status2;
+	uint32_t		field_42[7];
 	uint8_t			work[32];
 	uint8_t			q0[32];
 	uint8_t			q1[32];

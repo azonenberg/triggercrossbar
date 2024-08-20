@@ -76,7 +76,9 @@ module NetworkRxMuxing(
 		.sys_clk(clk_250mhz),
 		.cdc_rx_bus(baset_cdc_rx_bus),
 
-		.perf_rx_cdc_frames()
+		.perf_rx_cdc_frames(),
+
+		.rst_n(1'b1)
 	);
 
 	EthernetRxClockCrossing baser_rx_cdc(
@@ -86,7 +88,9 @@ module NetworkRxMuxing(
 		.sys_clk(clk_250mhz),
 		.cdc_rx_bus(baser_cdc_rx_bus),
 
-		.perf_rx_cdc_frames()
+		.perf_rx_cdc_frames(),
+
+		.rst_n(1'b1)
 	);
 
 	always_ff @(posedge clk_250mhz) begin

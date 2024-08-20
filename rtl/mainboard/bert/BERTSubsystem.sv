@@ -94,7 +94,7 @@ module BERTSubsystem(
 	localparam ADDR_WIDTH			= 12;
 	localparam NUM_DEVS				= 8;
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(ADDR_WIDTH), .USER_WIDTH(0)) downstreamBus[NUM_DEVS-1:0]();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(ADDR_WIDTH), .USER_WIDTH(0)) downstreamBus[NUM_DEVS-1:0]();
 
 	APBBridge #(
 		.BASE_ADDR(24'h000_0000),

@@ -12,6 +12,7 @@ CXXFLAGS=-g -O3 --std=c++17 -Wall -Wextra \
 	-DTEST_BANK_SIZE=131072 \
 	-DMAX_TOKEN_LEN=96 \
 	-DLOGGER_USE_RTC_TIMESTAMP \
+	-DQSPI_CACHE_WORKAROUND \
 	-DNO_CLEAR_SCREEN \
 	-Wl,--wrap=malloc \
 	-Wl,--wrap=calloc \

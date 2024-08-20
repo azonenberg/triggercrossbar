@@ -44,10 +44,16 @@ module CDRTrigger #(
 	output wire					trig_out
 );
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// We only support 16-bit APB, throw synthesis error for anything else
+	// We only support 32-bit APB, throw synthesis error for anything else
 
-	if(apb.DATA_WIDTH != 16)
+	if(apb.DATA_WIDTH != 32)
 		apb_bus_width_is_invalid();
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Tie off unused APB signals
+
+	assign apb.pruser = 0;
+	assign apb.pbuser = 0;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Register map
@@ -63,26 +69,22 @@ module CDRTrigger #(
 
 		//8B/10B trigger config
 		REG_TRIG_8B10B_DATA0	= 'h10,			//Byte values for 8B/10B trigger pattern
-												//Symbols 1:0
-		REG_TRIG_8B10B_DATA1	= 'h12,			//Symbols 3:2
-		REG_TRIG_8B10B_DATA2	= 'h14,			//Symbols 5:4
-		REG_TRIG_8B10B_DATA3	= 'h16,			//Symbols 7:6
-		REG_TRIG_8B10B_DATA4	= 'h18,			//Symbols 9:8
+												//Symbols 3:0
+		REG_TRIG_8B10B_DATA1	= 'h14,			//Symbols 7:4
+		REG_TRIG_8B10B_DATA2	= 'h18,			//Symbols 9:8
 		REG_TRIG_8B10B_TYPE		= 'h1a,			//Control/data flag for 8B/10B trigger pattern (1 bit per symbol)
 												//0=data, 1=control
-		REG_TRIG_8B10B_MASK		= 'h1c,			//Mask for 8B/10B trigger pattern (1 bit per symbol)
+		REG_TRIG_8B10B_MASK		= 'h20,			//Mask for 8B/10B trigger pattern (1 bit per symbol)
 												//0=ignored, 1=checked
-		REG_TRIG_8B10B_DISP		= 'h1e,			//Target for 8B/10B disparity check (1 bit per symbol)
+		REG_TRIG_8B10B_DISP		= 'h24,			//Target for 8B/10B disparity check (1 bit per symbol)
 												//1=negative, 0=positive
-		REG_TRIG_8B10B_DISPMASK	= 'h20,			//Mask for 8B/10B disparity check (1 bit per symbol)
+		REG_TRIG_8B10B_DISPMASK	= 'h28,			//Mask for 8B/10B disparity check (1 bit per symbol)
 												//0=ignored, 1=checked
 
 		//64B/66B trigger config
 		REG_TRIG_64B66B_DATA0	= 'h40,			//Byte values for 64B/66B trigger pattern
-												//Bits 15:0
-		REG_TRIG_64B66B_DATA1	= 'h42,			//Bits 31:16
-		REG_TRIG_64B66B_DATA2	= 'h44,			//Bits 47:32
-		REG_TRIG_64B66B_DATA3	= 'h46,			//Bits 63:48
+												//Bits 31:0
+		REG_TRIG_64B66B_DATA1	= 'h44,			//Bits 63:32
 		REG_TRIG_64B66B_TYPE	= 'h48,			//2-bit block type field to match
 		REG_TRIG_64B66B_MASK	= 'h4a,			//Byte mask for packet payload
 												//0=ignored, 1=checked

@@ -56,9 +56,6 @@ LogSink<MAX_LOG_SINKS>* g_logSink = nullptr;
  */
 UART<32, 256> g_cliUART(&UART4, 543);
 
-///@brief Global Ethernet interface
-EthernetInterface* g_ethIface = nullptr;
-
 ///@brief Interface to the FPGA via APB
 APBFPGAInterface g_apbfpga;
 
@@ -156,20 +153,25 @@ volatile uint16_t* g_irqStat =
 	reinterpret_cast<volatile uint16_t*>(FPGA_MEM_BASE + BASE_IRQ_STAT);
 
 ///@brief Ethernet RX buffer
-volatile ManagementRxFifo* g_ethRxFifo =
-	reinterpret_cast<volatile ManagementRxFifo*>(FPGA_MEM_BASE + BASE_ETH_RX);
+volatile APB_EthernetRxBuffer* g_ethRxFifo =
+	reinterpret_cast<volatile APB_EthernetRxBuffer*>(FPGA_MEM_BASE + BASE_ETH_RX);
 
 ///@brief Ethernet TX buffers
-volatile ManagementTxFifo* g_eth1GTxFifo =
-	reinterpret_cast<volatile ManagementTxFifo*>(FPGA_MEM_BASE + BASE_1G_TX);
-volatile ManagementTxFifo* g_eth10GTxFifo =
-	reinterpret_cast<volatile ManagementTxFifo*>(FPGA_MEM_BASE + BASE_XG_TX);
+volatile APB_EthernetTxBuffer_10G* g_eth1GTxFifo =
+	reinterpret_cast<volatile APB_EthernetTxBuffer_10G*>(FPGA_MEM_BASE + BASE_1G_TX);
+volatile APB_EthernetTxBuffer_10G* g_eth10GTxFifo =
+	reinterpret_cast<volatile APB_EthernetTxBuffer_10G*>(FPGA_MEM_BASE + BASE_XG_TX);
 
 ///@brief SPI flash controller
 volatile APB_SPIHostInterface* g_flashSpi =
 	reinterpret_cast<volatile APB_SPIHostInterface*>(FPGA_MEM_BASE + BASE_FLASH_SPI);
 
-APBSpiFlashInterface* g_fpgaFlash = nullptr;
+///@brief Controller for the MDIO interface
+MDIODevice g_mgmtPhy(g_mdio, 0);
+
+APB_SpiFlashInterface* g_fpgaFlash = nullptr;
+
+APBEthernetInterface g_ethIface(g_ethRxFifo, g_eth10GTxFifo);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Do other initialization
@@ -318,6 +320,10 @@ void InitQSPI()
 {
 	g_log("Initializing QSPI interface\n");
 
+	LogIndenter li(g_log);
+	g_log("5-second delay\n");
+	g_logTimer.Sleep(5 * 10 * 1000);
+
 	//Configure the I/O manager
 	OctoSPIManager::ConfigureMux(false);
 	OctoSPIManager::ConfigurePort(
@@ -346,13 +352,13 @@ void InitQSPI()
 	//With 3.3V Vdd, we can go up to 140 MHz.
 	//FPGA currently requires <= 62.5 MHz due to the RX oversampling used (4x in 250 MHz clock domain)
 	//Dividing by 5 gives 50 MHz and a transfer rate of 200 Mbps
-	//Dividing by 10, but DDR, gives the same throughput and works around an errata
-	uint8_t prescale = 20;
+	//Dividing by 10, but DDR, gives the same throughput and works around an errata (which one??)
+	uint8_t prescale = 15;
 
 	//Configure the OCTOSPI itself
 	//Original code used "instruction", but we want "address" to enable memory mapping
 	static OctoSPI qspi(&OCTOSPI1, 0x02000000, prescale);
-	qspi.SetDoubleRateMode(false);
+	qspi.SetDoubleRateMode(true);
 	qspi.SetInstructionMode(OctoSPI::MODE_QUAD, 1);
 	qspi.SetAddressMode(OctoSPI::MODE_QUAD, 3);
 	qspi.SetAltBytesMode(OctoSPI::MODE_NONE);
@@ -361,7 +367,6 @@ void InitQSPI()
 	qspi.SetDQSEnable(false);
 	qspi.SetDeselectTime(1);
 	qspi.SetSampleDelay(false, true);
-	qspi.SetDoubleRateMode(true);
 
 	//Poke MPU settings to disable caching etc on the QSPI memory range
 	MPU::Configure(MPU::KEEP_DEFAULT_MAP, MPU::DISABLE_IN_FAULT_HANDLERS);
@@ -456,7 +461,7 @@ void InitFPGAFlash()
 	g_log("Initializing FPGA flash\n");
 	LogIndenter li(g_log);
 
-	static APBSpiFlashInterface flash(g_flashSpi);
+	static APB_SpiFlashInterface flash(g_flashSpi, 64);
 	g_fpgaFlash = &flash;
 }
 
@@ -491,14 +496,14 @@ void __attribute__((weak)) OnEthernetLinkStateChanged()
 /**
 	@brief Block until the status register (mapped at two locations) matches the target
  */
-void StatusRegisterMaskedWait(volatile uint16_t* a, volatile uint16_t* b, uint16_t mask, uint16_t target)
+void StatusRegisterMaskedWait(volatile uint32_t* a, volatile uint32_t* b, uint32_t mask, uint32_t target)
 {
 	asm("dmb st");
 
 	while(true)
 	{
-		uint16_t va = *a;
-		uint16_t vb = *b;
+		uint32_t va = *a;
+		uint32_t vb = *b;
 		asm("dmb");
 
 		if( ( (va & mask) == target) && ( (vb & mask) == target) )

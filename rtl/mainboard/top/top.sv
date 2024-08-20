@@ -128,6 +128,12 @@ module top(
 );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Top level address space dfeines
+
+	localparam SMOL_ADDR_WIDTH 		= 10;
+	localparam BIG_ADDR_WIDTH		= 12;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Clock synthesis
 
 	wire	clk_50mhz;
@@ -201,7 +207,7 @@ module top(
 		);
 
 	//SPI bus controller
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) flashBus();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) flashBus();
 	APB_SPIHostInterface flash_spi(
 		.apb(flashBus),
 
@@ -343,10 +349,7 @@ module top(
 
 	wire[1:0]	cpll_lock;
 
-	localparam SMOL_ADDR_WIDTH 		= 10;
-	localparam BIG_ADDR_WIDTH		= 12;
-
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) bertBus();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) bertBus();
 
 	BERTSubsystem bert(
 
@@ -394,7 +397,7 @@ module top(
 	EthernetTxBus			xg0_mac_tx_bus;
 	wire					xg0_link_up;
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) mdioBus();
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) mdioBus();
 
 	NetworkInterfaces network(
 		.clk_125mhz(clk_125mhz),
@@ -468,19 +471,19 @@ module top(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Curve25519 crypto_scalarmult accelerator (for speeding up SSH key exchange)
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) cryptBus();
-
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) cryptBus();
+	/*
 	APB_Curve25519 crypt25519(
 		.apb(cryptBus)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Relays for bidirectional IOs
-
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) relayBus();
+	*/
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) relayBus();
 
 	wire[3:0]	relay_state;
-
+	/*
 	APB_RelayController relays(
 		.apb(relayBus),
 
@@ -492,12 +495,12 @@ module top(
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// The actual crossbar itself
-
+	*/
 	wire[11:0]		trig_in_led;
 	wire[11:0]		trig_out_led;
 
-	APB #(.DATA_WIDTH(16), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) crossbarBus();
-
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) crossbarBus();
+	/*
 	APB_CrossbarMatrix matrix(
 		.apb(crossbarBus),
 
@@ -507,7 +510,7 @@ module top(
 		.trig_in_led(trig_in_led),
 		.trig_out_led(trig_out_led)
 	);
-
+	*/
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Management register interface
 

@@ -275,9 +275,9 @@ set_clock_groups -asynchronous -group [get_clocks network/xg_transceiver/inst/sf
 # Floorplanning
 
 create_pblock pblock_crypt25519
-add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519 mgmt/apb_regslice_crypt]]
 resize_pblock [get_pblocks pblock_crypt25519] -add {CLOCKREGION_X0Y0:CLOCKREGION_X1Y0}
 set_property IS_SOFT FALSE [get_pblocks pblock_crypt25519]
+add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519 mgmt/apb_regslice_crypt]]
 
 create_pblock pblock_port_xg0
 add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/port_xg0/mac network/port_xg0/rx_s2_control_i_1]]
@@ -296,7 +296,7 @@ resize_pblock [get_pblocks pblock_xg0_pcs] -add {RAMB36_X2Y18:RAMB36_X3Y19}
 set_property IS_SOFT FALSE [get_pblocks pblock_xg0_pcs]
 
 create_pblock pblock_port_mgmt0
-add_cells_to_pblock [get_pblocks pblock_port_mgmt0] [get_cells -quiet [list mgmt/sync_link_up_txclk network/mdio network/port_mgmt0]]
+add_cells_to_pblock [get_pblocks pblock_port_mgmt0] [get_cells -quiet [list network/port_mgmt0]]
 resize_pblock [get_pblocks pblock_port_mgmt0] -add {SLICE_X0Y150:SLICE_X11Y178}
 resize_pblock [get_pblocks pblock_port_mgmt0] -add {DSP48_X0Y60:DSP48_X0Y69}
 resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB18_X0Y60:RAMB18_X0Y69}
@@ -304,7 +304,7 @@ resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB36_X0Y30:RAMB36_X0Y34}
 set_property IS_SOFT FALSE [get_pblocks pblock_port_mgmt0]
 
 create_pblock pblock_qspi
-add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/iface mgmt/tach0 mgmt/tach1 relays]]
+add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/tach0 mgmt/tach1]]
 resize_pblock [get_pblocks pblock_qspi] -add {SLICE_X0Y50:SLICE_X19Y99}
 resize_pblock [get_pblocks pblock_qspi] -add {DSP48_X0Y20:DSP48_X0Y39}
 resize_pblock [get_pblocks pblock_qspi] -add {RAMB18_X0Y20:RAMB18_X0Y39}
@@ -340,17 +340,17 @@ set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 
 
 create_pblock pblock_cdrtrig_linecode
-add_cells_to_pblock [get_pblocks pblock_cdrtrig_linecode] [get_cells -quiet [list {bert/decoders[0].lane0_8b10b_decode} {bert/decoders[0].lane0_aligner} {bert/decoders[1].lane0_8b10b_decode} {bert/decoders[1].lane0_aligner} {bert/decoders[2].lane0_8b10b_decode} {bert/decoders[2].lane0_aligner} {bert/decoders[3].lane0_8b10b_decode} {bert/decoders[3].lane0_aligner}]]
 resize_pblock [get_pblocks pblock_cdrtrig_linecode] -add {CLOCKREGION_X1Y3:CLOCKREGION_X1Y3}
 set_property IS_SOFT FALSE [get_pblocks pblock_cdrtrig_linecode]
+add_cells_to_pblock [get_pblocks pblock_cdrtrig_linecode] [get_cells -quiet [list {bert/decoders[0].lane0_8b10b_decode} {bert/decoders[0].lane0_aligner} {bert/decoders[1].lane0_8b10b_decode} {bert/decoders[1].lane0_aligner} {bert/decoders[2].lane0_8b10b_decode} {bert/decoders[2].lane0_aligner} {bert/decoders[3].lane0_8b10b_decode} {bert/decoders[3].lane0_aligner}]]
 
 create_pblock pblock_cdtrtrig_gearboxes
-add_cells_to_pblock [get_pblocks pblock_cdtrtrig_gearboxes] [get_cells -quiet [list bert/lane0_gearbox40 bert/lane0_gearbox66]]
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {SLICE_X44Y150:SLICE_X53Y188}
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {DSP48_X2Y60:DSP48_X2Y73}
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB18_X2Y60:RAMB18_X2Y73}
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB36_X2Y30:RAMB36_X2Y36}
 set_property IS_SOFT FALSE [get_pblocks pblock_cdtrtrig_gearboxes]
+add_cells_to_pblock [get_pblocks pblock_cdtrtrig_gearboxes] [get_cells -quiet [list bert/lane0_gearbox40 bert/lane0_gearbox66]]
 
 
 
@@ -379,6 +379,7 @@ set_property DRIVE 8 [get_ports {flash_dq[2]}]
 set_property DRIVE 8 [get_ports {flash_dq[1]}]
 set_property DRIVE 8 [get_ports {flash_dq[0]}]
 set_property DRIVE 8 [get_ports flash_cs_n]
+
 
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
 set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]

@@ -43,6 +43,17 @@ const IPv4Address g_defaultNetmask		= { .m_octets{255, 255, 255,   0} };
 const IPv4Address g_defaultBroadcast	= { .m_octets{192, 168,   1, 255} };
 const IPv4Address g_defaultGateway		= { .m_octets{192, 168,   1,   1} };
 
+/**
+	@brief Mapping of link speed IDs to printable names
+ */
+static const char* g_linkSpeedNamesLong[] =
+{
+	"10 Mbps",
+	"100 Mbps",
+	"1000 Mbps",
+	"10 Gbps"
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Peripheral init
 
@@ -297,7 +308,7 @@ void InitIP()
 	static ARPCache cache;
 
 	//Per-interface protocol stacks
-	static EthernetProtocol eth(*g_ethIface, g_macAddress);
+	static EthernetProtocol eth(g_ethIface, g_macAddress);
 	g_ethProtocol = &eth;
 	static ARPProtocol arp(eth, g_ipConfig.m_address, cache);
 
@@ -332,8 +343,8 @@ void InitManagementPHY()
 	LogIndenter li(g_log);
 
 	//Read the PHY ID
-	auto phyid1 = ManagementPHYRead(REG_PHY_ID_1);
-	auto phyid2 = ManagementPHYRead(REG_PHY_ID_2);
+	auto phyid1 = g_mgmtPhy.ReadRegister(REG_PHY_ID_1);
+	auto phyid2 = g_mgmtPhy.ReadRegister(REG_PHY_ID_2);
 
 	if( (phyid1 == 0x22) && ( (phyid2 >> 4) == 0x162))
 	{
@@ -353,9 +364,9 @@ void InitEthernet()
 {
 	g_log("Initializing Ethernet management\n");
 
-	//Create the Ethernet interface
-	static QSPIEthernetInterface iface;
-	g_ethIface = &iface;
+	//For now, only support the 10G buffer
+	//TODO: support TX fallback to 1G
+	g_ethIface.Init();
 }
 
 /**
@@ -397,8 +408,66 @@ void PollFPGA()
 	//New Ethernet frame ready?
 	if(fpgastat & 1)
 	{
-		auto frame = g_ethIface->GetRxFrame();
+		auto frame = g_ethIface.GetRxFrame();
 		if(frame != nullptr)
 			g_ethProtocol->OnRxFrame(frame);
+	}
+}
+
+/**
+	@brief Poll the PHYs for link state changes
+
+	TODO: use IRQ pin to trigger this vs doing it nonstop?
+ */
+void PollPHYs()
+{
+	//Get the baseT link state
+	uint16_t bctl = g_mgmtPhy.ReadRegister(REG_BASIC_CONTROL);
+	uint16_t bstat = g_mgmtPhy.ReadRegister(REG_BASIC_STATUS);
+	bool bup = (bstat & 4) == 4;
+	if(bup && !g_basetLinkUp)
+	{
+		g_basetLinkSpeed = 0;
+		if( (bctl & 0x40) == 0x40)
+			g_basetLinkSpeed |= 2;
+		if( (bctl & 0x2000) == 0x2000)
+			g_basetLinkSpeed |= 1;
+		g_log("Interface mgmt0: link is up at %s\n", g_linkSpeedNamesLong[g_basetLinkSpeed]);
+		OnEthernetLinkStateChanged();
+		g_ethProtocol->OnLinkUp();
+	}
+	else if(!bup && g_basetLinkUp)
+	{
+		g_log("Interface mgmt0: link is down\n");
+		g_basetLinkSpeed = 0xff;
+		OnEthernetLinkStateChanged();
+		g_ethProtocol->OnLinkDown();
+	}
+	g_basetLinkUp = bup;
+
+	//Get the SFP link status
+	auto stat = g_eth10GTxFifo->tx_stat;
+	if(stat & 1)
+	{
+		//Link went up?
+		if(!g_sfpLinkUp)
+		{
+			g_log("Interface xg0: link is up at 10 Gbps\n");
+			g_sfpLinkUp = true;
+			OnEthernetLinkStateChanged();
+			g_ethProtocol->OnLinkUp();
+		}
+	}
+
+	else
+	{
+		//Link went down?
+		if(g_sfpLinkUp)
+		{
+			g_log("Interface xg0: link is down\n");
+			g_sfpLinkUp = false;
+			OnEthernetLinkStateChanged();
+			g_ethProtocol->OnLinkDown();
+		}
 	}
 }

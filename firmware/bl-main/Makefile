@@ -1,16 +1,18 @@
 SRCDIR=$(CURDIR)
 ROOTDIR=$(CURDIR)/../../
-CXXFLAGS=-g -Os --std=c++17 -Wall -Wextra \
+CXXFLAGS=-g -Og --std=c++17 -Wall -Wextra \
 	-I$(ROOTDIR) \
 	-I$(SRCDIR) \
 	-I$(ROOTDIR)/stm32-cpp/devices/inc \
 	-I$(ROOTDIR)/stm32-cpp/src \
 	-I$(ROOTDIR)/common-embedded-platform/ \
+	-I$(ROOTDIR)/antikernel-ipcores/cpp-wrappers \
 	-I$(SRCDIR)/../bsp-main/ \
 	-DMICROKVS_WRITE_BLOCK_SIZE=32 \
 	-DTEST_BANK_SIZE=131072 \
 	-DMAX_TOKEN_LEN=96 \
 	-DLOGGER_USE_RTC_TIMESTAMP \
+	-DQSPI_CACHE_WORKAROUND \
 	-Wl,--wrap=malloc \
 	-Wl,--wrap=calloc \
 	-Wl,--wrap=realloc \
@@ -43,6 +45,7 @@ all:
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/dhcp/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/drivers/base/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/drivers/stm32/STM32CryptoEngine.cpp || exit 1
+	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/drivers/apb/APBEthernetInterface.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/net/arp/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/net/ethernet/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/net/icmpv4/*.cpp || exit 1
@@ -53,10 +56,9 @@ all:
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/staticnet/ssh/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/cpu/*.* || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/cli/*.cpp || exit 1
-	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/util/*.cpp || exit 1
+	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/embedded-utils/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/newlib-stubs/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/peripheral/*.cpp || exit 1
-	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/src/util/*.cpp || exit 1
 	$(CXX) $(CXXFLAGS) -c $(ROOTDIR)/stm32-cpp/devices/src/stm32h735.cpp || exit 1
 	$(CXX) $(CXXFLAGS) *.o $(LDFLAGS) -o ../firmware.elf
 	cd ../

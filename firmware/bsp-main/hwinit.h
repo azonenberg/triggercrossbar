@@ -50,18 +50,18 @@
 #include <staticnet/ssh/SSHTransportServer.h>
 
 #include "ManagementDHCPClient.h"
-#include "QSPIEthernetInterface.h"
+#include <staticnet/drivers/apb/APBEthernetInterface.h>
 
 //SFR poll (ignore warnings related to this, we know the alignment of the SFRs are correct)
 #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-void StatusRegisterMaskedWait(volatile uint16_t* a, volatile uint16_t* b, uint16_t mask, uint16_t target);
+void StatusRegisterMaskedWait(volatile uint32_t* a, volatile uint32_t* b, uint32_t mask, uint32_t target);
 
 //Memcpy-like function that uses indirect OCTOSPI register access
 void SfrMemcpy(volatile void* dst, void* src, uint32_t len);
 
 #include "FPGAInterface.h"
 #include "APBFPGAInterface.h"
-#include "APBSpiFlashInterface.h"
+#include <embedded-utils/APB_SpiFlashInterface.h>
 #include "CrossbarSSHKeyManager.h"
 
 #include <bootloader/BootloaderAPI.h>
@@ -88,15 +88,10 @@ void ConfigureIP();
 void DoInitKVS();
 uint16_t GetSFPTemperature();
 
-uint16_t ManagementPHYRead(uint8_t regid);
-uint16_t ManagementPHYExtendedRead(uint8_t mmd, uint8_t regid);
-void ManagementPHYWrite(uint8_t regid, uint16_t regval);
-void ManagementPHYExtendedWrite(uint8_t regid, uint8_t mmd, uint16_t regval);
-
 //Common hardware interface stuff (mostly Ethernet related)
 extern UART<32, 256> g_cliUART;
 extern APBFPGAInterface g_apbfpga;
-extern EthernetInterface* g_ethIface;
+extern APBEthernetInterface g_ethIface;
 extern MACAddress g_macAddress;
 extern IPv4Config g_ipConfig;
 extern bool g_usingDHCP;
@@ -132,36 +127,15 @@ extern const IPv4Address g_defaultGateway;
 //SFRs on the FPGA used by both bootloader and application
 extern volatile APB_SystemInfo* g_sysInfo;
 extern volatile APB_MDIO* g_mdio;
-extern volatile ManagementRxFifo* g_ethRxFifo;
-extern volatile ManagementTxFifo* g_eth1GTxFifo;
-extern volatile ManagementTxFifo* g_eth10GTxFifo;
+extern volatile APB_EthernetRxBuffer* g_ethRxFifo;
+extern volatile APB_EthernetTxBuffer_10G* g_eth1GTxFifo;
+extern volatile APB_EthernetTxBuffer_10G* g_eth10GTxFifo;
 extern volatile APB_Curve25519* g_curve25519;
 extern volatile uint16_t* g_irqStat;
 extern volatile APB_SPIHostInterface* g_flashSpi;
 
 //Backup SRAM used for communication with bootloader
 extern volatile BootloaderBBRAM* g_bbram;
-
-enum mdioreg_t
-{
-	//IEEE defined registers
-	REG_BASIC_CONTROL			= 0x0000,
-	REG_BASIC_STATUS			= 0x0001,
-	REG_PHY_ID_1				= 0x0002,
-	REG_PHY_ID_2				= 0x0003,
-	REG_AN_ADVERT				= 0x0004,
-	REG_GIG_CONTROL				= 0x0009,
-
-	//Extended register access
-	REG_PHY_REGCR				= 0x000d,
-	REG_PHY_ADDAR				= 0x000e,
-
-	//KSZ9031 specific
-	REG_KSZ9031_MDIX			= 0x001c,
-
-	//KSZ9031 MMD 2
-	REG_KSZ9031_MMD2_CLKSKEW	= 0x0008
-};
 
 void UART4_Handler();
 
@@ -170,7 +144,8 @@ bool CheckForFPGAEvents();
 void TrimSpaces(char* str);
 void RegisterProtocolHandlers(IPv4Protocol& ipv4);
 
-//Flash controller for FPGA bitstream
-extern APBSpiFlashInterface* g_fpgaFlash;
+//Global device controllers
+extern APB_SpiFlashInterface* g_fpgaFlash;
+extern MDIODevice g_mgmtPhy;
 
 #endif
