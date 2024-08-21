@@ -40,8 +40,6 @@
 class ManagementPubkeyAuthenticator : public SSHPubkeyAuthenticator
 {
 public:
-	virtual ~ManagementPubkeyAuthenticator() =default;
-
 	virtual bool CanUseKey(
 		const char* username,
 		uint16_t username_len,

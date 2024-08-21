@@ -39,7 +39,6 @@ class FrontPanelFirmwareUpdater : public ELFFirmwareUpdater
 {
 public:
 	FrontPanelFirmwareUpdater();
-	virtual ~FrontPanelFirmwareUpdater();
 
 protected:
 	virtual void StartUpdate() override;

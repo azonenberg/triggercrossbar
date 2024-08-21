@@ -47,7 +47,6 @@ class BootloaderSSHTransportServer : public SSHTransportServer
 {
 public:
 	BootloaderSSHTransportServer(TCPProtocol& tcp);
-	virtual ~BootloaderSSHTransportServer();
 
 	void LoadUsername();
 

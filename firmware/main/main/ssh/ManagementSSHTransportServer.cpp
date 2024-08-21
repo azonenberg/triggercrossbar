@@ -94,10 +94,6 @@ ManagementSSHTransportServer::ManagementSSHTransportServer(TCPProtocol& tcp)
 	UseSFTPServer(&m_sftp);
 }
 
-ManagementSSHTransportServer::~ManagementSSHTransportServer()
-{
-}
-
 void ManagementSSHTransportServer::LoadUsername()
 {
 	memset(g_sshUsername, 0, sizeof(g_sshUsername));

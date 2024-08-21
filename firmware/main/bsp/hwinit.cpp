@@ -434,7 +434,7 @@ void InitFPGA()
 	g_usercode = g_sysInfo->usercode;
 	g_log("Usercode: %08x\n", g_usercode);
 	{
-		LogIndenter li(g_log);
+		LogIndenter li2(g_log);
 
 		//Format per XAPP1232:
 		//31:27 day

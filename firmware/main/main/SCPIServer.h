@@ -48,9 +48,6 @@ public:
 		: TCPServer<MAXCONNS, ContextType>(tcp)
 	{}
 
-	virtual ~SCPIServer()
-	{}
-
 	__attribute__((noinline))
 	virtual bool OnRxData(TCPTableEntry* socket, uint8_t* payload, uint16_t payloadLen) override
 	{

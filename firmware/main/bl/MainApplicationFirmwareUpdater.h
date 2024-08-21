@@ -39,7 +39,6 @@ class MainApplicationFirmwareUpdater : public ELFFirmwareUpdater
 {
 public:
 	MainApplicationFirmwareUpdater();
-	virtual ~MainApplicationFirmwareUpdater();
 
 protected:
 	virtual void StartUpdate() override;

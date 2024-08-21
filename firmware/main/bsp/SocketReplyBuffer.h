@@ -50,7 +50,7 @@ public:
 	{
 	}
 
-	virtual ~SocketReplyBuffer()
+	~SocketReplyBuffer()
 	{
 		//If we have anything to send, send it
 		if(m_buf.length())

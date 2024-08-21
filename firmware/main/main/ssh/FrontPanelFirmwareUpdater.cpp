@@ -47,10 +47,6 @@ FrontPanelFirmwareUpdater::FrontPanelFirmwareUpdater()
 	RCCHelper::Enable(&_CRC);
 }
 
-FrontPanelFirmwareUpdater::~FrontPanelFirmwareUpdater()
-{
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Firmware update logic
 

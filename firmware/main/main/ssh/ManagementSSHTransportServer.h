@@ -47,7 +47,6 @@ class ManagementSSHTransportServer : public SSHTransportServer
 {
 public:
 	ManagementSSHTransportServer(TCPProtocol& tcp);
-	virtual ~ManagementSSHTransportServer();
 
 	void LoadUsername();
 

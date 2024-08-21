@@ -61,9 +61,6 @@ public:
 	SSHOutputStream* GetSSHStream()
 	{ return &m_sshstream; }
 
-	virtual ~BootloaderCLISessionContext()
-	{}
-
 	virtual void PrintPrompt();
 
 protected:

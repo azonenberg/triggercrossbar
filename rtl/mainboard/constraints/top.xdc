@@ -277,7 +277,7 @@ set_clock_groups -asynchronous -group [get_clocks network/xg_transceiver/inst/sf
 create_pblock pblock_crypt25519
 resize_pblock [get_pblocks pblock_crypt25519] -add {CLOCKREGION_X0Y0:CLOCKREGION_X1Y0}
 set_property IS_SOFT FALSE [get_pblocks pblock_crypt25519]
-#add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519 mgmt/apb_regslice_crypt]]
+add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519 mgmt/apb_regslice_crypt]]
 
 create_pblock pblock_port_xg0
 add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/port_xg0/mac network/port_xg0/rx_s2_control_i_1]]

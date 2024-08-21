@@ -60,10 +60,6 @@ MainApplicationFirmwareUpdater::MainApplicationFirmwareUpdater()
 	RCCHelper::Enable(&_CRC);
 }
 
-MainApplicationFirmwareUpdater::~MainApplicationFirmwareUpdater()
-{
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Firmware update logic
 

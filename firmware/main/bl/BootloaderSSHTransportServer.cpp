@@ -94,10 +94,6 @@ BootloaderSSHTransportServer::BootloaderSSHTransportServer(TCPProtocol& tcp)
 	UseSFTPServer(&m_sftp);
 }
 
-BootloaderSSHTransportServer::~BootloaderSSHTransportServer()
-{
-}
-
 void BootloaderSSHTransportServer::LoadUsername()
 {
 	memset(g_sshUsername, 0, sizeof(g_sshUsername));

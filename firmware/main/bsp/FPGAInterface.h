@@ -33,9 +33,6 @@
 class FPGAInterface
 {
 public:
-	virtual ~FPGAInterface()
-	{}
-
 	virtual void Nop()
 	{};
 

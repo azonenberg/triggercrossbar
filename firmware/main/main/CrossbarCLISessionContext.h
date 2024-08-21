@@ -61,9 +61,6 @@ public:
 	SSHOutputStream* GetSSHStream()
 	{ return &m_sshstream; }
 
-	virtual ~CrossbarCLISessionContext()
-	{}
-
 	virtual void PrintPrompt();
 
 protected:

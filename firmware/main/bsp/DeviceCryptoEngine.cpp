@@ -48,10 +48,6 @@ DeviceCryptoEngine::DeviceCryptoEngine()
 {
 }
 
-DeviceCryptoEngine::~DeviceCryptoEngine()
-{
-}
-
 void DeviceCryptoEngine::BlockUntilAcceleratorDone()
 {
 	StatusRegisterMaskedWait(&g_curve25519->status, &g_curve25519->status2, 0x1, 0x0);

@@ -55,7 +55,6 @@ class ELFFirmwareUpdater
 {
 public:
 	ELFFirmwareUpdater();
-	virtual ~ELFFirmwareUpdater();
 
 	///@brief Called when the device file is opened
 	void OnDeviceOpened();

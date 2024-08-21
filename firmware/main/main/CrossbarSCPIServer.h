@@ -67,7 +67,6 @@ class CrossbarSCPIServer : public SCPIServer<MAX_SCPI_CONNS, CrossbarSCPIConnect
 {
 public:
 	CrossbarSCPIServer(TCPProtocol& tcp);
-	virtual ~CrossbarSCPIServer();
 
 	virtual void OnConnectionAccepted(TCPTableEntry* socket);
 	virtual void OnConnectionClosed(TCPTableEntry* socket);

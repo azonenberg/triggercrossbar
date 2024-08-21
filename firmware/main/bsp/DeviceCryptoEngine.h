@@ -39,7 +39,6 @@ class DeviceCryptoEngine : public STM32CryptoEngine
 {
 public:
 	DeviceCryptoEngine();
-	virtual ~DeviceCryptoEngine();
 
 	virtual void GenerateX25519KeyPair(uint8_t* pub) override;
 	virtual void SharedSecret(uint8_t* sharedSecret, uint8_t* clientPublicKey) override;
