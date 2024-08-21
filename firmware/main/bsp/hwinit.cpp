@@ -247,7 +247,8 @@ void BSP_InitUART()
 	g_logTimer.Sleep(10);	//wait for UART pins to be high long enough to remove any glitches during powerup
 
 	//Clear screen and move cursor to X0Y0
-	g_cliUART.Printf("\x1b[2J\x1b[0;0H");
+	if(IsBootloader())
+		g_cliUART.Printf("\x1b[2J\x1b[0;0H");
 }
 
 void BSP_InitLog()
@@ -319,10 +320,6 @@ void InitI2C()
 void InitQSPI()
 {
 	g_log("Initializing QSPI interface\n");
-
-	LogIndenter li(g_log);
-	g_log("5-second delay\n");
-	g_logTimer.Sleep(5 * 10 * 1000);
 
 	//Configure the I/O manager
 	OctoSPIManager::ConfigureMux(false);

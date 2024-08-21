@@ -201,19 +201,19 @@ uint8_t GetFrontPanelMode()
 
 void SetFrontPanelCS(bool b)
 {
-	g_apbfpga.BlockingWrite16(&g_frontPanelSPI->cs_n, b);
+	g_apbfpga.BlockingWrite32(&g_frontPanelSPI->cs_n, b);
 }
 
 void SendFrontPanelByte(uint8_t data)
 {
-	g_apbfpga.BlockingWrite16(&g_frontPanelSPI->data, data);
+	g_apbfpga.BlockingWrite32(&g_frontPanelSPI->data, data);
 	StatusRegisterMaskedWait(&g_frontPanelSPI->status, &g_frontPanelSPI->status2, 0x1, 0x0);
 }
 
 uint8_t ReadFrontPanelByte()
 {
 	//Send the data byte
-	g_apbfpga.BlockingWrite16(&g_frontPanelSPI->data, 0x00);
+	g_apbfpga.BlockingWrite32(&g_frontPanelSPI->data, 0x00);
 
 	//Return the response once complete
 	StatusRegisterMaskedWait(&g_frontPanelSPI->status, &g_frontPanelSPI->status2, 0x1, 0x0);
