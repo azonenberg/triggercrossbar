@@ -13,7 +13,8 @@ target_link_options(bootloader
 	PUBLIC "-ffunction-sections"
 	PUBLIC "-Wl,--gc-sections"
 	PUBLIC "-Wl,-T${CMAKE_CURRENT_SOURCE_DIR}/bootloader.ld"
-	PUBLIC "-L${PROJECT_ROOT}/stm32-cpp/devices/link/")
+	PUBLIC "-L${PROJECT_ROOT}/stm32-cpp/devices/link/"
+	PUBLIC "-L${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 target_link_libraries(bootloader
 	bsp

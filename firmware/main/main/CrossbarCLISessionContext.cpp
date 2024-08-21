@@ -893,7 +893,7 @@ void CrossbarCLISessionContext::OnSetRegister()
 {
 	int regid = strtol(m_command[2].m_text, nullptr, 16);
 	int value = strtol(m_command[3].m_text, nullptr, 16);
-	ManagementPHYWrite(regid, value);
+	g_mgmtPhy.WriteRegister(regid, value);
 	m_stream->Printf("Set register 0x%02x to 0x%04x\n", regid, value);
 }
 
@@ -902,7 +902,7 @@ void CrossbarCLISessionContext::OnSetMmdRegister()
 	int mmd = strtol(m_command[2].m_text, nullptr, 16);
 	int regid = strtol(m_command[4].m_text, nullptr, 16);
 	auto value = strtol(m_command[5].m_text, nullptr, 16);
-	ManagementPHYExtendedWrite(mmd, regid, value);
+	g_mgmtPhy.WriteExtendedRegister(mmd, regid, value);
 	m_stream->Printf("Set MMD %02x register 0x%04x to 0x%04x\n", mmd, regid, value);
 }
 
@@ -1416,7 +1416,7 @@ void CrossbarCLISessionContext::OnShowMMDRegister()
 {
 	int mmd = strtol(m_command[2].m_text, nullptr, 16);
 	int regid = strtol(m_command[4].m_text, nullptr, 16);
-	auto value = ManagementPHYExtendedRead(mmd, regid);
+	auto value = g_mgmtPhy.ReadExtendedRegister(mmd, regid);
 
 	m_stream->Printf("MMD %02x register 0x%04x = 0x%04x\n", mmd, regid, value);
 }
@@ -1458,7 +1458,7 @@ void CrossbarCLISessionContext::OnShowNtp()
 void CrossbarCLISessionContext::OnShowRegister()
 {
 	int regid = strtol(m_command[2].m_text, nullptr, 16);
-	auto value = ManagementPHYRead(regid);
+	auto value = g_mgmtPhy.ReadRegister(regid);
 
 	m_stream->Printf("Register 0x%02x = 0x%04x\n", regid, value);
 }
@@ -1468,7 +1468,7 @@ void CrossbarCLISessionContext::OnShowSSHKeys()
 	m_stream->Printf("Authorized keys:\n");
 	m_stream->Printf("Slot  Nickname                        Fingerprint\n");
 
-	STM32CryptoEngine tmp;
+	DeviceCryptoEngine tmp;
 	char fingerprint[64];
 
 	for(int i=0; i<MAX_SSH_KEYS; i++)
@@ -1487,7 +1487,7 @@ void CrossbarCLISessionContext::OnShowSSHKeys()
 void CrossbarCLISessionContext::OnShowSSHFingerprint()
 {
 	char buf[64] = {0};
-	STM32CryptoEngine tmp;
+	DeviceCryptoEngine tmp;
 	tmp.GetHostKeyFingerprint(buf, sizeof(buf));
 	m_stream->Printf("ED25519 key fingerprint is SHA256:%s.\n", buf);
 }

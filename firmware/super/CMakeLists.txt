@@ -2,13 +2,6 @@
 # Top level config
 
 cmake_minimum_required(VERSION 3.19)
-project(triggercrossbar-super LANGUAGES C CXX ASM)
-
-file(REAL_PATH "${CMAKE_SOURCE_DIR}/../.." PROJECT_ROOT)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
-########################################################################################################################
-# Pull in target config
 
 # Common boilerplate we don't want to replicate in every project
 include("${PROJECT_ROOT}/common-embedded-platform/boilerplate.cmake")
@@ -16,6 +9,14 @@ include("${PROJECT_ROOT}/common-embedded-platform/boilerplate.cmake")
 # Target-specific configuration
 set(TARGET_MCU stm32l031)
 include("${PROJECT_ROOT}/stm32-cpp/build/${TARGET_MCU}.cmake")
+
+file(REAL_PATH "${CMAKE_SOURCE_DIR}/../.." PROJECT_ROOT)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+project(triggercrossbar-super LANGUAGES C CXX ASM)
+
+########################################################################################################################
+# Pull in target config
 
 # Include paths
 include_directories(
