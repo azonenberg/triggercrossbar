@@ -483,7 +483,7 @@ module top(
 	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) relayBus();
 
 	wire[3:0]	relay_state;
-	/*
+
 	APB_RelayController relays(
 		.apb(relayBus),
 
@@ -495,12 +495,12 @@ module top(
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// The actual crossbar itself
-	*/
+
 	wire[11:0]		trig_in_led;
 	wire[11:0]		trig_out_led;
 
 	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) crossbarBus();
-	/*
+
 	APB_CrossbarMatrix matrix(
 		.apb(crossbarBus),
 
@@ -510,7 +510,7 @@ module top(
 		.trig_in_led(trig_in_led),
 		.trig_out_led(trig_out_led)
 	);
-	*/
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Management register interface
 

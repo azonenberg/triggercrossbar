@@ -178,11 +178,11 @@ struct APB_SystemInfo
 
 struct __attribute__((packed)) APB_RelayController
 {
-	uint16_t		toggle;
-	uint16_t		field_02[15];
-	uint16_t		stat;
-	uint16_t		field_22[15];
-	uint16_t		stat2;
+	uint32_t		toggle;
+	uint32_t		field_04[7];
+	uint32_t		stat;
+	uint32_t		field_24[7];
+	uint32_t		stat2;
 };
 
 #include <APB_EthernetRxBuffer.h>

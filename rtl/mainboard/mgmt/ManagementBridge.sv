@@ -284,7 +284,7 @@ module ManagementBridge(
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Debug ILA
-/*
+
 	ila_1 ila(
 		.clk(clk),
 
@@ -321,6 +321,6 @@ module ManagementBridge(
 
 		.probe27(apb_penable_ff),
 		.probe28(wr_addr)
-	);*/
+	);
 
 endmodule

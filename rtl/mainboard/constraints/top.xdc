@@ -226,14 +226,6 @@ create_clock -period 3.103 -name prbs_transceiver/prbs_tx_clk_raw -waveform {0.0
 # Naive constraints of 1.2 / 2.8 assume the data and clock are nominally aligned to center with 1.2ns setup/hold time
 # This does not appear to actually be the case!
 # Actual scope measurements show clock ~912ps after data edge, not 2ns as the datasheet suggests
-set_input_delay -clock [get_clocks rgmii_rxc] -clock_fall -min -add_delay 2.300 [get_ports {rgmii_rxd[*]}]
-set_input_delay -clock [get_clocks rgmii_rxc] -clock_fall -max -add_delay 2.750 [get_ports {rgmii_rxd[*]}]
-set_input_delay -clock [get_clocks rgmii_rxc] -min -add_delay 2.300 [get_ports {rgmii_rxd[*]}]
-set_input_delay -clock [get_clocks rgmii_rxc] -max -add_delay 2.750 [get_ports {rgmii_rxd[*]}]
-set_input_delay -clock [get_clocks rgmii_rxc] -clock_fall -min -add_delay 2.300 [get_ports rgmii_rx_dv]
-set_input_delay -clock [get_clocks rgmii_rxc] -clock_fall -max -add_delay 2.750 [get_ports rgmii_rx_dv]
-set_input_delay -clock [get_clocks rgmii_rxc] -min -add_delay 2.300 [get_ports rgmii_rx_dv]
-set_input_delay -clock [get_clocks rgmii_rxc] -max -add_delay 2.750 [get_ports rgmii_rx_dv]
 
 ########################################################################################################################
 # CDC
@@ -275,9 +267,9 @@ set_clock_groups -asynchronous -group [get_clocks network/xg_transceiver/inst/sf
 # Floorplanning
 
 create_pblock pblock_crypt25519
+add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519 mgmt/apb_regslice_crypt]]
 resize_pblock [get_pblocks pblock_crypt25519] -add {CLOCKREGION_X0Y0:CLOCKREGION_X1Y0}
 set_property IS_SOFT FALSE [get_pblocks pblock_crypt25519]
-add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519 mgmt/apb_regslice_crypt]]
 
 create_pblock pblock_port_xg0
 add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/port_xg0/mac network/port_xg0/rx_s2_control_i_1]]
@@ -304,7 +296,7 @@ resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB36_X0Y30:RAMB36_X0Y34}
 set_property IS_SOFT FALSE [get_pblocks pblock_port_mgmt0]
 
 create_pblock pblock_qspi
-add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/tach0 mgmt/tach1]]
+#add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/tach0 mgmt/tach1]]
 resize_pblock [get_pblocks pblock_qspi] -add {SLICE_X0Y50:SLICE_X19Y99}
 resize_pblock [get_pblocks pblock_qspi] -add {DSP48_X0Y20:DSP48_X0Y39}
 resize_pblock [get_pblocks pblock_qspi] -add {RAMB18_X0Y20:RAMB18_X0Y39}
@@ -342,7 +334,6 @@ set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
 create_pblock pblock_cdrtrig_linecode
 resize_pblock [get_pblocks pblock_cdrtrig_linecode] -add {CLOCKREGION_X1Y3:CLOCKREGION_X1Y3}
 set_property IS_SOFT FALSE [get_pblocks pblock_cdrtrig_linecode]
-add_cells_to_pblock [get_pblocks pblock_cdrtrig_linecode] [get_cells -quiet [list {bert/decoders[0].lane0_8b10b_decode} {bert/decoders[0].lane0_aligner} {bert/decoders[1].lane0_8b10b_decode} {bert/decoders[1].lane0_aligner} {bert/decoders[2].lane0_8b10b_decode} {bert/decoders[2].lane0_aligner} {bert/decoders[3].lane0_8b10b_decode} {bert/decoders[3].lane0_aligner}]]
 
 create_pblock pblock_cdtrtrig_gearboxes
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {SLICE_X44Y150:SLICE_X53Y188}
@@ -350,7 +341,6 @@ resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {DSP48_X2Y60:DSP48_X2
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB18_X2Y60:RAMB18_X2Y73}
 resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB36_X2Y30:RAMB36_X2Y36}
 set_property IS_SOFT FALSE [get_pblocks pblock_cdtrtrig_gearboxes]
-add_cells_to_pblock [get_pblocks pblock_cdtrtrig_gearboxes] [get_cells -quiet [list bert/lane0_gearbox40 bert/lane0_gearbox66]]
 
 
 
@@ -379,6 +369,7 @@ set_property DRIVE 8 [get_ports {flash_dq[2]}]
 set_property DRIVE 8 [get_ports {flash_dq[1]}]
 set_property DRIVE 8 [get_ports {flash_dq[0]}]
 set_property DRIVE 8 [get_ports flash_cs_n]
+
 
 
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]

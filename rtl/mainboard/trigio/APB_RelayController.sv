@@ -68,9 +68,9 @@ module APB_RelayController(
 		);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// We only support 16-bit APB, throw synthesis error for anything else
+	// We only support 32-bit APB, throw synthesis error for anything else
 
-	if(apb.DATA_WIDTH != 16)
+	if(apb.DATA_WIDTH != 32)
 		apb_bus_width_is_invalid();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -156,7 +156,7 @@ module APB_RelayController(
 
 				case(apb.paddr)
 
-					REG_RELAY_STAT:		apb.prdata	= { 15'h0, relay_busy };
+					REG_RELAY_STAT:		apb.prdata	= { 31'h0, relay_busy };
 
 					//unmapped address
 					default:	apb.pslverr		= 1;

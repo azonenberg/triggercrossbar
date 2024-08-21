@@ -58,9 +58,9 @@ module APB_CrossbarMatrix #(
 	output wire[NUM_PORTS-1:0]	trig_out_led
 );
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// We only support 16-bit APB, throw synthesis error for anything else
+	// We only support 32-bit APB, throw synthesis error for anything else
 
-	if(apb.DATA_WIDTH != 16)
+	if(apb.DATA_WIDTH != 32)
 		apb_bus_width_is_invalid();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -82,7 +82,7 @@ module APB_CrossbarMatrix #(
 		apb.prdata	= 0;
 		apb.pslverr	= 0;
 
-		portidx		= apb.paddr[apb.ADDR_WIDTH-1:1];
+		portidx		= apb.paddr[apb.ADDR_WIDTH-1:2];
 
 		if(apb.pready) begin
 

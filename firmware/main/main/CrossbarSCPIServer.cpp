@@ -593,7 +593,7 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		int muxsel = atoi(args);
 
 		g_muxsel[chan] = muxsel;
-		g_apbfpga.BlockingWrite16(BASE_MUXSEL + 2*chan, muxsel);
+		g_apbfpga.BlockingWrite32(BASE_MUXSEL + 4*chan, muxsel);
 	}
 
 	//Direction for bidir ports
