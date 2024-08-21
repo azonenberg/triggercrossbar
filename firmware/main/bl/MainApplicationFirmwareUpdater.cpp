@@ -159,10 +159,13 @@ void MainApplicationFirmwareUpdater::OnWriteData(uint32_t physicalAddress, uint8
 			return;
 		}
 
-		auto fwBuild = reinterpret_cast<const char*>(data + g_appVersionOffset);
-		auto fwID = fwBuild + 0x20;
+		auto fwBuild = data + g_appVersionOffset;
+		char buildHash[GNU_BUILD_ID_HEX_SIZE] = {0};
+		FormatBuildID(fwBuild, buildHash);
 
-		g_log("Firmware build date: %s\n", fwBuild);
+		auto fwID = reinterpret_cast<const char*>(fwBuild + 0x40);
+
+		g_log("Firmware build date: %s\n", buildHash);
 		g_log("Firmware ID:         %s\n", fwID);
 
 		const char* expectedID = "trigger-crossbar-main";
@@ -179,7 +182,7 @@ void MainApplicationFirmwareUpdater::OnWriteData(uint32_t physicalAddress, uint8
 		//TODO: don't erase flash until we've confirmed the new image is actually valid for us?
 
 		//Write this image version to the bootloader now as the expected image ID string
-		if(!g_kvs->StoreObject(g_imageVersionKey, (const uint8_t*)fwBuild, strlen(fwBuild)))
+		if(!g_kvs->StoreObject(g_imageVersionKey, (const uint8_t*)buildHash, GNU_BUILD_ID_HEX_SIZE))
 			g_log(Logger::ERROR, "KVS write error\n");
 	}
 

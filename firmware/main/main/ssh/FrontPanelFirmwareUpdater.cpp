@@ -168,10 +168,13 @@ void FrontPanelFirmwareUpdater::OnWriteData(uint32_t physicalAddress, uint8_t* d
 			return;
 		}
 
-		auto fwBuild = reinterpret_cast<const char*>(data + 0x1a0);
-		auto fwID = reinterpret_cast<const char*>(data + 0x1c0);
+		auto fwBuild = data + 0x1a0;
+		char buildHash[GNU_BUILD_ID_HEX_SIZE] = {0};
+		FormatBuildID(fwBuild, buildHash);
 
-		g_log("Firmware build date: %s\n", fwBuild);
+		auto fwID = reinterpret_cast<const char*>(fwBuild + 0x40);
+
+		g_log("Firmware build date: %s\n", buildHash);
 		g_log("Firmware ID:         %s\n", fwID);
 
 		const char* expectedID = "trigger-crossbar-frontpanel";
