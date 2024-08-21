@@ -472,14 +472,14 @@ module top(
 	// Curve25519 crypto_scalarmult accelerator (for speeding up SSH key exchange)
 
 	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) cryptBus();
-	/*
+
 	APB_Curve25519 crypt25519(
 		.apb(cryptBus)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Relays for bidirectional IOs
-	*/
+
 	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) relayBus();
 
 	wire[3:0]	relay_state;
