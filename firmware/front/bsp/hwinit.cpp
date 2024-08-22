@@ -106,9 +106,8 @@ void BSP_InitLog()
 	g_logTimer.Sleep(100);
 
 	//Clear screen and move cursor to X0Y0 (but only in bootloader)
-	#ifndef NO_CLEAR_SCREEN
-	g_uart.Printf("\x1b[2J\x1b[0;0H");
-	#endif
+	if(IsBootloader())
+		g_uart.Printf("\x1b[2J\x1b[0;0H");
 
 	//Start the logger
 	g_log.Initialize(&g_uart, &g_logTimer);

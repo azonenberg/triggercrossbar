@@ -29,7 +29,7 @@
 
 #include <core/platform.h>
 #include <bootloader/bootloader-common.h>
-#include "../bsp-front/hwinit.h"
+#include "../bsp/hwinit.h"
 
 typedef void(*fnptr)();
 

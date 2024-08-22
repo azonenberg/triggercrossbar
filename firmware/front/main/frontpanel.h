@@ -39,7 +39,7 @@
 #include <embedded-utils/StringBuffer.h>
 
 #include <bootloader/BootloaderAPI.h>
-#include "../bsp-front/hwinit.h"
+#include "../bsp/hwinit.h"
 #include "TCA6424A.h"
 #include "Display.h"
 

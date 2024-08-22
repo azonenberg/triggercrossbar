@@ -43,7 +43,6 @@ uint32_t g_spiRxFifoOverflows = 0;
 /**
 	@brief GPIO interrupt used for SPI chip select
  */
-[[gnu::isr]]
 void SPI_CSHandler()
 {
 	//for now only trigger on falling edge so no need to check
@@ -56,7 +55,6 @@ void SPI_CSHandler()
 /**
 	@brief SPI data interrupt
  */
-[[gnu::isr]]
 void SPI1_Handler()
 {
 	if(SPI1.SR & SPI_RX_NOT_EMPTY)
@@ -78,7 +76,6 @@ void SPI1_Handler()
 /**
 	@brief UART1 interrupt
  */
-[[gnu::isr]]
 void USART2_Handler()
 {
 	if(USART2.ISR & USART_ISR_TXE)

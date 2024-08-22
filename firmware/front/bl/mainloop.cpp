@@ -32,8 +32,8 @@
 #include <bootloader/BootloaderAPI.h>
 #include <microkvs/driver/STM32StorageBank.h>
 #include <algorithm>
-#include "../bsp-front/hwinit.h"
-#include "../front/regids.h"
+#include "../bsp/hwinit.h"
+#include "../main/regids.h"
 #include "../../staticnet/util/CircularFIFO.h"
 
 //Application region of flash runs from the end of the bootloader (0x08008000)
@@ -167,15 +167,15 @@ void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow()
 							{
 								g_log("Preparing to boot application\n");
 
-								auto sver = GetImageVersion(g_appVector);
-								if(!sver)
+								char imageVersion[GNU_BUILD_ID_HEX_SIZE] = {0};
+								if(!GetImageVersion(g_appVector, imageVersion))
 								{
 									g_log(Logger::ERROR, "No image version string found\n");
 									continue;
 								}
 
 								//Write image version and expected CRC to KVS
-								g_kvs->StoreObject(g_imageVersionKey, (const uint8_t*)sver, strlen(sver));
+								g_kvs->StoreObject(g_imageVersionKey, (const uint8_t*)imageVersion, GNU_BUILD_ID_HEX_SIZE);
 								g_kvs->StoreObject(g_imageCRCKey, (const uint8_t*)&expectedCRC, sizeof(uint32_t));
 
 								//Try booting it
