@@ -303,6 +303,7 @@ void SendFrontPanelSensor(uint8_t cmd, uint16_t value)
 	SendFrontPanelByte(value & 0xff);
 	SendFrontPanelByte(value >> 8);
 	g_frontSPI->SetCS(1);
+	g_logTimer.Sleep(1);
 }
 
 void SetFrontPanelDirectionLEDs(uint8_t leds)
@@ -314,6 +315,7 @@ void SetFrontPanelDirectionLEDs(uint8_t leds)
 	SendFrontPanelByte(FRONT_DIR_LEDS);
 	SendFrontPanelByte(leds);
 	g_frontSPI->SetCS(1);
+	g_logTimer.Sleep(1);
 }
 
 void UpdateFrontPanelActivityLEDs()
@@ -369,6 +371,8 @@ void UpdateFrontPanelDisplay()
 	else
 		SendFrontPanelByte(0xff);
 	g_frontSPI->SetCS(1);
+
+	g_logTimer.Sleep(2);
 
 	//Set Ethernet DHCP state
 	g_frontSPI->SetCS(0);
