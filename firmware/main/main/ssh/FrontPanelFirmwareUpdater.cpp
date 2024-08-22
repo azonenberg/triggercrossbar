@@ -66,9 +66,9 @@ void FrontPanelFirmwareUpdater::StartUpdate()
 			g_log("Front panel is in normal mode, restarting in DFU mode...\n");
 
 			//Go to DFU mode
-			SetFrontPanelCS(0);
+			g_frontSPI->SetCS(0);
 			SendFrontPanelByte(FRONT_ENTER_DFU);
-			SetFrontPanelCS(1);
+			g_frontSPI->SetCS(1);
 
 			//Wait for reset
 			g_logTimer.Sleep(500);
@@ -100,7 +100,7 @@ void FrontPanelFirmwareUpdater::StartUpdate()
 	//TODO: can we optimize to only erase sectors that have content?
 	g_log("Erasing application flash partition...\n");
 	auto start = g_logTimer.GetCount();
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_ERASE_APP);
 	g_logTimer.Sleep(1);
 	while(ReadFrontPanelByte() == 0)
@@ -116,7 +116,7 @@ void FrontPanelFirmwareUpdater::StartUpdate()
 
 		g_logTimer.Sleep(1);
 	}
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 
 	CRC::ChecksumInit();
 	m_runningLength = 0;
@@ -193,24 +193,24 @@ void FrontPanelFirmwareUpdater::OnWriteData(uint32_t physicalAddress, uint8_t* d
 	}
 
 	//Send the address to the bootloader
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_FLASH_ADDR);
 	SendFrontPanelByte(physicalAddress & 0xff);
 	SendFrontPanelByte((physicalAddress >> 8) & 0xff);
 	SendFrontPanelByte((physicalAddress >> 16) & 0xff);
 	SendFrontPanelByte((physicalAddress >> 24) & 0xff);
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 
 	g_logTimer.Sleep(5);
 
 	//Send the data
 	//TODO: if more than 1-2 kB, chunk it
 	auto start = g_logTimer.GetCount();
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_FLASH_WRITE);
 	for(uint32_t i=0; i<len; i++)
 		SendFrontPanelByte(data[i]);
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 
 	g_logTimer.Sleep(50);
 
@@ -220,20 +220,20 @@ void FrontPanelFirmwareUpdater::OnWriteData(uint32_t physicalAddress, uint8_t* d
 	m_runningLength += len;
 
 	//Poll until the write has completed
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_FLASH_STATUS);
 	g_logTimer.Sleep(20);
 	while(ReadFrontPanelByte() != 1)
 		g_logTimer.Sleep(50);
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 
 	//Flush the SPI buffer to make sure we don't get false "done" values
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_FLASH_SYNC);
 	g_logTimer.Sleep(20);
 	while(ReadFrontPanelByte() != 0xcc)
 		g_logTimer.Sleep(50);
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 
 	//1K bits / 1 sec =
 	//1 bits / 1 ms =
@@ -251,12 +251,12 @@ void FrontPanelFirmwareUpdater::FinishSegment()
 
 	//Flush any remaining data to flash
 	g_log("Flushing remaining data to flash\n");
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_FLASH_FLUSH);
 	g_logTimer.Sleep(1);
 	while(ReadFrontPanelByte() == 0)
 	{}
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 
 	//If the segment did not end on a flash write block (64 bit) boundary, append the necessary number of 0x00
 	//padding bytes and CRC them
@@ -298,19 +298,19 @@ void FrontPanelFirmwareUpdater::FinishUpdate()
 	g_log("Calculated full-partition CRC32: 0x%08x\n", crc);
 
 	//Send the expected CRC to the bootloader
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_EXPECTED_CRC);
 	SendFrontPanelByte(crc & 0xff);
 	SendFrontPanelByte((crc >> 8) & 0xff);
 	SendFrontPanelByte((crc >> 16) & 0xff);
 	SendFrontPanelByte((crc >> 24) & 0xff);
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 
 	//Request booting the app
 	g_log("Booting application\n");
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_BOOT_APP);
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 
 	//Wait for reset
 	//TODO: we don't want to hang the whole chip for 1 sec, do this in some kind of timer state machine

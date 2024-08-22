@@ -516,13 +516,13 @@ void CrossbarCLISessionContext::OnExecuteRoot()
 			break;
 
 		case CMD_REFRESH:
-			SetFrontPanelCS(0);
+			g_frontSPI->SetCS(0);
 			if(m_command[1].m_commandID == CMD_FULL)
 				SendFrontPanelByte(FRONT_REFRESH_FULL);
 			else
 				SendFrontPanelByte(FRONT_REFRESH_FAST);
 			SendFrontPanelByte(0x00);	//dummy byte
-			SetFrontPanelCS(1);
+			g_frontSPI->SetCS(1);
 			break;
 
 		case CMD_ROLLBACK:

@@ -89,6 +89,8 @@ volatile APB_GPIO* g_ledGpioOutPortActivity =
 volatile APB_SPIHostInterface* g_frontPanelSPI =
 	reinterpret_cast<volatile APB_SPIHostInterface*>(FPGA_MEM_BASE + BASE_FRONT_SPI);
 
+APB_SPIHostInterfaceDriver* g_frontSPI = nullptr;
+
 ///@brief Low speed configuration for BERT channels
 volatile APB_BERTConfig* g_bertConfig[2] =
 {

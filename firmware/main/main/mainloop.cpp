@@ -176,36 +176,54 @@ void TraceLogSensors()
 	sensorStream.Printf(
 		"CSV-NAME,"
 		"FAN0_RPM,"
-		"FPGA_TEMP,"
-		"FPGA_VCCINT,"
-		"FPGA_VCCBRAM,"
-		"FPGA_VCCAUX"
+		"FPGA_TEMP,FPGA_VCCINT,FPGA_VCCBRAM,FPGA_VCCAUX,"
+		"MAINMCU_TEMP,"
+		"SFP_TEMP,"
+		"IBC_VIN,IBC_IIN,IBC_TEMP,IBC_VOUT,IBC_IOUT,IBC_VSENSE,"
+		"SUPER_MCUTEMP,SUPER_3V3"
+
+		//TODO: IBC_MCUTEMP, IBC_3V3
+
 		"\n"
 		);
 
 	sensorStream.Printf(
 		"CSV-UNIT,"
 		"RPM,"
+		"°C,V,V,V,"
 		"°C,"
-		"V,"
-		"V,"
-		"V,"
+		"°C,"
+		"V,A,°C,V,A,V,"
+		"°C,V"
 		"\n"
 		);
+
+	auto ibc_vin = SupervisorRegRead(SUPER_REG_IBCVIN);
+	auto ibc_iin = SupervisorRegRead(SUPER_REG_IBCIIN);
+	auto ibc_temp = SupervisorRegRead(SUPER_REG_IBCTEMP);
+	auto ibc_vout = SupervisorRegRead(SUPER_REG_IBCVOUT);
+	auto ibc_iout = SupervisorRegRead(SUPER_REG_IBCIOUT);
+	auto ibc_vsense = SupervisorRegRead(SUPER_REG_IBCVSENSE);
+	auto super_temp = SupervisorRegRead(SUPER_REG_MCUTEMP);
+	auto super_3v3 = SupervisorRegRead(SUPER_REG_3V3);
 
 	sensorStream.Printf(
 		"CSV-DATA,"
 		"%d,"
+		"%uhk,%uhk,%uhk,%uhk,"
 		"%uhk,"
 		"%uhk,"
-		"%uhk,"
-		"%uhk,"
+		"%d.%03d,%d.%03d,%uhk,%d.%03d,%d.%03d,%d.%03d,"
+		"%uhk,%d.%03d,"
 		"\n",
+
 		GetFanRPM(0),
-		GetFPGATemperature(),
-		GetFPGAVCCINT(),
-		GetFPGAVCCBRAM(),
-		GetFPGAVCCAUX()
+		GetFPGATemperature(), GetFPGAVCCINT(), GetFPGAVCCBRAM(), GetFPGAVCCAUX(),
+		g_dts->GetTemperature(),
+		GetSFPTemperature(),
+		ibc_vin / 1000, ibc_vin % 1000, ibc_iin / 1000, ibc_iin % 1000, ibc_temp, ibc_vout / 1000, ibc_vout % 1000,
+			ibc_iout / 1000, ibc_iout % 1000, ibc_vsense / 1000, ibc_vsense % 1000,
+		super_temp, super_3v3 / 1000, super_3v3 % 1000
 		);
 }
 #endif
@@ -214,6 +232,9 @@ void InitFrontPanel()
 {
 	g_log("Initializing front panel\n");
 	LogIndenter li(g_log);
+
+	static APB_SPIHostInterfaceDriver frontDriver(g_frontPanelSPI);
+	g_frontSPI = &frontDriver;
 
 	//Check what mode we're in
 	auto mode = GetFrontPanelMode();
@@ -239,17 +260,12 @@ void InitFrontPanel()
 
 uint8_t GetFrontPanelMode()
 {
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_GET_STATUS);
 	g_logTimer.Sleep(1);
 	auto ret = ReadFrontPanelByte();
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 	return ret;
-}
-
-void SetFrontPanelCS(bool b)
-{
-	g_apbfpga.BlockingWrite32(&g_frontPanelSPI->cs_n, b);
 }
 
 void SendFrontPanelByte(uint8_t data)
@@ -270,11 +286,11 @@ uint8_t ReadFrontPanelByte()
 
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value)
 {
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(cmd);
 	SendFrontPanelByte(value & 0xff);
 	SendFrontPanelByte(value >> 8);
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 }
 
 void SetFrontPanelDirectionLEDs(uint8_t leds)
@@ -282,10 +298,10 @@ void SetFrontPanelDirectionLEDs(uint8_t leds)
 	if(IsFrontPanelDFU())
 		return;
 
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_DIR_LEDS);
 	SendFrontPanelByte(leds);
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 }
 
 void UpdateFrontPanelActivityLEDs()
@@ -298,12 +314,12 @@ void UpdateFrontPanelActivityLEDs()
 	uint16_t doutval = g_ledGpioOutPortActivity->in;
 
 	//Convert to bytes and send
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_PORT_LEDS);
 	SendFrontPanelByte(doutval & 0xff);
 	SendFrontPanelByte( ((dinval & 0xf) << 4) | ( (doutval >> 8) & 0xf) );
 	SendFrontPanelByte(dinval >> 4);
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 }
 
 /**
@@ -320,11 +336,11 @@ void UpdateFrontPanelDisplay()
 	StringBuffer buf(tmp, sizeof(tmp));
 
 	//Update IPv4 address
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_IP4_ADDR);
 	for(size_t i=0; i<4; i++)
 		SendFrontPanelByte(g_ipConfig.m_address.m_octets[i]);
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 
 	//IPv4 prefix length
 	SendFrontPanelSensor(FRONT_IP4_SUBNET, __builtin_popcount(g_ipConfig.m_netmask.m_word));
@@ -332,7 +348,7 @@ void UpdateFrontPanelDisplay()
 	//TODO: set IPv6 address
 
 	//Set Ethernet link state
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_ETH_LINK);
 	if(g_sfpLinkUp)
 		SendFrontPanelByte(0x03);
@@ -340,13 +356,13 @@ void UpdateFrontPanelDisplay()
 		SendFrontPanelByte(g_basetLinkSpeed);
 	else
 		SendFrontPanelByte(0xff);
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 
 	//Set Ethernet DHCP state
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_IPV4_DHCP);
 	SendFrontPanelByte(g_dhcpClient->IsEnabled());
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 
 	/*
 		Only update version number strings once per boot to save SPI bus bandwidth.
@@ -365,37 +381,36 @@ void UpdateFrontPanelDisplay()
 		g_log("Initial front panel refresh\n");
 
 		//Set serial number
-		SetFrontPanelCS(0);
+		g_frontSPI->SetCS(0);
 		SendFrontPanelByte(FRONT_SERIAL);
 		for(size_t i=0; i<8; i++)
 			SendFrontPanelByte(g_fpgaSerial[7-i]);
-		SetFrontPanelCS(1);
+		g_frontSPI->SetCS(1);
 
 		//Our firmware version number
 		static const char* buildtime = __TIME__;
 		buf.Clear();
 		buf.Printf("%s %c%c%c%c%c%c",
 			__DATE__, buildtime[0], buildtime[1], buildtime[3], buildtime[4], buildtime[6], buildtime[7]);
-		buf.Printf("hai");
-		SetFrontPanelCS(0);
+		g_frontSPI->SetCS(0);
 		SendFrontPanelByte(FRONT_MCU_FW);
 		for(size_t i=0; i<sizeof(tmp); i++)
 			SendFrontPanelByte(tmp[i]);
-		SetFrontPanelCS(1);
+		g_frontSPI->SetCS(1);
 
 		//Supervisor firmware version
-		SetFrontPanelCS(0);
+		g_frontSPI->SetCS(0);
 		SendFrontPanelByte(FRONT_SUPER_FW);
 		for(size_t i=0; i<sizeof(g_superVersion); i++)
 			SendFrontPanelByte(g_superVersion[i]);
-		SetFrontPanelCS(1);
+		g_frontSPI->SetCS(1);
 
 		//IBC firmware version
-		SetFrontPanelCS(0);
+		g_frontSPI->SetCS(0);
 		SendFrontPanelByte(FRONT_IBC_FW);
 		for(size_t i=0; i<sizeof(g_ibcVersion); i++)
 			SendFrontPanelByte(g_ibcVersion[i]);
-		SetFrontPanelCS(1);
+		g_frontSPI->SetCS(1);
 
 		//Format FPGA firmware string based on the usercode (see XAPP1232)
 		buf.Clear();
@@ -425,11 +440,11 @@ void UpdateFrontPanelDisplay()
 			""
 		};
 		buf.Printf("%s %2d %04d %02d%02d%02d", months[mon], day, yr, hr, min, sec);
-		SetFrontPanelCS(0);
+		g_frontSPI->SetCS(0);
 		SendFrontPanelByte(FRONT_FPGA_FW);
 		for(size_t i=0; i<sizeof(tmp); i++)
 			SendFrontPanelByte(tmp[i]);
-		SetFrontPanelCS(1);
+		g_frontSPI->SetCS(1);
 	}
 
 	//Temperatures
@@ -458,11 +473,11 @@ void UpdateFrontPanelDisplay()
 		rtctime.tm_min,
 		rtctime.tm_sec);
 
-	SetFrontPanelCS(0);
+	g_frontSPI->SetCS(0);
 	SendFrontPanelByte(FRONT_TIMESTAMP);
 	for(size_t i=0; i<sizeof(tmp); i++)
 		SendFrontPanelByte(tmp[i]);
-	SetFrontPanelCS(1);
+	g_frontSPI->SetCS(1);
 
 	firstRefresh = false;
 }

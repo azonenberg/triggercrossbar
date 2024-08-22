@@ -78,7 +78,6 @@ extern char g_superVersion[20];
 extern char g_ibcVersion[20];
 
 void SetFrontPanelDirectionLEDs(uint8_t leds);
-void SetFrontPanelCS(bool b);
 void SendFrontPanelByte(uint8_t data);
 uint8_t ReadFrontPanelByte();
 uint8_t GetFrontPanelMode();
@@ -101,6 +100,7 @@ extern volatile APB_RelayController* g_relayController;
 extern volatile APB_GPIO* g_ledGpioInPortActivity;
 extern volatile APB_GPIO* g_ledGpioOutPortActivity;
 extern volatile APB_SPIHostInterface* g_frontPanelSPI;
+extern APB_SPIHostInterfaceDriver* g_frontSPI;
 extern volatile APB_BERTConfig*	g_bertConfig[2];
 extern volatile APB_SerdesDRP* g_bertDRP[2];
 extern volatile LogicAnalyzer* g_logicAnalyzer[2];
