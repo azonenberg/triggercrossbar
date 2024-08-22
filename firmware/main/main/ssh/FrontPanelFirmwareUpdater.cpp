@@ -29,7 +29,7 @@
 
 #include "triggercrossbar.h"
 #include "FrontPanelFirmwareUpdater.h"
-#include "../../front/regids.h"
+#include "../../front/main/regids.h"
 
 bool g_frontPanelDFUInProgress = false;
 

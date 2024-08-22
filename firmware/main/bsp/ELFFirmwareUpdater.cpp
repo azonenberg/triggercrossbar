@@ -33,7 +33,7 @@
 #include <algorithm>
 
 //TODO move to derived class
-#include "../front/regids.h"
+#include "../../front/main/regids.h"
 
 int ComparePhdrAddress(const void* a, const void* b);
 

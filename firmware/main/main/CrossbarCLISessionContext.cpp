@@ -31,7 +31,7 @@
 #include <algorithm>
 #include "CrossbarCLISessionContext.h"
 #include <ctype.h>
-#include "../front/regids.h"
+#include "../../front/main/regids.h"
 #include <bootloader/BootloaderAPI.h>
 
 static const char* hostname_objid = "hostname";

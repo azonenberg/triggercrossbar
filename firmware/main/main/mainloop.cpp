@@ -29,7 +29,7 @@
 
 #include "triggercrossbar.h"
 #include "CrossbarCLISessionContext.h"
-#include "../front/regids.h"
+#include "../../front/main/regids.h"
 #include <supervisor/SupervisorSPIRegisters.h>
 #include <peripheral/ITMStream.h>
 
@@ -411,6 +411,7 @@ void UpdateFrontPanelDisplay()
 		g_frontSPI->SetCS(1);
 
 		//Supervisor firmware version
+		g_logTimer.Sleep(2);
 		g_frontSPI->SetCS(0);
 		SendFrontPanelByte(FRONT_SUPER_FW);
 		for(size_t i=0; i<sizeof(g_superVersion); i++)
@@ -418,6 +419,7 @@ void UpdateFrontPanelDisplay()
 		g_frontSPI->SetCS(1);
 
 		//IBC firmware version
+		g_logTimer.Sleep(2);
 		g_frontSPI->SetCS(0);
 		SendFrontPanelByte(FRONT_IBC_FW);
 		for(size_t i=0; i<sizeof(g_ibcVersion); i++)
