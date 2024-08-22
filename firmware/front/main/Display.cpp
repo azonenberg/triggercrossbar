@@ -507,6 +507,11 @@ Display::Display(DisplaySPIType* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* d
 		}
 	}
 
+	//TODO: we sometimes read this wrong
+	//m_psr0 = 0x02;
+	//m_psr1 = 0xfc;
+	m_psr0 = 0xcf;
+	m_psr1 = 0x02;
 	g_log("Done (psr0 = %02x, psr1 = %02x)\n", m_psr0, m_psr1);
 }
 

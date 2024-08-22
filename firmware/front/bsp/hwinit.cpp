@@ -36,6 +36,8 @@
 #include <bootloader/bootloader-common.h>
 #include <bootloader/BootloaderAPI.h>
 #include "hwinit.h"
+#include <peripheral/DWT.h>
+#include <peripheral/ITM.h>
 #include <peripheral/Power.h>
 
 void InitFPGASPI();
@@ -62,6 +64,10 @@ bool g_misoIsJtag = true;
 
 ///@brief The battery-backed RAM used to store state across power cycles
 volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
+
+#ifdef _DEBUG
+void InitTrace();
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Low level init
@@ -118,9 +124,26 @@ void BSP_InitLog()
 
 void BSP_Init()
 {
+	#ifdef _DEBUG
+	InitTrace();
+	#endif
+
 	App_Init();
 	InitFPGASPI();
 }
+
+#ifdef _DEBUG
+void InitTrace()
+{
+	//Enable ITM, enable PC sampling, and turn on forwarding to the TPIU
+	ITM::Enable();
+	DWT::EnablePCSampling(DWT::PC_SAMPLE_SLOW);
+	ITM::EnableDwtForwarding();
+
+	//Turn on ITM stimulus channel 0 for temperature logging
+	//ITM::EnableChannel(0);
+}
+#endif
 
 void InitFPGASPI()
 {

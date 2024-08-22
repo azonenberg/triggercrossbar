@@ -1,3 +1,3 @@
 set print asm-demangle
 set print demangle
-target remote localhost:3334
+target extended-remote localhost:3334
