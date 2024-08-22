@@ -223,6 +223,9 @@ void BSP_InitClocks()
 	//A bit of extra latency is fine, the CPU being faster than flash is not.
 	Flash::SetConfiguration(513, RANGE_VOS0);
 
+	//Switch back to the HSI clock (in case we're already running on the PLL from the bootloader)
+	RCCHelper::SelectSystemClockFromHSI();
+
 	//By default out of reset, we're clocked by the HSI clock at 64 MHz
 	//Initialize the external clock source at 25 MHz
 	RCCHelper::EnableHighSpeedExternalClock();
@@ -235,7 +238,7 @@ void BSP_InitClocks()
 		40,		//12.5 * 40 = 500 MHz at the VCO
 		1,		//div P (primary output 500 MHz)
 		10,		//div Q (50 MHz kernel clock)
-		5,		//div R (100 MHz SWO Manchester bit clock, 50 Mbps data rate)
+		6,		//div R (83.33 MHz SWO Manchester bit clock, 41.66 Mbps data rate)
 		RCCHelper::CLOCK_SOURCE_HSE
 	);
 
