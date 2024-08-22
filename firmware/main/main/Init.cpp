@@ -161,7 +161,7 @@ void InitSupervisor()
 		g_superVersion[i] = g_superSPI.BlockingRead();
 	g_superVersion[sizeof(g_superVersion)-1] = '\0';
 	super_cs_n = 1;
-	g_log("Firmware version: %s\n", g_superVersion);
+	g_log("Firmware version:     %s\n", g_superVersion);
 
 	//Get IBC firmware version
 	super_cs_n = 0;
@@ -175,6 +175,8 @@ void InitSupervisor()
 	g_ibcVersion[sizeof(g_ibcVersion)-1] = '\0';
 	super_cs_n = 1;
 	g_log("IBC firmware version: %s\n", g_ibcVersion);
+
+	//TODO: Print supervisor sensors
 }
 
 /**

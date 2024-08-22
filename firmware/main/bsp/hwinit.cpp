@@ -35,6 +35,8 @@
 #include <core/platform.h>
 #include "hwinit.h"
 #include "LogSink.h"
+#include <peripheral/DWT.h>
+#include <peripheral/ITM.h>
 #include <peripheral/Power.h>
 #include <ctype.h>
 
@@ -176,11 +178,33 @@ APBEthernetInterface g_ethIface(g_ethRxFifo, g_eth10GTxFifo);
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Do other initialization
 
+#ifdef _DEBUG
+void InitTrace();
+#endif
+
 void BSP_Init()
 {
 	InitRTC();
+
+	#ifdef _DEBUG
+	InitTrace();
+	#endif
+
 	App_Init();
 }
+
+#ifdef _DEBUG
+void InitTrace()
+{
+	//Enable ITM, enable PC sampling, and turn on forwarding to the TPIU
+	ITM::Enable();
+	DWT::EnablePCSampling(DWT::PC_SAMPLE_SLOW);
+	ITM::EnableDwtForwarding();
+
+	//Turn on ITM stimulus channel 4 for serial logging
+	//ITM::EnableChannel(4);
+}
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // BSP overrides for low level init
@@ -211,7 +235,7 @@ void BSP_InitClocks()
 		40,		//12.5 * 40 = 500 MHz at the VCO
 		1,		//div P (primary output 500 MHz)
 		10,		//div Q (50 MHz kernel clock)
-		32,		//div R (not used for now),
+		5,		//div R (100 MHz SWO Manchester bit clock, 50 Mbps data rate)
 		RCCHelper::CLOCK_SOURCE_HSE
 	);
 
