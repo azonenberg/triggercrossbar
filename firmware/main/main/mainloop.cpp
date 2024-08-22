@@ -103,6 +103,7 @@ void BSP_MainLoopIteration()
 	//Main event loop
 	static uint32_t secTillNext5MinTick = 0;
 	static uint32_t next1HzTick = 0;
+	static uint32_t next2HzTick = 0;
 	static uint32_t next10HzTick = 0;
 	static uint32_t nextPhyPoll = 0;
 	const uint32_t logTimerMax = 0xf0000000;
@@ -143,6 +144,16 @@ void BSP_MainLoopIteration()
 		next10HzTick = g_logTimer.GetCount() + 1000;
 	}
 
+	//Poll sensors at 2 Hz
+	if(g_logTimer.GetCount() >= next2HzTick)
+	{
+		#ifdef _DEBUG
+		TraceLogSensors();
+		#endif
+
+		next2HzTick = g_logTimer.GetCount() + 5000;
+	}
+
 	//1 Hz timer for various aging processes
 	if(g_logTimer.GetCount() >= next1HzTick)
 	{
@@ -161,10 +172,6 @@ void BSP_MainLoopIteration()
 
 		//Push new register values to front panel every second (it will refresh the panel whenever it wants to)
 		UpdateFrontPanelDisplay();
-
-		#ifdef _DEBUG
-		TraceLogSensors();
-		#endif
 	}
 }
 
@@ -180,7 +187,8 @@ void TraceLogSensors()
 		"MAINMCU_TEMP,"
 		"SFP_TEMP,"
 		"IBC_VIN,IBC_IIN,IBC_TEMP,IBC_VOUT,IBC_IOUT,IBC_VSENSE,"
-		"SUPER_MCUTEMP,SUPER_3V3"
+		"SUPER_MCUTEMP,SUPER_3V3,"
+		"SFP_3V3"
 
 		//TODO: IBC_MCUTEMP, IBC_3V3
 
@@ -194,7 +202,8 @@ void TraceLogSensors()
 		"°C,"
 		"°C,"
 		"V,A,°C,V,A,V,"
-		"°C,V"
+		"°C,V,"
+		"V"
 		"\n"
 		);
 
@@ -206,6 +215,7 @@ void TraceLogSensors()
 	auto ibc_vsense = SupervisorRegRead(SUPER_REG_IBCVSENSE);
 	auto super_temp = SupervisorRegRead(SUPER_REG_MCUTEMP);
 	auto super_3v3 = SupervisorRegRead(SUPER_REG_3V3);
+	auto sfp_3v3 = GetSFP3V3();
 
 	sensorStream.Printf(
 		"CSV-DATA,"
@@ -215,6 +225,7 @@ void TraceLogSensors()
 		"%uhk,"
 		"%d.%03d,%d.%03d,%uhk,%d.%03d,%d.%03d,%d.%03d,"
 		"%uhk,%d.%03d,"
+		"%d.%03d"
 		"\n",
 
 		GetFanRPM(0),
@@ -223,7 +234,8 @@ void TraceLogSensors()
 		GetSFPTemperature(),
 		ibc_vin / 1000, ibc_vin % 1000, ibc_iin / 1000, ibc_iin % 1000, ibc_temp, ibc_vout / 1000, ibc_vout % 1000,
 			ibc_iout / 1000, ibc_iout % 1000, ibc_vsense / 1000, ibc_vsense % 1000,
-		super_temp, super_3v3 / 1000, super_3v3 % 1000
+		super_temp, super_3v3 / 1000, super_3v3 % 1000,
+		sfp_3v3 / 1000, sfp_3v3 % 1000
 		);
 }
 #endif

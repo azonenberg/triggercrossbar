@@ -86,7 +86,9 @@ void PollFPGA();
 void PollPHYs();
 void ConfigureIP();
 void DoInitKVS();
+
 uint16_t GetSFPTemperature();
+uint16_t GetSFP3V3();
 
 //Common hardware interface stuff (mostly Ethernet related)
 extern UART<32, 256> g_cliUART;

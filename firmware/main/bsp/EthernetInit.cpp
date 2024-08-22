@@ -255,15 +255,12 @@ void PollSFP()
 		}
 
 		//Get temperature
-		uint16_t temp = GetSFPTemperature();
+		auto temp = GetSFPTemperature();
 		g_log("Temperature:    %2d.%02d C\n", (temp >> 8), static_cast<int>(((temp & 0xff) / 256.0) * 100));
 
 		//Get supply voltage
-		g_sfpI2C->BlockingWrite8(0xa2, 98);
-		uint16_t volt = 0;
-		g_sfpI2C->BlockingRead16(0xa2, volt);
-		int voltScaled = volt;
-		g_log("Supply voltage: %2d.%04d V\n", (voltScaled / 10000), voltScaled % 10000);
+		auto sfp_3v3 = GetSFP3V3();
+		g_log("Supply voltage: %2d.%03d V\n", (sfp_3v3 / 1000), sfp_3v3 % 1000);
 
 		//Get TX bias current
 		g_sfpI2C->BlockingWrite8(0xa2, 100);
@@ -286,6 +283,14 @@ void PollSFP()
 		int rxPowerScaled = rxpower;	//0.1 μW per LSB
 		g_log("RX power:      %3d.%d μW\n", rxPowerScaled / 10, rxPowerScaled % 10);
 	}
+}
+
+uint16_t GetSFP3V3()
+{
+	g_sfpI2C->BlockingWrite8(0xa2, 98);
+	uint16_t volt = 0;
+	g_sfpI2C->BlockingRead16(0xa2, volt);
+	return volt / 10;
 }
 
 /**
