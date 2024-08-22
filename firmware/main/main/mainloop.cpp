@@ -31,11 +31,13 @@
 #include "CrossbarCLISessionContext.h"
 #include "../front/regids.h"
 #include <supervisor/SupervisorSPIRegisters.h>
+#include <peripheral/ITMStream.h>
 
 void LogTemperatures();
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value);
 void UpdateFrontPanelActivityLEDs();
 void InitFrontPanel();
+void TraceLogSensors();
 
 ///@brief Output stream for local serial console
 UARTOutputStream g_localConsoleOutputStream;
@@ -159,8 +161,54 @@ void BSP_MainLoopIteration()
 
 		//Push new register values to front panel every second (it will refresh the panel whenever it wants to)
 		UpdateFrontPanelDisplay();
+
+		#ifdef _DEBUG
+		TraceLogSensors();
+		#endif
 	}
 }
+
+#ifdef _DEBUG
+void TraceLogSensors()
+{
+	static ITMStream sensorStream(0);
+
+	sensorStream.Printf(
+		"CSV-NAME,"
+		"FAN0_RPM,"
+		"FPGA_TEMP,"
+		"FPGA_VCCINT,"
+		"FPGA_VCCBRAM,"
+		"FPGA_VCCAUX"
+		"\n"
+		);
+
+	sensorStream.Printf(
+		"CSV-UNIT,"
+		"RPM,"
+		"°C,"
+		"V,"
+		"V,"
+		"V,"
+		"\n"
+		);
+
+	sensorStream.Printf(
+		"CSV-DATA,"
+		"%d,"
+		"%uhk,"
+		"%uhk,"
+		"%uhk,"
+		"%uhk,"
+		"\n",
+		GetFanRPM(0),
+		GetFPGATemperature(),
+		GetFPGAVCCINT(),
+		GetFPGAVCCBRAM(),
+		GetFPGAVCCAUX()
+		);
+}
+#endif
 
 void InitFrontPanel()
 {
@@ -435,52 +483,6 @@ uint16_t SupervisorRegRead(uint8_t regid)
 
 	return tmp;
 }
-
-/**
-	@brief Debug logging
- */
-/*
-void LogTemperatures()
-{
-	//For now, log headers every time
-	//This is wasteful but allows reconnecting frequently
-
-	int temps[8] =
-	{
-		ReadThermalSensor(g_tempSensorAddrs[0]),
-		ReadThermalSensor(g_tempSensorAddrs[1]),
-		ReadThermalSensor(g_tempSensorAddrs[2]),
-		ReadThermalSensor(g_tempSensorAddrs[3]),
-		GetSFPTemperature(),
-		GetVSC8512Temperature(),
-		GetFPGATemperature(),
-		g_dts->GetTemperature()
-	};
-
-	g_cliUART.Printf("CSV-NAME,Fan0,Fan1,3V3Reg,1V2Reg,SGMIIPhys,QDR,SFP,VSC8512,FPGA,MCU\n");
-	g_cliUART.Printf("CSV-UNIT,RPM,RPM,°C,°C,°C,°C,°C,°C,°C,°C\n");
-	g_cliUART.Printf("CSV-DATA,%d,%d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d,%d.%02d\n",
-		GetFanRPM(0),
-		GetFanRPM(1),
-		(temps[0] >> 8),
-		static_cast<int>(((temps[0] & 0xff) / 256.0) * 100),
-		(temps[1] >> 8),
-		static_cast<int>(((temps[1] & 0xff) / 256.0) * 100),
-		(temps[2] >> 8),
-		static_cast<int>(((temps[2] & 0xff) / 256.0) * 100),
-		(temps[3] >> 8),
-		static_cast<int>(((temps[3] & 0xff) / 256.0) * 100),
-
-		(temps[4] >> 8),
-		static_cast<int>(((temps[4] & 0xff) / 256.0) * 100),
-		(temps[5] >> 8),
-		static_cast<int>(((temps[5] & 0xff) / 256.0) * 100),
-		(temps[6] >> 8),
-		static_cast<int>(((temps[6] & 0xff) / 256.0) * 100),
-		(temps[7] >> 8),
-		static_cast<int>(((temps[7] & 0xff) / 256.0) * 100)
-		);
-}*/
 
 void OnEthernetLinkStateChanged()
 {

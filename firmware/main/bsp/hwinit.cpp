@@ -201,8 +201,8 @@ void InitTrace()
 	DWT::EnablePCSampling(DWT::PC_SAMPLE_SLOW);
 	ITM::EnableDwtForwarding();
 
-	//Turn on ITM stimulus channel 4 for serial logging
-	//ITM::EnableChannel(4);
+	//Turn on ITM stimulus channel 0 for temperature logging
+	ITM::EnableChannel(0);
 }
 #endif
 
