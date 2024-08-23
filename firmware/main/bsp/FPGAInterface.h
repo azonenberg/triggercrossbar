@@ -47,14 +47,8 @@ public:
 	virtual void BlockingRead(uint32_t addr, uint8_t* data, uint32_t len) = 0;
 	virtual void BlockingWrite(uint32_t addr, const uint8_t* data, uint32_t len) = 0;
 
-	void BlockingWrite16(uint32_t addr, uint16_t data)
-	{ BlockingWrite(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
-
 	void BlockingWrite32(uint32_t addr, uint32_t data)
 	{ BlockingWrite(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
-
-	void BlockingWrite16(volatile void* addr, uint16_t data)
-	{ BlockingWrite16(reinterpret_cast<uint32_t>(addr) & 0xffffff, data); }
 
 	void BlockingWrite32(volatile void* addr, uint32_t data)
 	{ BlockingWrite32(reinterpret_cast<uint32_t>(addr) & 0xffffff, data); }
@@ -95,8 +89,7 @@ enum baseaddr_t
 
 struct __attribute__((packed)) LogicAnalyzer
 {
-	uint16_t		trigger;
-	uint16_t		field_02;
+	uint32_t		trigger;
 	uint32_t		buf_addr;
 	uint32_t		buf_size;
 	uint32_t		trig_offset;
@@ -115,19 +108,14 @@ struct __attribute__((packed)) APB_SerdesDRP
 
 struct __attribute__((packed)) APB_BERTConfig
 {
-	uint16_t		tx_config;
-	uint16_t		field_02;
-	uint16_t		tx_clk;
-	uint16_t		field_06;
-	uint16_t		tx_reset;
-	uint16_t		field_0a;
-	uint16_t		tx_driver;
-	uint16_t		field_0e[25];
-	uint16_t		rx_config;
-	uint16_t		field_42;
-	uint16_t		rx_clk;
-	uint16_t		field_46;
-	uint16_t		rx_reset;
+	uint32_t		tx_config;
+	uint32_t		tx_clk;
+	uint32_t		tx_reset;
+	uint32_t		tx_driver;
+	uint32_t		field_10[12];
+	uint32_t		rx_config;
+	uint32_t		rx_clk;
+	uint32_t		rx_reset;
 };
 
 #include <APB_SPIHostInterface.h>

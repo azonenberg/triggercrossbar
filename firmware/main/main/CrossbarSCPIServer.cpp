@@ -515,23 +515,23 @@ void CrossbarSCPIServer::UpdateClocks(int lane)
 {
 	//Need to set/release soft resets as we do this
 	//TODO: only reset if we changed clock source
-	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->tx_reset, 1);
-	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->rx_reset, 1);
+	g_apbfpga.BlockingWrite32(&g_bertConfig[lane]->tx_reset, 1);
+	g_apbfpga.BlockingWrite32(&g_bertConfig[lane]->rx_reset, 1);
 
 	//Push new clock divider config
 	uint16_t regval = g_bertTxClkDiv[lane];
 	if(g_bertTxClkSelIsQpll[lane])
 		regval |= 0x8000;
-	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->tx_clk, regval);
+	g_apbfpga.BlockingWrite32(&g_bertConfig[lane]->tx_clk, regval);
 
 	regval = g_bertRxClkDiv[lane];
 	if(g_bertRxClkSelIsQpll[lane])
 		regval |= 0x8000;
-	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->rx_clk, regval);
+	g_apbfpga.BlockingWrite32(&g_bertConfig[lane]->rx_clk, regval);
 
 	//Done, clear resets
-	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->tx_reset, 0);
-	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->rx_reset, 0);
+	g_apbfpga.BlockingWrite32(&g_bertConfig[lane]->tx_reset, 0);
+	g_apbfpga.BlockingWrite32(&g_bertConfig[lane]->rx_reset, 0);
 }
 
 void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, const char* args)
@@ -848,8 +848,8 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 	{
 		//TODO: single arm register for both or something?
 		//for now, arm both and hope they both see the same trigger event
-		g_apbfpga.BlockingWrite16(&g_logicAnalyzer[0]->trigger, 1);
-		g_apbfpga.BlockingWrite16(&g_logicAnalyzer[1]->trigger, 1);
+		g_apbfpga.BlockingWrite32(&g_logicAnalyzer[0]->trigger, 1);
+		g_apbfpga.BlockingWrite32(&g_logicAnalyzer[1]->trigger, 1);
 	}
 
 	//Set trigger position
@@ -867,7 +867,7 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 uint16_t CrossbarSCPIServer::SerdesDRPRead(uint8_t lane, uint16_t regid)
 {
 	//Send the command
-	g_apbfpga.BlockingWrite16(&g_bertDRP[lane]->addr, regid);
+	g_apbfpga.BlockingWrite32(&g_bertDRP[lane]->addr, regid);
 
 	//Make sure we're ready
 	StatusRegisterMaskedWait(&g_bertDRP[lane]->status, &g_bertDRP[lane]->status2, 0x1, 0x0);
@@ -879,8 +879,8 @@ uint16_t CrossbarSCPIServer::SerdesDRPRead(uint8_t lane, uint16_t regid)
 
 void CrossbarSCPIServer::SerdesDRPWrite(uint8_t lane, uint16_t regid, uint16_t regval)
 {
-	g_apbfpga.BlockingWrite16(&g_bertDRP[lane]->data, regval);
-	g_apbfpga.BlockingWrite16(&g_bertDRP[lane]->addr, regid | 0x8000);
+	g_apbfpga.BlockingWrite32(&g_bertDRP[lane]->data, regval);
+	g_apbfpga.BlockingWrite32(&g_bertDRP[lane]->addr, regid | 0x8000);
 
 	//wait for write to commit
 	StatusRegisterMaskedWait(&g_bertDRP[lane]->status, &g_bertDRP[lane]->status2, 0x1, 0x0);
@@ -907,8 +907,8 @@ void CrossbarSCPIServer::PrintFloat(CharacterDevice& buf, float f)
 void CrossbarSCPIServer::SerdesPMAReset(uint8_t lane)
 {
 	//Reset the PMA
-	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->rx_reset, 2);
-	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->rx_reset, 0);
+	g_apbfpga.BlockingWrite32(&g_bertConfig[lane]->rx_reset, 2);
+	g_apbfpga.BlockingWrite32(&g_bertConfig[lane]->rx_reset, 0);
 
 	//Read and throw away a few status values until reset takes effect
 	[[maybe_unused]] volatile uint16_t tmp = 0;
@@ -1429,13 +1429,13 @@ void CrossbarSCPIServer::UpdateTxLane(int lane)
 		regval |= 0x8000;
 	if(g_bertTxInvert[lane])
 		regval |= 0x4000;
-	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->tx_config, regval);
+	g_apbfpga.BlockingWrite32(&g_bertConfig[lane]->tx_config, regval);
 
 	//TX driver configuration
 	regval = g_bertTxSwing[lane];
 	regval |= (g_bertTxPostCursor[lane] << 4);
 	regval |= (g_bertTxPreCursor[lane] << 9);
-	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->tx_driver, regval);
+	g_apbfpga.BlockingWrite32(&g_bertConfig[lane]->tx_driver, regval);
 }
 
 void CrossbarSCPIServer::UpdateRxLane(int lane)
@@ -1444,7 +1444,7 @@ void CrossbarSCPIServer::UpdateRxLane(int lane)
 	uint16_t regval = g_bertRxPattern[lane];
 	if(g_bertRxInvert[lane])
 		regval |= 0x4000;
-	g_apbfpga.BlockingWrite16(&g_bertConfig[lane]->rx_config, regval);
+	g_apbfpga.BlockingWrite32(&g_bertConfig[lane]->rx_config, regval);
 }
 
 /**
