@@ -47,30 +47,6 @@ public:
 	virtual void BlockingRead(uint32_t addr, uint8_t* data, uint32_t len) = 0;
 	virtual void BlockingWrite(uint32_t addr, const uint8_t* data, uint32_t len) = 0;
 
-	uint32_t BlockingRead32(uint32_t addr)
-	{
-		uint32_t data;
-		BlockingRead(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
-
-	uint8_t BlockingRead8(uint32_t addr)
-	{
-		uint8_t data;
-		BlockingRead(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
-
-	uint16_t BlockingRead16(uint32_t addr)
-	{
-		uint16_t data;
-		BlockingRead(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data));
-		return data;
-	}
-
-	void BlockingWrite8(uint32_t addr, uint8_t data)
-	{ BlockingWrite(addr, &data, sizeof(data)); }
-
 	void BlockingWrite16(uint32_t addr, uint16_t data)
 	{ BlockingWrite(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
 
