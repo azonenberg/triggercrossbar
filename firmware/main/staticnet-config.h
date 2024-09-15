@@ -81,6 +81,21 @@
 #define SCPI_RX_BUFFER_SIZE 2048
 
 /**
+	@brief Number of (1500 byte + metadata) transmit buffers to allocate
+
+	This should be as large as possible to enable lots of outstanding un-ACKed TCP segments
+ */
+#define APB_TX_BUFCOUNT 16
+
+/**
+	@brief Number of (1500 byte + metadata) receive buffers to allocate
+
+	This can be pretty small because of our single threaded event loop, we don't hold onto RX buffers much.
+	More importantly, we typically do most of our RX buffering on the FPGA and just pull from that as data shows up.
+ */
+#define APB_RX_BUFCOUNT 2
+
+/**
 	@brief Max pending (not ACKed) TCP segments for a given socket
 
 	This is essentially a cap on window size in segments (vs bytes).
