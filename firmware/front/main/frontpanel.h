@@ -30,7 +30,7 @@
 #ifndef frontpanel_h
 #define frontpanel_h
 
-#include <core/platform.h>
+#include "../bsp/hwinit.h"
 
 #include <peripheral/ADC.h>
 #include <peripheral/I2C.h>
@@ -39,11 +39,8 @@
 #include <embedded-utils/StringBuffer.h>
 
 #include <bootloader/BootloaderAPI.h>
-#include "../bsp/hwinit.h"
 #include "TCA6424A.h"
 #include "Display.h"
-
-#include <etl/vector.h>
 
 void InitGPIOs();
 void InitI2C();
@@ -89,12 +86,5 @@ extern bool g_staticIP;
 
 void SetMisoToSPIMode();
 void SetMisoToJTAGMode();
-
-#define MAX_TASKS 4
-extern etl::vector<Task*, MAX_TASKS>  g_tasks;
-
-//Timer tasks are a strict subset of total tasks
-#define MAX_TIMER_TASKS 2
-extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
 
 #endif

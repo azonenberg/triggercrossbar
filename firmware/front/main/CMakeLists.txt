@@ -4,7 +4,6 @@ add_executable(main
 	FPGASPITask.cpp
 	OneHzTimerTask.cpp
 	TCA6424A.cpp
-	mainloop.cpp
 	vectors.cpp)
 
 target_link_options(main

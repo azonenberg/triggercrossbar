@@ -41,8 +41,23 @@
 
 void InitDisplaySPI();
 
-etl::vector<Task*, MAX_TASKS>  g_tasks;
-etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
+const uint8_t g_tempI2cAddress = 0x90;
+
+//I2C2 runs off our APB1 clock (40 MHz)
+//Prescale by 4 to get 10 MHz
+//Divide by 100 after that to get 100 kHz
+I2C g_i2c(&I2C2, 4, 100);
+
+TCA6424A* g_expander = nullptr;
+
+//Divide 40 MHz base clock by 128 to get 312.5 kHz SPI
+//We can run up to 10 MHz for writes but readback Fmax is ~2 MHz
+DisplaySPIType g_displaySPI(&SPI2, false, 128);
+
+Display* g_display = nullptr;
+
+GPIOPin* g_inmodeLED[4] = {nullptr};
+GPIOPin* g_outmodeLED[4] = {nullptr};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Peripheral initialization
@@ -181,4 +196,18 @@ void InitSensors()
 
 	//Print initial values from every sensor
 	g_log("Board temperature: %uhk C\n", ReadThermalSensor(g_tempI2cAddress));
+}
+
+/**
+	@brief Read a temperature sensor at the given I2C address and return the temperature (in 8.8 fixed point format)
+ */
+uint16_t ReadThermalSensor(uint8_t addr)
+{
+	if(!g_i2c.BlockingWrite8(addr, 0x00))
+		return 0xff;
+	uint16_t reply;
+	if(!g_i2c.BlockingRead16(addr, reply))
+		return 0xff;
+
+	return reply;
 }
