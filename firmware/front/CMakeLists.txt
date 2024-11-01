@@ -2,7 +2,7 @@
 # Top level config
 
 cmake_minimum_required(VERSION 3.19)
-project(common-ibc-firmware-main LANGUAGES C CXX ASM)
+project(triggercrossbar-frontpanel LANGUAGES C CXX ASM)
 
 file(REAL_PATH "${CMAKE_SOURCE_DIR}/../../" PROJECT_ROOT)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -18,7 +18,10 @@ set(TARGET_MCU stm32l431)
 include("${PROJECT_ROOT}/stm32-cpp/build/${TARGET_MCU}.cmake")
 
 # Include paths
-include_directories(${CMAKE_SOURCE_DIR} ${PROJECT_ROOT})
+include_directories(
+	${CMAKE_SOURCE_DIR}
+	${PROJECT_ROOT}
+	${PROJECT_ROOT}/etl/include)
 
 ########################################################################################################################
 # Build all of our other dependencies

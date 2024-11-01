@@ -770,7 +770,7 @@ void Display::SetPixel(uint8_t x, uint8_t y, bool black)
 /**
 	@brief Called each iteration of the main loop
  */
-void Display::OnTick()
+void Display::Iteration()
 {
 	if(!IsRefreshInProgress())
 		return;

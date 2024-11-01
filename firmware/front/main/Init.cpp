@@ -36,8 +36,13 @@
 #include "TCA6424A.h"
 #include "Display.h"
 #include "regids.h"
+#include "FPGASPITask.h"
+#include "OneHzTimerTask.h"
 
 void InitDisplaySPI();
+
+etl::vector<Task*, MAX_TASKS>  g_tasks;
+etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Peripheral initialization
@@ -51,6 +56,14 @@ void App_Init()
 	InitExpander();
 	InitDisplaySPI();
 	InitDisplay();
+
+	static FPGASPITask spiTask(&g_fpgaSPI);
+	g_tasks.push_back(&spiTask);
+
+	//10 kHz ticks so 10K ticks = 1 sec
+	static OneHzTimerTask timerTask(0, 10 * 1000);
+	g_tasks.push_back(&timerTask);
+	g_timerTasks.push_back(&timerTask);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -152,6 +165,8 @@ void InitDisplay()
 	//Change the SPI baud rate once the display has read the ROM
 	//div 16 = 2.5 MHz, should be fine
 	g_displaySPI.SetBaudDiv(32);
+
+	g_tasks.push_back(g_display);
 }
 
 void InitSensors()

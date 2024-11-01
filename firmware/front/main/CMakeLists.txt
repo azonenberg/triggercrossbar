@@ -1,7 +1,9 @@
 add_executable(main
 	Display.cpp
-	TCA6424A.cpp
 	Init.cpp
+	FPGASPITask.cpp
+	OneHzTimerTask.cpp
+	TCA6424A.cpp
 	mainloop.cpp
 	vectors.cpp)
 

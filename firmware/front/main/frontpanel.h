@@ -43,6 +43,8 @@
 #include "TCA6424A.h"
 #include "Display.h"
 
+#include <etl/vector.h>
+
 void InitGPIOs();
 void InitI2C();
 void InitSensors();
@@ -62,7 +64,37 @@ extern const uint8_t g_tempI2cAddress;
 extern GPIOPin* g_inmodeLED[4];
 extern GPIOPin* g_outmodeLED[4];
 
+//Display state
+extern int g_linkSpeed;
+extern uint8_t g_ipv4Addr[4];
+extern uint16_t g_ipv6Addr[8];
+extern uint8_t g_serial[8];
+extern uint16_t g_fpgaTemp;
+extern uint16_t g_mcuTemp;
+extern uint16_t g_ibcTemp;
+extern uint16_t g_vin;
+extern uint16_t g_iin;
+extern uint16_t g_vout;
+extern uint16_t g_iout;
+extern uint16_t g_fanspeed;
+extern uint16_t g_ipv4SubnetSize;
+extern uint16_t g_ipv6SubnetSize;
+extern char g_mcuFirmware[20];
+extern char g_ibcFirmware[20];
+extern char g_superFirmware[20];
+extern char g_fpgaFirmware[20];
+extern bool	g_mainMCUDown;
+extern char g_dataTimestamp[20];
+extern bool g_staticIP;
+
 void SetMisoToSPIMode();
 void SetMisoToJTAGMode();
+
+#define MAX_TASKS 4
+extern etl::vector<Task*, MAX_TASKS>  g_tasks;
+
+//Timer tasks are a strict subset of total tasks
+#define MAX_TIMER_TASKS 2
+extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
 
 #endif
