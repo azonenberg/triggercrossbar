@@ -27,54 +27,60 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef supervisor_h
-#define supervisor_h
+#ifndef LEDTask_h
+#define LEDTask_h
 
-#include <supervisor/supervisor-common.h>
-#include <supervisor/PowerResetSupervisor.h>
+#include <core/TimerTask.h>
 
-//#include <bootloader/BootloaderAPI.h>
-#include "../bsp/hwinit.h"
-
-uint16_t Get12VRailVoltage();
-
-///@brief Rail descriptor for the 12V rail using ADC instead of PGOOD
-class RailDescriptor12V0 : public RailDescriptorWithEnable
+class LEDTask : public TimerTask
 {
 public:
-	RailDescriptor12V0(const char* name, GPIOPin& enable, Timer& timer, uint16_t timeout)
-		: RailDescriptorWithEnable(name, enable, timer, timeout)
-	{}
-
-	virtual bool TurnOn() override
+	LEDTask()
+		: TimerTask(0, 2500)	//250ms per tick = 2 Hz flash rate
+		, m_blinking(false)
 	{
-		g_log("Turning on %s\n", m_name);
-
-		m_enable = 1;
-
-		for(uint32_t i=0; i<m_delay; i++)
-		{
-			if(IsPowerGood())
-				return true;
-			m_timer.Sleep(1);
-		}
-
-		if(!IsPowerGood())
-		{
-			g_log(Logger::ERROR, "Rail %s failed to come up\n", m_name);
-			return false;
-		}
-		return true;
 	}
 
-	virtual bool IsPowerGood() override
+	virtual void Iteration()
 	{
-		auto v12 = Get12VRailVoltage();
-		return (v12 <= 13000) && (v12 >= 11000);
+		//call base class to do timer stuff
+		TimerTask::Iteration();
+
+		//On or booting
+		if(g_super.IsPowerOn())
+		{
+			//On - LED on
+			if(g_super.IsResetsDone())
+			{
+				g_sysokLED = true;
+				m_blinking = false;
+			}
+
+			//Booting - blink
+			else
+				m_blinking = true;
+		}
+
+		//System off
+		else
+		{
+			g_sysokLED = false;
+			m_blinking = false;
+		}
+	}
+
+protected:
+
+	bool m_blinking;
+
+	virtual void OnTimer()
+	{
+		//Blink LED
+		if(m_blinking)
+			g_sysokLED = !g_sysokLED;
 	}
 };
 
-#include "CrossbarPowerResetSupervisor.h"
-extern CrossbarPowerResetSupervisor g_super;
-
 #endif
+
+

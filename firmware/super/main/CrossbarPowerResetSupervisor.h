@@ -27,54 +27,66 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef supervisor_h
-#define supervisor_h
+#ifndef CrossbarPowerResetSupervisor_h
+#define CrossbarPowerResetSupervisor_h
 
-#include <supervisor/supervisor-common.h>
-#include <supervisor/PowerResetSupervisor.h>
-
-//#include <bootloader/BootloaderAPI.h>
-#include "../bsp/hwinit.h"
-
-uint16_t Get12VRailVoltage();
-
-///@brief Rail descriptor for the 12V rail using ADC instead of PGOOD
-class RailDescriptor12V0 : public RailDescriptorWithEnable
+///@brief Project-specific supervisor class with hooks for controlling LEDs on panic
+class CrossbarPowerResetSupervisor : public PowerResetSupervisor
 {
 public:
-	RailDescriptor12V0(const char* name, GPIOPin& enable, Timer& timer, uint16_t timeout)
-		: RailDescriptorWithEnable(name, enable, timer, timeout)
+	CrossbarPowerResetSupervisor(etl::ivector<RailDescriptor*>& rails, etl::ivector<ResetDescriptor*>& resets)
+	: PowerResetSupervisor(rails, resets)
+	, m_printPending(false)
 	{}
 
-	virtual bool TurnOn() override
+	virtual void Iteration() override
 	{
-		g_log("Turning on %s\n", m_name);
+		PowerResetSupervisor::Iteration();
 
-		m_enable = 1;
-
-		for(uint32_t i=0; i<m_delay; i++)
-		{
-			if(IsPowerGood())
-				return true;
-			m_timer.Sleep(1);
-		}
-
-		if(!IsPowerGood())
-		{
-			g_log(Logger::ERROR, "Rail %s failed to come up\n", m_name);
-			return false;
-		}
-		return true;
+		if(PollIBCSensors())
+			PrintIfPending();
 	}
 
-	virtual bool IsPowerGood() override
+protected:
+
+	virtual void OnPowerOn() override
+	{ m_printPending = true; }
+
+	virtual void OnFault() override
 	{
-		auto v12 = Get12VRailVoltage();
-		return (v12 <= 13000) && (v12 >= 11000);
+		//Set LEDs to fault state
+		g_faultLED = 1;
+		g_sysokLED = 0;
+		//we have no pgood LED
+
+		//Hang until reset, don't attempt to auto restart
+		while(1)
+		{}
 	}
+
+	void PrintIfPending()
+	{
+		if(m_printPending)
+		{
+			m_printPending = false;
+
+			{
+				g_log("IBC status\n");
+				LogIndenter li(g_log);
+				g_log("Temperature = %uhk C\n", g_ibcTemp);
+				g_log("vin         = %2d.%03d V\n", g_vin48 / 1000, g_vin48 % 1000);
+				g_log("vout        = %2d.%03d V\n", g_vout12 / 1000, g_vout12 % 1000);
+				g_log("vsense      = %2d.%03d V\n", g_voutsense / 1000, g_voutsense % 1000);
+				g_log("iin         = %2d.%03d A\n", g_iin / 1000, g_iin % 1000);
+				g_log("iout        = %2d.%03d A\n", g_iout / 1000, g_iout % 1000);
+			}
+
+			auto v = Get12VRailVoltage();
+			g_log("Local 12V0      = %2d.%03d V\n", v / 1000, v % 1000);
+		}
+	}
+
+	bool m_printPending;
 };
-
-#include "CrossbarPowerResetSupervisor.h"
-extern CrossbarPowerResetSupervisor g_super;
 
 #endif

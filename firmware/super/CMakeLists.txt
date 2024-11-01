@@ -24,8 +24,9 @@ include_directories(
 	${PROJECT_ROOT}/etl/include
 	)
 
-# keep this until we switch the crossbar to the hardware rev 0.5 IBC
-add_compile_definitions(LEGACY_IBC)
+# Number of tasks we support
+add_compile_definitions(MAX_TASKS=5)
+add_compile_definitions(MAX_TIMER_TASKS=1)
 
 ########################################################################################################################
 # Build all of our other dependencies

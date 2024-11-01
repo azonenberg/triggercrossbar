@@ -27,54 +27,45 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef supervisor_h
-#define supervisor_h
+#ifndef ButtonTask_h
+#define ButtonTask_h
 
-#include <supervisor/supervisor-common.h>
-#include <supervisor/PowerResetSupervisor.h>
+#include <core/Task.h>
 
-//#include <bootloader/BootloaderAPI.h>
-#include "../bsp/hwinit.h"
-
-uint16_t Get12VRailVoltage();
-
-///@brief Rail descriptor for the 12V rail using ADC instead of PGOOD
-class RailDescriptor12V0 : public RailDescriptorWithEnable
+class ButtonTask : public Task
 {
 public:
-	RailDescriptor12V0(const char* name, GPIOPin& enable, Timer& timer, uint16_t timeout)
-		: RailDescriptorWithEnable(name, enable, timer, timeout)
-	{}
-
-	virtual bool TurnOn() override
+	ButtonTask()
+		: m_buttonDown(false)
+		, m_pwrButton(&GPIOA, 12, GPIOPin::MODE_INPUT, 0, false)
+		, m_rstButton(&GPIOA, 15, GPIOPin::MODE_INPUT, 0, false)
 	{
-		g_log("Turning on %s\n", m_name);
 
-		m_enable = 1;
-
-		for(uint32_t i=0; i<m_delay; i++)
-		{
-			if(IsPowerGood())
-				return true;
-			m_timer.Sleep(1);
-		}
-
-		if(!IsPowerGood())
-		{
-			g_log(Logger::ERROR, "Rail %s failed to come up\n", m_name);
-			return false;
-		}
-		return true;
 	}
 
-	virtual bool IsPowerGood() override
+	virtual void Iteration()
 	{
-		auto v12 = Get12VRailVoltage();
-		return (v12 <= 13000) && (v12 >= 11000);
+		if(m_pwrButton && !m_buttonDown)
+		{
+			g_log("Power button pressed\n");
+			if(g_super.IsPowerOn())
+				g_super.PowerOff();
+			else
+				g_super.PowerOn();
+		}
+
+		m_buttonDown = m_pwrButton;
+
+		//TODO: make reset button do something
 	}
+
+protected:
+	bool m_buttonDown;
+
+	GPIOPin m_pwrButton;
+	GPIOPin m_rstButton;
 };
 
-#include "CrossbarPowerResetSupervisor.h"
-extern CrossbarPowerResetSupervisor g_super;
-
 #endif
+
+

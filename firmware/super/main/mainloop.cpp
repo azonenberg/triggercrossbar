@@ -29,6 +29,8 @@
 
 #include "supervisor.h"
 #include <supervisor/SupervisorSPIServer.h>
+#include "LEDTask.h"
+#include "ButtonTask.h"
 
 //TODO: fix this path somehow?
 #include "../../../../common-ibc/firmware/main/regids.h"
@@ -127,6 +129,13 @@ etl::vector g_resetSequence
 	//then release the MCU
 	&g_mcuResetDescriptor,
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Task tables
+
+etl::vector<Task*, MAX_TASKS>  g_tasks;
+etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The top level supervisor controller
 
@@ -137,14 +146,21 @@ CrossbarPowerResetSupervisor g_super(g_powerSequence, g_resetSequence);
 
 void App_Init()
 {
-	//RCCHelper::Enable(&_RTC);
-
 	//Format version string
 	StringBuffer buf(g_version, sizeof(g_version));
 	static const char* buildtime = __TIME__;
 	buf.Printf("%s %c%c%c%c%c%c",
 		__DATE__, buildtime[0], buildtime[1], buildtime[3], buildtime[4], buildtime[6], buildtime[7]);
 	g_log("Firmware version %s\n", g_version);
+
+	static LEDTask ledTask;
+	static ButtonTask buttonTask;
+	static SupervisorSPIServer spiserver(g_spi);
+
+	g_tasks.push_back(&ledTask);
+	g_tasks.push_back(&buttonTask);
+	g_tasks.push_back(&g_super);
+	g_tasks.push_back(&spiserver);
 
 	g_super.PowerOn();
 }
@@ -158,111 +174,4 @@ uint16_t Get12VRailVoltage()
 	//5.094x division so one LSB = 4.105 mV at the input nominally
 	//Tweak with hard coded trim constants for now; TODO make thse go in flash
 	return g_adc->ReadChannel(9) * 4079 / 1000;
-}
-
-void PrintIBCSensors()
-{
-	{
-		g_log("IBC status\n");
-		LogIndenter li(g_log);
-		g_log("Temperature = %uhk C\n", g_ibcTemp);
-		g_log("vin         = %2d.%03d V\n", g_vin48 / 1000, g_vin48 % 1000);
-		g_log("vout        = %2d.%03d V\n", g_vout12 / 1000, g_vout12 % 1000);
-		g_log("vsense      = %2d.%03d V\n", g_voutsense / 1000, g_voutsense % 1000);
-		g_log("iin         = %2d.%03d A\n", g_iin / 1000, g_iin % 1000);
-		g_log("iout        = %2d.%03d A\n", g_iout / 1000, g_iout % 1000);
-	}
-
-	auto v = Get12VRailVoltage();
-	g_log("Local 12V0      = %2d.%03d V\n", v / 1000, v % 1000);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Main loop
-
-void UpdateLEDs();
-void UpdateResets();
-void CheckButtons();
-void CheckPowerFailure();
-
-const int g_logTimerMax = 60000;
-
-void BSP_MainLoopIteration()
-{
-	//Handle wraps of the timer in the logger
-	g_log.UpdateOffset(g_logTimerMax);
-
-	//Core supervisor state machine
-	UpdateLEDs();
-	g_super.Iteration();
-
-	CheckButtons();
-
-	//Management and system health
-	static SupervisorSPIServer spiserver(g_spi);
-	if(PollIBCSensors())
-		g_super.PrintIfPending();
-	spiserver.Poll();
-}
-
-/**
-	@brief Run the button state machine
- */
-void CheckButtons()
-{
-	static GPIOPin pwr_button(&GPIOA, 12, GPIOPin::MODE_INPUT, 0, false);
-	static GPIOPin rst_button(&GPIOA, 15, GPIOPin::MODE_INPUT, 0, false);
-
-	static bool buttonDown = false;
-
-	if(pwr_button && !buttonDown)
-	{
-		g_log("Power button pressed\n");
-		if(g_super.IsPowerOn())
-			g_super.PowerOff();
-		else
-			g_super.PowerOn();
-
-	}
-
-	buttonDown = pwr_button;
-}
-
-/**
-	@brief Check for input power loss
- */
-void CheckPowerFailure()
-{
-
-}
-
-/**
-	@brief Update the system status indicator LEDs
- */
-void UpdateLEDs()
-{
-	//OK LED: off = down, blinking = booting, solid = normal operation
-	if(g_super.IsPowerOn())
-	{
-		if(g_super.IsResetsDone())
-			g_sysokLED = true;
-
-		else
-		{
-			//Blink OK LED at 2 Hz if reset state machine is running but we're waiting for everything to come up
-			static uint32_t nextBlink = 0;
-			const uint32_t blinkDelay = 2500;
-
-			auto now = g_logTimer.GetCount();
-			if(now >= nextBlink)
-			{
-				g_sysokLED = !g_sysokLED;
-				nextBlink = now + blinkDelay;
-				if(nextBlink > g_logTimerMax)
-					nextBlink -= g_logTimerMax;
-			}
-		}
-	}
-	else
-		g_sysokLED = false;
 }
