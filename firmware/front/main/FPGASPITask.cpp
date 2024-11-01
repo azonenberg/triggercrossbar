@@ -36,6 +36,31 @@ extern uint32_t secSinceLastMcuUpdate;
 extern uint32_t nextDisplayRefresh;
 extern uint32_t nextFullRefresh;
 
+//Display state
+int g_linkSpeed = 0;
+uint8_t g_ipv4Addr[4] = {0};
+uint16_t g_ipv6Addr[8] = {0};
+uint8_t g_serial[8] = {0};
+char g_mcuFirmware[20] = {0};
+char g_ibcFirmware[20] = {0};
+char g_superFirmware[20] = {0};
+char g_fpgaFirmware[20] = {0};
+uint16_t g_fpgaTemp = 0;
+uint16_t g_mcuTemp = 0;
+uint16_t g_ibcTemp = 0;
+uint16_t g_vin = 0;
+uint16_t g_iin = 0;
+uint16_t g_vout = 0;
+uint16_t g_iout = 0;
+uint16_t g_fanspeed = 0;
+uint16_t g_ipv4SubnetSize = 0;
+uint16_t g_ipv6SubnetSize = 0;
+bool g_staticIP = true;
+char g_dataTimestamp[20] = {0};
+
+//Indicates the main MCU is alive
+bool	g_mainMCUDown = true;
+
 void FPGASPITask::OnDataByte(uint8_t data)
 {
 	//If main MCU was down, it's now up again

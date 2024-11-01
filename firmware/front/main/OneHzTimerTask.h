@@ -41,6 +41,8 @@ public:
 
 protected:
 	virtual void OnTimer();
+
+	void RefreshDisplay(bool forceFull);
 };
 
 #endif
