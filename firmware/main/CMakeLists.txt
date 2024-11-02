@@ -32,6 +32,10 @@ include_directories(
 	${PROJECT_ROOT}/etl/include
 	)
 
+# Number of tasks we support
+add_compile_definitions(MAX_TASKS=6)
+add_compile_definitions(MAX_TIMER_TASKS=4)
+
 ########################################################################################################################
 # Build all of our other dependencies
 

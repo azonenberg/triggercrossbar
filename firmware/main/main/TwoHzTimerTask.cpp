@@ -27,63 +27,72 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef supervisor_h
-#define supervisor_h
+#include "triggercrossbar.h"
+#include "TwoHzTimerTask.h"
+#include <peripheral/ITMStream.h>
+#include <supervisor/SupervisorSPIRegisters.h>
 
-#include <supervisor/supervisor-common.h>
-#include <supervisor/PowerResetSupervisor.h>
-
-//#include <bootloader/BootloaderAPI.h>
-#include "../bsp/hwinit.h"
-
-uint16_t Get12VRailVoltage();
-
-///@brief Rail descriptor for the 12V rail using ADC instead of PGOOD
-class RailDescriptor12V0 : public RailDescriptorWithEnable
+void TwoHzTimerTask::OnTimer()
 {
-public:
-	RailDescriptor12V0(const char* name, GPIOPin& enable, Timer& timer, uint16_t timeout)
-		: RailDescriptorWithEnable(name, enable, timer, timeout)
-	{}
+	#ifdef _DEBUG
+	static ITMStream sensorStream(0);
 
-	virtual bool TurnOn() override
-	{
-		g_log("Turning on %s\n", m_name);
+	sensorStream.Printf(
+		"CSV-NAME,"
+		"FAN0_RPM,"
+		"FPGA_TEMP,FPGA_VCCINT,FPGA_VCCBRAM,FPGA_VCCAUX,"
+		"MAINMCU_TEMP,"
+		"SFP_TEMP,"
+		"IBC_VIN,IBC_IIN,IBC_TEMP,IBC_VOUT,IBC_IOUT,IBC_VSENSE,"
+		"SUPER_MCUTEMP,SUPER_3V3,"
+		"SFP_3V3"
 
-		m_enable = 1;
+		//TODO: IBC_MCUTEMP, IBC_3V3
 
-		for(uint32_t i=0; i<m_delay; i++)
-		{
-			if(IsPowerGood())
-				return true;
-			m_timer.Sleep(1);
-		}
+		"\n"
+		);
 
-		if(!IsPowerGood())
-		{
-			g_log(Logger::ERROR, "Rail %s failed to come up\n", m_name);
-			return false;
-		}
-		return true;
-	}
+	sensorStream.Printf(
+		"CSV-UNIT,"
+		"RPM,"
+		"°C,V,V,V,"
+		"°C,"
+		"°C,"
+		"V,A,°C,V,A,V,"
+		"°C,V,"
+		"V"
+		"\n"
+		);
 
-	virtual bool IsPowerGood() override
-	{
-		auto v12 = Get12VRailVoltage();
-		return (v12 <= 13000) && (v12 >= 11000);
-	}
+	auto ibc_vin = SupervisorRegRead(SUPER_REG_IBCVIN);
+	auto ibc_iin = SupervisorRegRead(SUPER_REG_IBCIIN);
+	auto ibc_temp = SupervisorRegRead(SUPER_REG_IBCTEMP);
+	auto ibc_vout = SupervisorRegRead(SUPER_REG_IBCVOUT);
+	auto ibc_iout = SupervisorRegRead(SUPER_REG_IBCIOUT);
+	auto ibc_vsense = SupervisorRegRead(SUPER_REG_IBCVSENSE);
+	auto super_temp = SupervisorRegRead(SUPER_REG_MCUTEMP);
+	auto super_3v3 = SupervisorRegRead(SUPER_REG_3V3);
+	auto sfp_3v3 = GetSFP3V3();
 
-	//loss of 12V0 rail should not trigger a panic shutdown
-	//(see https://github.com/azonenberg/triggercrossbar/issues/22)
-	virtual bool IsCritical() override
-	{ return false; }
+	sensorStream.Printf(
+		"CSV-DATA,"
+		"%d,"
+		"%uhk,%uhk,%uhk,%uhk,"
+		"%uhk,"
+		"%uhk,"
+		"%d.%03d,%d.%03d,%uhk,%d.%03d,%d.%03d,%d.%03d,"
+		"%uhk,%d.%03d,"
+		"%d.%03d"
+		"\n",
 
-	//this is the input supply until we add a RailDescriptor for the 48V rail
-	virtual bool IsInputSupply() override
-	{ return true; }
-};
-
-#include "CrossbarPowerResetSupervisor.h"
-extern CrossbarPowerResetSupervisor g_super;
-
-#endif
+		GetFanRPM(0),
+		GetFPGATemperature(), GetFPGAVCCINT(), GetFPGAVCCBRAM(), GetFPGAVCCAUX(),
+		g_dts->GetTemperature(),
+		GetSFPTemperature(),
+		ibc_vin / 1000, ibc_vin % 1000, ibc_iin / 1000, ibc_iin % 1000, ibc_temp, ibc_vout / 1000, ibc_vout % 1000,
+			ibc_iout / 1000, ibc_iout % 1000, ibc_vsense / 1000, ibc_vsense % 1000,
+		super_temp, super_3v3 / 1000, super_3v3 % 1000,
+		sfp_3v3 / 1000, sfp_3v3 % 1000
+		);
+	#endif
+}

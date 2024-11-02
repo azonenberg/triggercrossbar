@@ -162,6 +162,9 @@ void App_Init()
 	g_tasks.push_back(&g_super);
 	g_tasks.push_back(&spiserver);
 
+	//No external pull on this pin
+	g_mcuReady.SetPullMode(GPIOPin::PULL_DOWN);
+
 	g_super.PowerOn();
 }
 

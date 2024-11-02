@@ -27,63 +27,21 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef supervisor_h
-#define supervisor_h
+#ifndef TwoHzTimerTask_h
+#define TwoHzTimerTask_h
 
-#include <supervisor/supervisor-common.h>
-#include <supervisor/PowerResetSupervisor.h>
+#include <core/TimerTask.h>
 
-//#include <bootloader/BootloaderAPI.h>
-#include "../bsp/hwinit.h"
-
-uint16_t Get12VRailVoltage();
-
-///@brief Rail descriptor for the 12V rail using ADC instead of PGOOD
-class RailDescriptor12V0 : public RailDescriptorWithEnable
+class TwoHzTimerTask : public TimerTask
 {
 public:
-	RailDescriptor12V0(const char* name, GPIOPin& enable, Timer& timer, uint16_t timeout)
-		: RailDescriptorWithEnable(name, enable, timer, timeout)
+	TwoHzTimerTask()
+		: TimerTask(0, 10 * 500)
 	{}
 
-	virtual bool TurnOn() override
-	{
-		g_log("Turning on %s\n", m_name);
-
-		m_enable = 1;
-
-		for(uint32_t i=0; i<m_delay; i++)
-		{
-			if(IsPowerGood())
-				return true;
-			m_timer.Sleep(1);
-		}
-
-		if(!IsPowerGood())
-		{
-			g_log(Logger::ERROR, "Rail %s failed to come up\n", m_name);
-			return false;
-		}
-		return true;
-	}
-
-	virtual bool IsPowerGood() override
-	{
-		auto v12 = Get12VRailVoltage();
-		return (v12 <= 13000) && (v12 >= 11000);
-	}
-
-	//loss of 12V0 rail should not trigger a panic shutdown
-	//(see https://github.com/azonenberg/triggercrossbar/issues/22)
-	virtual bool IsCritical() override
-	{ return false; }
-
-	//this is the input supply until we add a RailDescriptor for the 48V rail
-	virtual bool IsInputSupply() override
-	{ return true; }
+protected:
+	virtual void OnTimer() override;
 };
 
-#include "CrossbarPowerResetSupervisor.h"
-extern CrossbarPowerResetSupervisor g_super;
-
 #endif
+

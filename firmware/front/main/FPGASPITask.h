@@ -40,7 +40,7 @@ public:
 	{}
 
 protected:
-	virtual void OnDataByte(uint8_t data);
+	virtual void OnDataByte(uint8_t data) override;
 
 	bool RxSPIString(uint8_t nbyte, char* buf, uint8_t size, uint8_t data);
 

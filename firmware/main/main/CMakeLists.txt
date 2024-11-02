@@ -7,6 +7,11 @@ add_executable(main
 	OctalDAC.cpp
 	Sensors.cpp
 
+	OneHzTimerTask.cpp
+	TwentyHzTimerTask.cpp
+	TwoHzTimerTask.cpp
+	TenHzTimerTask.cpp
+
 	net/ManagementNTPClient.cpp
 	net/ManagementTCPProtocol.cpp
 	net/ManagementUDPProtocol.cpp

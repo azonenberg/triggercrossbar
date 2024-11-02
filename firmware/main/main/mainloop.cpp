@@ -31,19 +31,16 @@
 #include "CrossbarCLISessionContext.h"
 #include "../../front/main/regids.h"
 #include <supervisor/SupervisorSPIRegisters.h>
-#include <peripheral/ITMStream.h>
+#include "LocalConsoleTask.h"
+#include "FPGATask.h"
+#include "OneHzTimerTask.h"
+#include "TwentyHzTimerTask.h"
+#include "TwoHzTimerTask.h"
+#include "TenHzTimerTask.h"
 
 void LogTemperatures();
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value);
-void UpdateFrontPanelActivityLEDs();
 void InitFrontPanel();
-void TraceLogSensors();
-
-///@brief Output stream for local serial console
-UARTOutputStream g_localConsoleOutputStream;
-
-///@brief Context data structure for local serial console
-CrossbarCLISessionContext g_localConsoleSessionContext;
 
 void App_Init()
 {
@@ -84,161 +81,36 @@ void App_Init()
 	//Load instrument channel configuration from the KVS
 	LoadChannelConfig();
 
-	//Initialize the local console
-	g_localConsoleOutputStream.Initialize(&g_cliUART);
-	g_localConsoleSessionContext.Initialize(&g_localConsoleOutputStream, "localadmin");
-
 	//Bring up the front panel
 	InitFrontPanel();
 
-	//Show the initial prompt
-	g_localConsoleSessionContext.PrintPrompt();
+	//Initialize tasks
+	static OneHzTimerTask timerTask1;
+	static TwoHzTimerTask timerTask2;
+	static TenHzTimerTask timerTask10;
+	static TwentyHzTimerTask timerTask20;
+	static LocalConsoleTask localConsoleTask;
+	static FPGATask fpgaTask;
+
+	g_tasks.push_back(&timerTask20);
+	g_tasks.push_back(&timerTask10);
+	g_tasks.push_back(&timerTask2);
+	g_tasks.push_back(&timerTask1);
+	g_tasks.push_back(&localConsoleTask);
+	g_tasks.push_back(&fpgaTask);
+
+	g_timerTasks.push_back(&timerTask20);
+	g_timerTasks.push_back(&timerTask10);
+	g_timerTasks.push_back(&timerTask2);
+	g_timerTasks.push_back(&timerTask1);
 
 	//Initialize the FPGA IRQ pin
 	g_irq.SetPullMode(GPIOPin::PULL_DOWN);
+
+	//Assert GPIOA8 (MCU_READY) once firmware is fully initialized
+	static GPIOPin mcuUp(&GPIOA, 8, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW, 0, true);
+	mcuUp = true;
 }
-
-void BSP_MainLoopIteration()
-{
-	//Main event loop
-	static uint32_t secTillNext5MinTick = 0;
-	static uint32_t next1HzTick = 0;
-	static uint32_t next2HzTick = 0;
-	static uint32_t next10HzTick = 0;
-	static uint32_t nextPhyPoll = 0;
-	const uint32_t logTimerMax = 0xf0000000;
-
-	//Wait for an interrupt
-	//asm("wfi");
-
-	//Check if anything happened on the FPGA
-	CheckForFPGAEvents();
-
-	//Check if we had a PHY link state change at 20 Hz
-	//TODO: add irq bit for this so we don't have to poll nonstop
-	if(g_logTimer.GetCount() >= nextPhyPoll)
-	{
-		PollPHYs();
-		nextPhyPoll = g_logTimer.GetCount() + 500;
-	}
-
-	//Check if we had an optic inserted or removed
-	PollSFP();
-
-	//Poll for UART input
-	if(g_cliUART.HasInput())
-		g_localConsoleSessionContext.OnKeystroke(g_cliUART.BlockingRead());
-
-	if(g_log.UpdateOffset(logTimerMax))
-	{
-		next1HzTick -= logTimerMax;
-		next10HzTick -= logTimerMax;
-	}
-
-	//Refresh of activity LEDs and TCP retransmits at 10 Hz
-	if(g_logTimer.GetCount() >= next10HzTick)
-	{
-		UpdateFrontPanelActivityLEDs();
-		g_ethProtocol->OnAgingTick10x();
-
-		next10HzTick = g_logTimer.GetCount() + 1000;
-	}
-
-	//Poll sensors at 2 Hz
-	if(g_logTimer.GetCount() >= next2HzTick)
-	{
-		#ifdef _DEBUG
-		TraceLogSensors();
-		#endif
-
-		next2HzTick = g_logTimer.GetCount() + 5000;
-	}
-
-	//1 Hz timer for various aging processes
-	if(g_logTimer.GetCount() >= next1HzTick)
-	{
-		g_ethProtocol->OnAgingTick();
-		next1HzTick = g_logTimer.GetCount() + 10000;
-
-		//Push channel config to KVS every 5 mins if it's changed
-		//DEBUG: every 10 sec
-		if(secTillNext5MinTick == 0)
-		{
-			secTillNext5MinTick = 300;
-			SaveChannelConfig();
-		}
-		else
-			secTillNext5MinTick --;
-
-		//Push new register values to front panel every second (it will refresh the panel whenever it wants to)
-		UpdateFrontPanelDisplay();
-	}
-}
-
-#ifdef _DEBUG
-void TraceLogSensors()
-{
-	static ITMStream sensorStream(0);
-
-	sensorStream.Printf(
-		"CSV-NAME,"
-		"FAN0_RPM,"
-		"FPGA_TEMP,FPGA_VCCINT,FPGA_VCCBRAM,FPGA_VCCAUX,"
-		"MAINMCU_TEMP,"
-		"SFP_TEMP,"
-		"IBC_VIN,IBC_IIN,IBC_TEMP,IBC_VOUT,IBC_IOUT,IBC_VSENSE,"
-		"SUPER_MCUTEMP,SUPER_3V3,"
-		"SFP_3V3"
-
-		//TODO: IBC_MCUTEMP, IBC_3V3
-
-		"\n"
-		);
-
-	sensorStream.Printf(
-		"CSV-UNIT,"
-		"RPM,"
-		"°C,V,V,V,"
-		"°C,"
-		"°C,"
-		"V,A,°C,V,A,V,"
-		"°C,V,"
-		"V"
-		"\n"
-		);
-
-	auto ibc_vin = SupervisorRegRead(SUPER_REG_IBCVIN);
-	auto ibc_iin = SupervisorRegRead(SUPER_REG_IBCIIN);
-	auto ibc_temp = SupervisorRegRead(SUPER_REG_IBCTEMP);
-	auto ibc_vout = SupervisorRegRead(SUPER_REG_IBCVOUT);
-	auto ibc_iout = SupervisorRegRead(SUPER_REG_IBCIOUT);
-	auto ibc_vsense = SupervisorRegRead(SUPER_REG_IBCVSENSE);
-	auto super_temp = SupervisorRegRead(SUPER_REG_MCUTEMP);
-	auto super_3v3 = SupervisorRegRead(SUPER_REG_3V3);
-	auto sfp_3v3 = GetSFP3V3();
-
-	sensorStream.Printf(
-		"CSV-DATA,"
-		"%d,"
-		"%uhk,%uhk,%uhk,%uhk,"
-		"%uhk,"
-		"%uhk,"
-		"%d.%03d,%d.%03d,%uhk,%d.%03d,%d.%03d,%d.%03d,"
-		"%uhk,%d.%03d,"
-		"%d.%03d"
-		"\n",
-
-		GetFanRPM(0),
-		GetFPGATemperature(), GetFPGAVCCINT(), GetFPGAVCCBRAM(), GetFPGAVCCAUX(),
-		g_dts->GetTemperature(),
-		GetSFPTemperature(),
-		ibc_vin / 1000, ibc_vin % 1000, ibc_iin / 1000, ibc_iin % 1000, ibc_temp, ibc_vout / 1000, ibc_vout % 1000,
-			ibc_iout / 1000, ibc_iout % 1000, ibc_vsense / 1000, ibc_vsense % 1000,
-		super_temp, super_3v3 / 1000, super_3v3 % 1000,
-		sfp_3v3 / 1000, sfp_3v3 % 1000
-		);
-}
-#endif
 
 void InitFrontPanel()
 {
@@ -266,7 +138,6 @@ void InitFrontPanel()
 
 	//Update the display and set the direction LEDs to all-input (default state on new FPGA bitstream load)
 	SetFrontPanelDirectionLEDs(0xf0);
-	UpdateFrontPanelActivityLEDs();
 	UpdateFrontPanelDisplay();
 }
 
@@ -316,24 +187,6 @@ void SetFrontPanelDirectionLEDs(uint8_t leds)
 	SendFrontPanelByte(leds);
 	g_frontSPI->SetCS(1);
 	g_logTimer.Sleep(1);
-}
-
-void UpdateFrontPanelActivityLEDs()
-{
-	if(IsFrontPanelDFU())
-		return;
-
-	//Read LED state
-	uint16_t dinval = g_ledGpioInPortActivity->in;
-	uint16_t doutval = g_ledGpioOutPortActivity->in;
-
-	//Convert to bytes and send
-	g_frontSPI->SetCS(0);
-	SendFrontPanelByte(FRONT_PORT_LEDS);
-	SendFrontPanelByte(doutval & 0xff);
-	SendFrontPanelByte( ((dinval & 0xf) << 4) | ( (doutval >> 8) & 0xf) );
-	SendFrontPanelByte(dinval >> 4);
-	g_frontSPI->SetCS(1);
 }
 
 /**
