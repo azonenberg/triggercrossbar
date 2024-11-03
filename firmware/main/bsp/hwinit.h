@@ -96,6 +96,7 @@ extern APBFPGAInterface g_apbfpga;
 extern APBEthernetInterface g_ethIface;
 extern MACAddress g_macAddress;
 extern IPv4Config g_ipConfig;
+extern IPv6Config g_ipv6Config;
 extern bool g_usingDHCP;
 extern ManagementDHCPClient* g_dhcpClient;
 extern OctoSPI* g_qspi;

@@ -320,10 +320,12 @@ void InitIP()
 	//Global protocol stacks
 	static IPv4Protocol ipv4(eth, g_ipConfig, cache);
 	static ICMPv4Protocol icmpv4(ipv4);
+	static IPv6Protocol ipv6(eth, g_ipv6Config);
 
 	//Register protocol handlers with the lower layer
 	eth.UseARP(&arp);
 	eth.UseIPv4(&ipv4);
+	eth.UseIPv6(&ipv6);
 	ipv4.UseICMPv4(&icmpv4);
 	RegisterProtocolHandlers(ipv4);
 }
@@ -337,6 +339,9 @@ void ConfigureIP()
 	g_ipConfig.m_netmask = g_kvs->ReadObject<IPv4Address>(g_defaultNetmask, "ip.netmask");
 	g_ipConfig.m_broadcast = g_kvs->ReadObject<IPv4Address>(g_defaultBroadcast, "ip.broadcast");
 	g_ipConfig.m_gateway = g_kvs->ReadObject<IPv4Address>(g_defaultGateway, "ip.gateway");
+
+	//TODO
+	memset(&g_ipv6Config, 0, sizeof(g_ipv6Config));
 }
 
 /**

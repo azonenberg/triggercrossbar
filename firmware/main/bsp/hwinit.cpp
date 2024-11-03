@@ -67,6 +67,9 @@ MACAddress g_macAddress;
 ///@brief Our IPv4 address
 IPv4Config g_ipConfig;
 
+///@brief Our IPv6 address
+IPv6Config g_ipv6Config;
+
 ///@brief Ethernet protocol stack
 EthernetProtocol* g_ethProtocol = nullptr;
 
