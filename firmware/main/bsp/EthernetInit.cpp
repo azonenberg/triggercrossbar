@@ -321,12 +321,14 @@ void InitIP()
 	static IPv4Protocol ipv4(eth, g_ipConfig, cache);
 	static ICMPv4Protocol icmpv4(ipv4);
 	static IPv6Protocol ipv6(eth, g_ipv6Config);
+	static ICMPv6Protocol icmpv6(ipv6);
 
 	//Register protocol handlers with the lower layer
 	eth.UseARP(&arp);
 	eth.UseIPv4(&ipv4);
 	eth.UseIPv6(&ipv6);
 	ipv4.UseICMPv4(&icmpv4);
+	ipv6.UseICMPv6(&icmpv6);
 	RegisterProtocolHandlers(ipv4);
 }
 
