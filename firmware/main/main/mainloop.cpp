@@ -320,7 +320,7 @@ void UpdateFrontPanelDisplay()
 
 	//Temperatures
 	SendFrontPanelSensor(FRONT_FPGA_TEMP, GetFPGATemperature());
-	SendFrontPanelSensor(FRONT_MCU_TEMP, g_dts->GetTemperature());
+	SendFrontPanelSensor(FRONT_MCU_TEMP, g_dts.GetTemperature());
 
 	//IBC voltages
 	//Report vsense not vout of the IBC because vout seems to be noisier

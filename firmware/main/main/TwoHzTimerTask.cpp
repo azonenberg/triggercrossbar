@@ -87,7 +87,7 @@ void TwoHzTimerTask::OnTimer()
 
 		GetFanRPM(0),
 		GetFPGATemperature(), GetFPGAVCCINT(), GetFPGAVCCBRAM(), GetFPGAVCCAUX(),
-		g_dts->GetTemperature(),
+		g_dts.GetTemperature(),
 		GetSFPTemperature(),
 		ibc_vin / 1000, ibc_vin % 1000, ibc_iin / 1000, ibc_iin % 1000, ibc_temp, ibc_vout / 1000, ibc_vout % 1000,
 			ibc_iout / 1000, ibc_iout % 1000, ibc_vsense / 1000, ibc_vsense % 1000,

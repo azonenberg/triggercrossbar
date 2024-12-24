@@ -41,6 +41,20 @@ const char* g_fpgaDfuPath = "/dfu/fpga";
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Filesystem wrapper APIs
 
+uint32_t ManagementSFTPServer::ReadFile(
+	[[maybe_unused]] uint32_t handle,
+	[[maybe_unused]] uint64_t offset,
+	[[maybe_unused]] uint8_t* data,
+	[[maybe_unused]] uint32_t len)
+{
+	return 0;
+}
+
+uint64_t ManagementSFTPServer::GetFileSize([[maybe_unused]] const char* path)
+{
+	return 0;
+}
+
 bool ManagementSFTPServer::DoesFileExist(const char* path)
 {
 	if(!strcmp(path, g_frontPanelDfuPath))

@@ -43,13 +43,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Common peripherals used by application and bootloader
 
-//APB1 is 62.5 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
-//Divide down to get 10 kHz ticks
-Timer g_logTimer(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 12500);
-
-///@brief Character device for logging
-LogSink<MAX_LOG_SINKS>* g_logSink = nullptr;
-
 /**
 	@brief UART console
 
@@ -193,7 +186,7 @@ void InitTrace();
 
 void BSP_Init()
 {
-	InitRTC();
+	InitRTCFromHSE();
 
 	#ifdef _DEBUG
 	InitTrace();
@@ -218,58 +211,6 @@ void InitTrace()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // BSP overrides for low level init
 
-void BSP_InitPower()
-{
-	//Initialize power (must be the very first thing done after reset)
-	Power::ConfigureSMPSToLDOCascade(Power::VOLTAGE_1V8, RANGE_VOS0);
-}
-
-void BSP_InitClocks()
-{
-	//With CPU_FREQ_BOOST not set, max frequency is 520 MHz
-
-	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
-	//A bit of extra latency is fine, the CPU being faster than flash is not.
-	Flash::SetConfiguration(513, RANGE_VOS0);
-
-	//Switch back to the HSI clock (in case we're already running on the PLL from the bootloader)
-	RCCHelper::SelectSystemClockFromHSI();
-
-	//By default out of reset, we're clocked by the HSI clock at 64 MHz
-	//Initialize the external clock source at 25 MHz
-	RCCHelper::EnableHighSpeedExternalClock();
-
-	//Set up PLL1 to run off the external oscillator
-	RCCHelper::InitializePLL(
-		1,		//PLL1
-		25,		//input is 25 MHz from the HSE
-		2,		//25/2 = 12.5 MHz at the PFD
-		40,		//12.5 * 40 = 500 MHz at the VCO
-		1,		//div P (primary output 500 MHz)
-		10,		//div Q (50 MHz kernel clock)
-		6,		//div R (83.33 MHz SWO Manchester bit clock, 41.66 Mbps data rate)
-		RCCHelper::CLOCK_SOURCE_HSE
-	);
-
-	//Set up main system clock tree
-	RCCHelper::InitializeSystemClocks(
-		1,		//sysclk = 500 MHz
-		2,		//AHB = 250 MHz
-		4,		//APB1 = 62.5 MHz
-		4,		//APB2 = 62.5 MHz
-		4,		//APB3 = 62.5 MHz
-		4		//APB4 = 62.5 MHz
-	);
-
-	//RNG clock should be >= HCLK/32
-	//AHB2 HCLK is 250 MHz so min 7.8125 MHz
-	//Select PLL1 Q clock (50 MHz)
-	RCC.D2CCIP2R = (RCC.D2CCIP2R & ~0x300) | (0x100);
-
-	//Select PLL1 as system clock source
-	RCCHelper::SelectSystemClockFromPLL1();
-}
-
 void BSP_InitUART()
 {
 	//Initialize the UART for local console: 115.2 Kbps using PA12 for UART4 transmit and PA11 for UART2 receive
@@ -287,48 +228,8 @@ void BSP_InitUART()
 		g_cliUART.Printf("\x1b[2J\x1b[0;0H");
 }
 
-void BSP_InitLog()
-{
-	static LogSink<MAX_LOG_SINKS> sink(&g_cliUART);
-	g_logSink = &sink;
-
-	g_log.Initialize(g_logSink, &g_logTimer);
-	g_log("trigger-crossbar by Andrew D. Zonenberg\n");
-	{
-		LogIndenter li(g_log);
-		g_log("This system is open hardware! Board design files and firmware/gateware source code are at:\n");
-		g_log("https://github.com/azonenberg/triggercrossbar\n");
-	}
-	g_log("Firmware compiled at %s on %s\n", __TIME__, __DATE__);
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Higher level initialization we used for a lot of stuff
-
-void InitRTC()
-{
-	g_log("Initializing RTC...\n");
-	LogIndenter li(g_log);
-	g_log("Using external clock divided by 50 (500 kHz)\n");
-
-	//Turn on the RTC APB clock so we can configure it, then set the clock source for it in the RCC
-	RCCHelper::Enable(&_RTC);
-	RTC::SetClockFromHSE(50);
-}
-
-void DoInitKVS()
-{
-	/*
-		Use sectors 6 and 7 of main flash (in single bank mode) for a 128 kB microkvs
-
-		Each log entry is 64 bytes, and we want to allocate ~50% of storage to the log since our objects are pretty
-		small (SSH keys, IP addresses, etc). A 1024-entry log is a nice round number, and comes out to 64 kB or 50%,
-		leaving the remaining 64 kB or 50% for data.
-	 */
-	static STM32StorageBank left(reinterpret_cast<uint8_t*>(0x080c0000), 0x20000);
-	static STM32StorageBank right(reinterpret_cast<uint8_t*>(0x080e0000), 0x20000);
-	InitKVS(&left, &right, 1024);
-}
 
 void InitI2C()
 {
@@ -496,24 +397,6 @@ void InitFPGAFlash()
 
 	static APB_SpiFlashInterface flash(g_flashSpi, 64);
 	g_fpgaFlash = &flash;
-}
-
-/**
-	@brief Remove spaces from trailing edge of a string
- */
-void TrimSpaces(char* str)
-{
-	char* p = str + strlen(str) - 1;
-
-	while(p >= str)
-	{
-		if(isspace(*p))
-			*p = '\0';
-		else
-			break;
-
-		p --;
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

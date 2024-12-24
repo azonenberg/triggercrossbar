@@ -326,7 +326,7 @@ void InitIP()
 	//Register protocol handlers with the lower layer
 	eth.UseARP(&arp);
 	eth.UseIPv4(&ipv4);
-	eth.UseIPv6(&ipv6);
+	//eth.UseIPv6(&ipv6);
 	ipv4.UseICMPv4(&icmpv4);
 	ipv6.UseICMPv6(&icmpv6);
 	RegisterProtocolHandlers(ipv4);

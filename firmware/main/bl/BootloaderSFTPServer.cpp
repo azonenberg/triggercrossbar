@@ -40,6 +40,20 @@ const char* g_mainMicroDfuPath = "/dfu/mcu";
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Filesystem wrapper APIs
 
+uint32_t BootloaderSFTPServer::ReadFile(
+	[[maybe_unused]] uint32_t handle,
+	[[maybe_unused]] uint64_t offset,
+	[[maybe_unused]] uint8_t* data,
+	[[maybe_unused]] uint32_t len)
+{
+	return 0;
+}
+
+uint64_t BootloaderSFTPServer::GetFileSize([[maybe_unused]] const char* path)
+{
+	return 0;
+}
+
 bool BootloaderSFTPServer::DoesFileExist(const char* path)
 {
 	if(!strcmp(path, g_mainMicroDfuPath))

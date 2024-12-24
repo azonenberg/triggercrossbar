@@ -218,23 +218,6 @@ void InitSensors()
 	InitDTS();
 }
 
-/**
-	@brief Initialize the digital temperature sensor
- */
-void InitDTS()
-{
-	//APB4 clock is 68.75 MHz, so divide by 80 to get 859 kHz ticks
-	//(must be <1 MHz)
-	//15 cycles integration time = 18.75 us
-	static DigitalTempSensor dts(&DTS, 80, 15, 64000000);
-	g_dts = &dts;
-
-	auto tempval = dts.GetTemperature();
-	g_log("MCU die temperature:                   %d.%02d C\n",
-		(tempval >> 8),
-		static_cast<int>(((tempval & 0xff) / 256.0) * 100));
-}
-
 void RegisterProtocolHandlers(IPv4Protocol& ipv4)
 {
 	static ManagementTCPProtocol tcp(&ipv4);

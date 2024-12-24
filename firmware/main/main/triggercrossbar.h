@@ -33,7 +33,6 @@
 #include <core/platform.h>
 #include <hwinit.h>
 
-#include <peripheral/DTS.h>
 #include <peripheral/Power.h>
 #include <peripheral/SPI.h>
 
@@ -44,8 +43,6 @@
 #include "OctalDAC.h"
 
 extern ManagementNTPClient* g_ntpClient;
-
-extern DigitalTempSensor* g_dts;
 
 extern GPIOPin* g_leds[4];
 

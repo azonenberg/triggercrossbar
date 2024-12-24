@@ -30,6 +30,7 @@
 #ifndef hwinit_h
 #define hwinit_h
 
+#include <boilerplate/h735/StandardBSP.h>
 #include <cli/UARTOutputStream.h>
 
 #include <peripheral/CRC.h>
@@ -66,12 +67,7 @@ void SfrMemcpy(volatile void* dst, void* src, uint32_t len);
 
 #include <bootloader/BootloaderAPI.h>
 
-#define MAX_LOG_SINKS SSH_TABLE_SIZE
-#include <LogSink.h>
-extern LogSink<MAX_LOG_SINKS>* g_logSink;
-
 void App_Init();
-void InitRTC();
 void InitQSPI();
 void InitFPGA();
 void InitFPGAFlash();
@@ -85,7 +81,6 @@ void PollSFP();
 void PollFPGA();
 void PollPHYs();
 void ConfigureIP();
-void DoInitKVS();
 
 uint16_t GetSFPTemperature();
 uint16_t GetSFP3V3();
@@ -144,7 +139,6 @@ void UART4_Handler();
 
 void OnEthernetLinkStateChanged();
 bool CheckForFPGAEvents();
-void TrimSpaces(char* str);
 void RegisterProtocolHandlers(IPv4Protocol& ipv4);
 
 //Global device controllers

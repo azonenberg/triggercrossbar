@@ -29,11 +29,6 @@
 
 #include "triggercrossbar.h"
 
-/**
-	@brief Digital temperature sensor
- */
-DigitalTempSensor* g_dts = nullptr;
-
 ///@brief GPIO LEDs
 GPIOPin* g_leds[4] = {0};
 
