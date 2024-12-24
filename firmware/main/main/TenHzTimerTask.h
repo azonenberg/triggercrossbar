@@ -42,7 +42,8 @@ public:
 	}
 
 protected:
-	virtual void OnTimer() override;
+	virtual void OnTimer() override
+	{ UpdateFrontPanelActivityLEDs(); }
 
 	void UpdateFrontPanelActivityLEDs();
 };

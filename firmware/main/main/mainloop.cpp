@@ -33,6 +33,9 @@
 #include <supervisor/SupervisorSPIRegisters.h>
 #include "LocalConsoleTask.h"
 #include "FPGATask.h"
+#include <tcpip/PhyPollTask.h>
+#include <tcpip/IPAgingTask1Hz.h>
+#include <tcpip/IPAgingTask10Hz.h>
 #include "OneHzTimerTask.h"
 #include "TwentyHzTimerTask.h"
 #include "TwoHzTimerTask.h"
@@ -59,7 +62,7 @@ void App_Init()
 
 	//Get our MAC address
 	InitI2C();
-	InitEEPROM();
+	InitMacEEPROM();
 
 	//Set up the DACs
 	InitDACs();
@@ -89,7 +92,10 @@ void App_Init()
 	static TwoHzTimerTask timerTask2;
 	static TenHzTimerTask timerTask10;
 	static TwentyHzTimerTask timerTask20;
+	static IPAgingTask1Hz agingTask1;
+	static IPAgingTask10Hz agingTask10;
 	static LocalConsoleTask localConsoleTask;
+	static PhyPollTask phyTask;
 	static FPGATask fpgaTask;
 
 	g_tasks.push_back(&timerTask20);
@@ -98,11 +104,17 @@ void App_Init()
 	g_tasks.push_back(&timerTask1);
 	g_tasks.push_back(&localConsoleTask);
 	g_tasks.push_back(&fpgaTask);
+	g_tasks.push_back(&agingTask1);
+	g_tasks.push_back(&agingTask10);
+	g_tasks.push_back(&phyTask);
 
 	g_timerTasks.push_back(&timerTask20);
 	g_timerTasks.push_back(&timerTask10);
 	g_timerTasks.push_back(&timerTask2);
 	g_timerTasks.push_back(&timerTask1);
+	g_timerTasks.push_back(&agingTask1);
+	g_timerTasks.push_back(&agingTask10);
+	g_timerTasks.push_back(&phyTask);
 
 	//Initialize the FPGA IRQ pin
 	g_irq.SetPullMode(GPIOPin::PULL_DOWN);

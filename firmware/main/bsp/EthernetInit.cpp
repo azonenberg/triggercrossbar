@@ -36,59 +36,7 @@
 #include "hwinit.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Globals
-
-const IPv4Address g_defaultIP			= { .m_octets{192, 168,   1,   2} };
-const IPv4Address g_defaultNetmask		= { .m_octets{255, 255, 255,   0} };
-const IPv4Address g_defaultBroadcast	= { .m_octets{192, 168,   1, 255} };
-const IPv4Address g_defaultGateway		= { .m_octets{192, 168,   1,   1} };
-
-/**
-	@brief Mapping of link speed IDs to printable names
- */
-static const char* g_linkSpeedNamesLong[] =
-{
-	"10 Mbps",
-	"100 Mbps",
-	"1000 Mbps",
-	"10 Gbps"
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Peripheral init
-
-void InitEEPROM()
-{
-	g_log("Initializing MAC address EEPROM\n");
-
-	//Extended memory block for MAC address data isn't in the normal 0xa* memory address space
-	//uint8_t main_addr = 0xa0;
-	uint8_t ext_addr = 0xb0;
-
-	//Pointers within extended memory block
-	uint8_t serial_offset = 0x80;
-	uint8_t mac_offset = 0x9a;
-
-	//Read MAC address
-	g_macI2C->BlockingWrite8(ext_addr, mac_offset);
-	g_macI2C->BlockingRead(ext_addr, &g_macAddress[0], sizeof(g_macAddress));
-
-	//Read serial number
-	const int serial_len = 16;
-	uint8_t serial[serial_len] = {0};
-	g_macI2C->BlockingWrite8(ext_addr, serial_offset);
-	g_macI2C->BlockingRead(ext_addr, serial, serial_len);
-
-	{
-		LogIndenter li(g_log);
-		g_log("MAC address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-			g_macAddress[0], g_macAddress[1], g_macAddress[2], g_macAddress[3], g_macAddress[4], g_macAddress[5]);
-
-		g_log("EEPROM serial number: %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-			serial[0], serial[1], serial[2], serial[3], serial[4], serial[5], serial[6], serial[7],
-			serial[8], serial[9], serial[10], serial[11], serial[12], serial[13], serial[14], serial[15]);
-	}
-}
 
 /**
 	@brief Initialize the I2C EEPROM and GPIOs for the SFP+ interface
@@ -283,6 +231,32 @@ void PollSFP()
 		int rxPowerScaled = rxpower;	//0.1 μW per LSB
 		g_log("RX power:      %3d.%d μW\n", rxPowerScaled / 10, rxPowerScaled % 10);
 	}
+
+	//Get the SFP link status
+	auto stat = g_eth10GTxFifo->tx_stat;
+	if(stat & 1)
+	{
+		//Link went up?
+		if(!g_sfpLinkUp)
+		{
+			g_log("Interface xg0: link is up at 10 Gbps\n");
+			g_sfpLinkUp = true;
+			OnEthernetLinkStateChanged();
+			g_ethProtocol->OnLinkUp();
+		}
+	}
+
+	else
+	{
+		//Link went down?
+		if(g_sfpLinkUp)
+		{
+			g_log("Interface xg0: link is down\n");
+			g_sfpLinkUp = false;
+			OnEthernetLinkStateChanged();
+			g_ethProtocol->OnLinkDown();
+		}
+	}
 }
 
 uint16_t GetSFP3V3()
@@ -333,26 +307,14 @@ void InitIP()
 }
 
 /**
-	@brief Load our IP configuration from the KVS
- */
-void ConfigureIP()
-{
-	g_ipConfig.m_address = g_kvs->ReadObject<IPv4Address>(g_defaultIP, "ip.address");
-	g_ipConfig.m_netmask = g_kvs->ReadObject<IPv4Address>(g_defaultNetmask, "ip.netmask");
-	g_ipConfig.m_broadcast = g_kvs->ReadObject<IPv4Address>(g_defaultBroadcast, "ip.broadcast");
-	g_ipConfig.m_gateway = g_kvs->ReadObject<IPv4Address>(g_defaultGateway, "ip.gateway");
-
-	//TODO
-	memset(&g_ipv6Config, 0, sizeof(g_ipv6Config));
-}
-
-/**
 	@brief Initializes the management PHY
  */
 void InitManagementPHY()
 {
 	g_log("Initializing management PHY\n");
 	LogIndenter li(g_log);
+
+	g_phyMdio = &g_mgmtPhy;
 
 	//Read the PHY ID
 	auto phyid1 = g_mgmtPhy.ReadRegister(REG_PHY_ID_1);
@@ -423,63 +385,5 @@ void PollFPGA()
 		auto frame = g_ethIface.GetRxFrame();
 		if(frame != nullptr)
 			g_ethProtocol->OnRxFrame(frame);
-	}
-}
-
-/**
-	@brief Poll the PHYs for link state changes
-
-	TODO: use IRQ pin to trigger this vs doing it nonstop?
- */
-void PollPHYs()
-{
-	//Get the baseT link state
-	uint16_t bctl = g_mgmtPhy.ReadRegister(REG_BASIC_CONTROL);
-	uint16_t bstat = g_mgmtPhy.ReadRegister(REG_BASIC_STATUS);
-	bool bup = (bstat & 4) == 4;
-	if(bup && !g_basetLinkUp)
-	{
-		g_basetLinkSpeed = 0;
-		if( (bctl & 0x40) == 0x40)
-			g_basetLinkSpeed |= 2;
-		if( (bctl & 0x2000) == 0x2000)
-			g_basetLinkSpeed |= 1;
-		g_log("Interface mgmt0: link is up at %s\n", g_linkSpeedNamesLong[g_basetLinkSpeed]);
-		OnEthernetLinkStateChanged();
-		g_ethProtocol->OnLinkUp();
-	}
-	else if(!bup && g_basetLinkUp)
-	{
-		g_log("Interface mgmt0: link is down\n");
-		g_basetLinkSpeed = 0xff;
-		OnEthernetLinkStateChanged();
-		g_ethProtocol->OnLinkDown();
-	}
-	g_basetLinkUp = bup;
-
-	//Get the SFP link status
-	auto stat = g_eth10GTxFifo->tx_stat;
-	if(stat & 1)
-	{
-		//Link went up?
-		if(!g_sfpLinkUp)
-		{
-			g_log("Interface xg0: link is up at 10 Gbps\n");
-			g_sfpLinkUp = true;
-			OnEthernetLinkStateChanged();
-			g_ethProtocol->OnLinkUp();
-		}
-	}
-
-	else
-	{
-		//Link went down?
-		if(g_sfpLinkUp)
-		{
-			g_log("Interface xg0: link is down\n");
-			g_sfpLinkUp = false;
-			OnEthernetLinkStateChanged();
-			g_ethProtocol->OnLinkDown();
-		}
 	}
 }

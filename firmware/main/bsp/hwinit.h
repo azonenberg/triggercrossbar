@@ -31,6 +31,8 @@
 #define hwinit_h
 
 #include <boilerplate/h735/StandardBSP.h>
+#include <tcpip/CommonTCPIP.h>
+
 #include <cli/UARTOutputStream.h>
 
 #include <peripheral/CRC.h>
@@ -72,14 +74,12 @@ void InitQSPI();
 void InitFPGA();
 void InitFPGAFlash();
 void InitI2C();
-void InitEEPROM();
 void InitEthernet();
 void InitIP();
 void InitSFP();
 void InitManagementPHY();
 void PollSFP();
 void PollFPGA();
-void PollPHYs();
 void ConfigureIP();
 
 uint16_t GetSFPTemperature();
@@ -89,17 +89,10 @@ uint16_t GetSFP3V3();
 extern UART<32, 256> g_cliUART;
 extern APBFPGAInterface g_apbfpga;
 extern APBEthernetInterface g_ethIface;
-extern MACAddress g_macAddress;
-extern IPv4Config g_ipConfig;
-extern IPv6Config g_ipv6Config;
 extern bool g_usingDHCP;
 extern ManagementDHCPClient* g_dhcpClient;
 extern OctoSPI* g_qspi;
-extern I2C* g_macI2C;
 extern I2C* g_sfpI2C;
-extern EthernetProtocol* g_ethProtocol;
-extern bool g_basetLinkUp;
-extern uint8_t g_basetLinkSpeed;
 extern bool g_sfpLinkUp;
 extern CrossbarSSHKeyManager g_keyMgr;
 extern GPIOPin* g_sfpModAbsPin;

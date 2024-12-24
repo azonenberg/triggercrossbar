@@ -31,12 +31,6 @@
 #include "TenHzTimerTask.h"
 #include "../../front/main/regids.h"
 
-void TenHzTimerTask::OnTimer()
-{
-	UpdateFrontPanelActivityLEDs();
-	g_ethProtocol->OnAgingTick10x();
-}
-
 void TenHzTimerTask::UpdateFrontPanelActivityLEDs()
 {
 	if(IsFrontPanelDFU())

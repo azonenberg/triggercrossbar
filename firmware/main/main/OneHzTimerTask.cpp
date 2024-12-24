@@ -34,8 +34,6 @@ void OneHzTimerTask::OnTimer()
 {
 	static uint32_t secTillNext5MinTick = 0;
 
-	g_ethProtocol->OnAgingTick();
-
 	//Push channel config to KVS every 5 mins if it's changed
 	//DEBUG: every 10 sec
 	if(secTillNext5MinTick == 0)

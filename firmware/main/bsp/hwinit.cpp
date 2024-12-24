@@ -54,32 +54,20 @@ UART<32, 256> g_cliUART(&UART4, 543);
 ///@brief Interface to the FPGA via APB
 APBFPGAInterface g_apbfpga;
 
-///@brief Our MAC address
-MACAddress g_macAddress;
-
-///@brief Our IPv4 address
-IPv4Config g_ipConfig;
-
-///@brief Our IPv6 address
-IPv6Config g_ipv6Config;
-
-///@brief Ethernet protocol stack
-EthernetProtocol* g_ethProtocol = nullptr;
-
 ///@brief QSPI interface to FPGA
 OctoSPI* g_qspi = nullptr;
 
-///@brief MAC address I2C EEPROM
-I2C* g_macI2C = nullptr;
+/**
+	@brief MAC address I2C EEPROM
+
+	Default kernel clock for I2C4 is pclk4 (68.75 MHz for our current config)
+	Prescale by 16 to get 4.29 MHz
+	Divide by 40 after that to get 107 kHz
+ */
+I2C g_macI2C(&I2C4, 16, 40);
 
 ///@brief SFP+ DOM / ID EEPROM
 I2C* g_sfpI2C = nullptr;
-
-///@brief BaseT link status
-bool g_basetLinkUp = false;
-
-//Ethernet link speed
-uint8_t g_basetLinkSpeed = 0;
 
 ///@brief SFP+ link state
 bool g_sfpLinkUp;
@@ -237,12 +225,6 @@ void InitI2C()
 
 	static GPIOPin mac_i2c_scl(&GPIOB, 8, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6, true);
 	static GPIOPin mac_i2c_sda(&GPIOB, 9, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 6, true);
-
-	//Default kernel clock for I2C4 is pclk4 (68.75 MHz for our current config)
-	//Prescale by 16 to get 4.29 MHz
-	//Divide by 40 after that to get 107 kHz
-	static I2C mac_i2c(&I2C4, 16, 40);
-	g_macI2C = &mac_i2c;
 
 	static GPIOPin sfp_i2c_scl(&GPIOF, 1, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);
 	static GPIOPin sfp_i2c_sda(&GPIOF, 0, GPIOPin::MODE_PERIPHERAL, GPIOPin::SLEW_SLOW, 4, true);

@@ -34,6 +34,5 @@ void TwentyHzTimerTask::OnTimer()
 {
 	//Check if we had a PHY link state change at 20 Hz
 	//TODO: add irq bit for this so we don't have to poll nonstop
-	PollPHYs();
 	PollSFP();
 }

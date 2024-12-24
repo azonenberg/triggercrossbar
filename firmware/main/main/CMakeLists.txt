@@ -38,6 +38,7 @@ target_link_libraries(main
 	common-embedded-platform-core
 	common-embedded-platform-boilerplate-h735
 	common-embedded-platform-services
+	common-embedded-platform-tcpip
 	embedded-cli
 	embedded-utils
 	microkvs

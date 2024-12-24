@@ -31,6 +31,9 @@
 #include "BootloaderUDPProtocol.h"
 #include "BootloaderTCPProtocol.h"
 #include "BootloaderCLISessionContext.h"
+#include <tcpip/PhyPollTask.h>
+#include <tcpip/IPAgingTask1Hz.h>
+#include <tcpip/IPAgingTask10Hz.h>
 
 //Application region of flash runs from the end of the bootloader (0x8020000)
 //to the start of the KVS (0x080c0000), so 640 kB
@@ -61,7 +64,7 @@ void Bootloader_Init()
 	InitQSPI();
 	InitFPGA();
 	InitI2C();
-	InitEEPROM();
+	InitMacEEPROM();
 	InitSFP();
 	InitManagementPHY();
 	InitEthernet();
@@ -110,27 +113,40 @@ void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow()
 	//Show the initial prompt
 	g_localConsoleSessionContext.PrintPrompt();
 
+	//Create tasks
+	static IPAgingTask1Hz agingTask1;
+	static IPAgingTask10Hz agingTask10;
+	static PhyPollTask phyTask;
+
+	g_tasks.push_back(&agingTask1);
+	g_tasks.push_back(&agingTask10);
+	g_tasks.push_back(&phyTask);
+
+	g_timerTasks.push_back(&agingTask1);
+	g_timerTasks.push_back(&agingTask10);
+	g_timerTasks.push_back(&phyTask);
+
 	while(1)
 	{
 		//Main event loop
-		static uint32_t next1HzTick = 0;
 		static uint32_t next10HzTick = 0;
-		static uint32_t nextPhyPoll = 0;
-		const uint32_t logTimerMax = 0xf0000000;
 
-		//Wait for an interrupt
-		//asm("wfi");
+		//Check for overflows on our timer
+		const int logTimerMax = 60000;
+		if(g_log.UpdateOffset(logTimerMax))
+		{
+			for(auto t : g_timerTasks)
+				t->OnTimerShift(logTimerMax);
+
+			next10HzTick -= logTimerMax;
+		}
+
+		//Run all of our regular tasks
+		for(auto t : g_tasks)
+			t->Iteration();
 
 		//Check if anything happened on the FPGA
 		CheckForFPGAEvents();
-
-		//Check if we had a PHY link state change at 20 Hz
-		//TODO: add irq bit for this so we don't have to poll nonstop
-		if(g_logTimer.GetCount() >= nextPhyPoll)
-		{
-			PollPHYs();
-			nextPhyPoll = g_logTimer.GetCount() + 500;
-		}
 
 		//Check if we had an optic inserted or removed
 		PollSFP();
@@ -139,18 +155,9 @@ void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow()
 		if(g_cliUART.HasInput())
 			g_localConsoleSessionContext.OnKeystroke(g_cliUART.BlockingRead());
 
-		if(g_log.UpdateOffset(logTimerMax))
-		{
-			next1HzTick -= logTimerMax;
-			next10HzTick -= logTimerMax;
-		}
-
 		//Refresh of TCP retransmits at 10 Hz
 		if(g_logTimer.GetCount() >= next10HzTick)
 		{
-			g_ethProtocol->OnAgingTick10x();
-			next10HzTick = g_logTimer.GetCount() + 1000;
-
 			//also do boot-application timeout
 			if(g_bootAppPending)
 			{
@@ -165,13 +172,6 @@ void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow()
 					g_bootAppPending = false;
 				}
 			}
-		}
-
-		//1 Hz timer for various aging processes
-		if(g_logTimer.GetCount() >= next1HzTick)
-		{
-			g_ethProtocol->OnAgingTick();
-			next1HzTick = g_logTimer.GetCount() + 10000;
 		}
 	}
 }
