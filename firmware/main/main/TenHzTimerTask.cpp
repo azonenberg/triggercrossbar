@@ -37,8 +37,8 @@ void TenHzTimerTask::UpdateFrontPanelActivityLEDs()
 		return;
 
 	//Read LED state
-	uint16_t dinval = g_ledGpioInPortActivity->in;
-	uint16_t doutval = g_ledGpioOutPortActivity->in;
+	uint16_t dinval = FPGA_GPIO0.in;
+	uint16_t doutval = FPGA_GPIO1.in;
 
 	//Convert to bytes and send
 	g_frontSPI->SetCS(0);

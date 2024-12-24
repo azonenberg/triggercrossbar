@@ -116,7 +116,13 @@ extern const IPv4Address g_defaultBroadcast;
 extern const IPv4Address g_defaultGateway;
 
 //SFRs on the FPGA used by both bootloader and application
-extern volatile APB_SystemInfo* g_sysInfo;
+//TODO refactor to APB_DeviceInfo_7series
+extern volatile APB_SystemInfo FDEVINFO;
+extern volatile APB_GPIO FPGA_GPIO0;
+extern volatile APB_GPIO FPGA_GPIO1;
+
+//SFRs on the FPGA used by both bootloader and application
+//extern volatile APB_SystemInfo* g_sysInfo;
 extern volatile APB_MDIO* g_mdio;
 extern volatile APB_EthernetRxBuffer* g_ethRxFifo;
 extern volatile APB_EthernetTxBuffer_10G* g_eth1GTxFifo;

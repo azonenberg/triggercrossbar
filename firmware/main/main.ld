@@ -10,7 +10,14 @@ SECTIONS
 	.sfr_fpga_apb1  (NOLOAD):
 	{
 		. = ALIGN(1024);
-		KEEP (*(.sysinfo))
+		KEEP (*(.fdevinfo))
+
+		. = ALIGN(1024);
+		KEEP (*(.fgpio0))
+
+		. = ALIGN(1024);
+		KEEP (*(.fgpio1))
+
 	} > OCTOSPI_APB1
 
 	/* Large address branch */

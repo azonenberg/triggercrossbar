@@ -122,9 +122,10 @@ volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(
 
 //TODO: use linker script to locate these rather than this ugly pointer code?
 
-///@brief System information
-volatile APB_SystemInfo* g_sysInfo =
-	reinterpret_cast<volatile APB_SystemInfo*>(FPGA_MEM_BASE + BASE_SYSINFO);
+//volatile APB_DeviceInfo_7series FDEVINFO __attribute__((section(".fdevinfo")));
+volatile APB_SystemInfo FDEVINFO __attribute__((section(".fdevinfo")));
+volatile APB_GPIO FPGA_GPIO0 __attribute__((section(".fgpio0")));
+volatile APB_GPIO FPGA_GPIO1 __attribute__((section(".fgpio1")));
 
 ///@brief MDIO interface
 volatile APB_MDIO* g_mdio =
@@ -317,8 +318,8 @@ void InitFPGA()
 	//Retry until we get a nonzero result indicating FPGA is up
 	while(true)
 	{
-		uint32_t idcode = g_sysInfo->idcode;
-		memcpy(g_fpgaSerial, (const void*)g_sysInfo->serial, 8);
+		uint32_t idcode = FDEVINFO.idcode;
+		memcpy(g_fpgaSerial, (const void*)FDEVINFO.serial, 8);
 
 		//If IDCODE is all zeroes, poll again
 		if(idcode == 0)
@@ -347,7 +348,7 @@ void InitFPGA()
 	}
 
 	//Read USERCODE
-	g_usercode = g_sysInfo->usercode;
+	g_usercode = FDEVINFO.usercode;
 	g_log("Usercode: %08x\n", g_usercode);
 	{
 		LogIndenter li2(g_log);

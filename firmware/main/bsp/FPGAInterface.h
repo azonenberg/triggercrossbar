@@ -60,9 +60,9 @@ public:
 enum baseaddr_t
 {
 	//Root bridge, small-address branch (0x400 per node)
-	BASE_SYSINFO		= 0x0000'0000,		//APB_SystemInfo
-	BASE_IN_LED_GPIO	= 0x0000'0400,		//APB_GPIO
-	BASE_OUT_LED_GPIO	= 0x0000'0800,		//APB_GPIO
+	//BASE_SYSINFO		= 0x0000'0000,		//APB_SystemInfo
+	//BASE_IN_LED_GPIO	= 0x0000'0400,		//APB_GPIO
+	//BASE_OUT_LED_GPIO	= 0x0000'0800,		//APB_GPIO
 	BASE_MDIO			= 0x0000'0c00,		//APB_MDIO
 	BASE_RELAY			= 0x0000'1000,		//APB_RelayController
 	BASE_FRONT_SPI		= 0x0000'1400,		//APB_SPIHostInterface

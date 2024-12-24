@@ -31,7 +31,7 @@
 #define triggercrossbar_h
 
 #include <core/platform.h>
-#include <hwinit.h>
+#include "../bsp/hwinit.h"
 
 #include <peripheral/Power.h>
 #include <peripheral/SPI.h>
@@ -42,7 +42,7 @@
 #include "net/ManagementUDPProtocol.h"
 #include "OctalDAC.h"
 
-extern ManagementNTPClient* g_ntpClient;
+extern STM32NTPClient* g_ntpClient;
 
 extern GPIOPin* g_leds[4];
 
@@ -94,8 +94,6 @@ extern char g_bidirDisplayNames[4][DISPLAY_NAME_MAX];
 
 //SFRs on the FPGA
 extern volatile APB_RelayController* g_relayController;
-extern volatile APB_GPIO* g_ledGpioInPortActivity;
-extern volatile APB_GPIO* g_ledGpioOutPortActivity;
 extern volatile APB_SPIHostInterface* g_frontPanelSPI;
 extern APB_SPIHostInterfaceDriver* g_frontSPI;
 extern volatile APB_BERTConfig*	g_bertConfig[2];

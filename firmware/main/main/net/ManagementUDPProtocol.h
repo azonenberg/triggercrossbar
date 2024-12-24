@@ -31,7 +31,7 @@
 #define ManagementUDPProtocol_h
 
 #include "ManagementDHCPClient.h"
-#include "ManagementNTPClient.h"
+#include <services/STM32NTPClient.h>
 
 /**
 	@brief UDP handlers for management stack
@@ -44,13 +44,16 @@ public:
 	ManagementDHCPClient& GetDHCP()
 	{ return m_dhcp; }
 
+	STM32NTPClient& GetNTP()
+	{ return m_ntp; }
+
 	virtual void OnAgingTick();
 
 protected:
 	virtual void OnRxData(IPv4Address srcip, uint16_t sport, uint16_t dport, uint8_t* payload, uint16_t payloadLen);
 
 	ManagementDHCPClient m_dhcp;
-	ManagementNTPClient m_ntp;
+	STM32NTPClient m_ntp;
 };
 
 #endif

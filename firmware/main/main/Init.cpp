@@ -225,4 +225,5 @@ void RegisterProtocolHandlers(IPv4Protocol& ipv4)
 	ipv4.UseTCP(&tcp);
 	ipv4.UseUDP(&udp);
 	g_dhcpClient = &udp.GetDHCP();
+	g_ntpClient = &udp.GetNTP();
 }

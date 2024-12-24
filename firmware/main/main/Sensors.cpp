@@ -34,7 +34,7 @@
  */
 uint16_t GetFanRPM(uint8_t channel)
 {
-	return g_sysInfo->fan_rpm[channel];
+	return FDEVINFO.fan_rpm[channel];
 }
 
 /**
@@ -42,7 +42,7 @@ uint16_t GetFanRPM(uint8_t channel)
  */
 uint16_t GetFPGATemperature()
 {
-	return g_sysInfo->die_temp;
+	return FDEVINFO.die_temp;
 }
 
 /**
@@ -50,7 +50,7 @@ uint16_t GetFPGATemperature()
  */
 uint16_t GetFPGAVCCINT()
 {
-	return g_sysInfo->voltage_core;
+	return FDEVINFO.voltage_core;
 }
 
 /**
@@ -58,7 +58,7 @@ uint16_t GetFPGAVCCINT()
  */
 uint16_t GetFPGAVCCBRAM()
 {
-	return g_sysInfo->voltage_ram;
+	return FDEVINFO.voltage_ram;
 }
 
 /**
@@ -66,5 +66,5 @@ uint16_t GetFPGAVCCBRAM()
  */
 uint16_t GetFPGAVCCAUX()
 {
-	return g_sysInfo->voltage_aux;
+	return FDEVINFO.voltage_aux;
 }

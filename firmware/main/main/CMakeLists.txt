@@ -12,7 +12,6 @@ add_executable(main
 	TwoHzTimerTask.cpp
 	TenHzTimerTask.cpp
 
-	net/ManagementNTPClient.cpp
 	net/ManagementTCPProtocol.cpp
 	net/ManagementUDPProtocol.cpp
 

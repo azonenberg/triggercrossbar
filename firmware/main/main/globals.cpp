@@ -59,7 +59,7 @@ char g_ibcVersion[20] = {0};
 bool g_displayRefreshPending = false;
 
 ///@brief The NTP client
-ManagementNTPClient* g_ntpClient = nullptr;
+STM32NTPClient* g_ntpClient = nullptr;
 
 ///@brief The SSH server
 ManagementSSHTransportServer* g_sshd = nullptr;
@@ -72,13 +72,6 @@ ManagementSSHTransportServer* g_sshd = nullptr;
 ///@brief Relay controller
 volatile APB_RelayController* g_relayController =
 	reinterpret_cast<volatile APB_RelayController*>(FPGA_MEM_BASE + BASE_RELAY);
-
-///@brief GPIOs for LED status
-volatile APB_GPIO* g_ledGpioInPortActivity =
-	reinterpret_cast<volatile APB_GPIO*>(FPGA_MEM_BASE + BASE_IN_LED_GPIO);
-
-volatile APB_GPIO* g_ledGpioOutPortActivity =
-	reinterpret_cast<volatile APB_GPIO*>(FPGA_MEM_BASE + BASE_OUT_LED_GPIO);
 
 ///@brief Front panel SPI controller
 volatile APB_SPIHostInterface* g_frontPanelSPI =
