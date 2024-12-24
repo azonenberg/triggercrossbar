@@ -93,7 +93,6 @@ extern char g_outputDisplayNames[8][DISPLAY_NAME_MAX];
 extern char g_bidirDisplayNames[4][DISPLAY_NAME_MAX];
 
 //SFRs on the FPGA
-extern volatile APB_SPIHostInterface* g_frontPanelSPI;
 extern APB_SPIHostInterfaceDriver* g_frontSPI;
 extern volatile APB_BERTConfig*	g_bertConfig[2];
 extern volatile APB_SerdesDRP* g_bertDRP[2];

@@ -129,7 +129,7 @@ void InitFrontPanel()
 	g_log("Initializing front panel\n");
 	LogIndenter li(g_log);
 
-	static APB_SPIHostInterfaceDriver frontDriver(g_frontPanelSPI);
+	static APB_SPIHostInterfaceDriver frontDriver(&FFRONTSPI);
 	g_frontSPI = &frontDriver;
 
 	//Check what mode we're in
@@ -165,18 +165,18 @@ uint8_t GetFrontPanelMode()
 
 void SendFrontPanelByte(uint8_t data)
 {
-	g_apbfpga.BlockingWrite32(&g_frontPanelSPI->data, data);
-	StatusRegisterMaskedWait(&g_frontPanelSPI->status, &g_frontPanelSPI->status2, 0x1, 0x0);
+	g_apbfpga.BlockingWrite32(&FFRONTSPI.data, data);
+	StatusRegisterMaskedWait(&FFRONTSPI.status, &FFRONTSPI.status2, 0x1, 0x0);
 }
 
 uint8_t ReadFrontPanelByte()
 {
 	//Send the data byte
-	g_apbfpga.BlockingWrite32(&g_frontPanelSPI->data, 0x00);
+	g_apbfpga.BlockingWrite32(&FFRONTSPI.data, 0x00);
 
 	//Return the response once complete
-	StatusRegisterMaskedWait(&g_frontPanelSPI->status, &g_frontPanelSPI->status2, 0x1, 0x0);
-	return g_frontPanelSPI->data;
+	StatusRegisterMaskedWait(&FFRONTSPI.status, &FFRONTSPI.status2, 0x1, 0x0);
+	return FFRONTSPI.data;
 }
 
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value)

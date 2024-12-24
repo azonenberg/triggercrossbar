@@ -122,6 +122,8 @@ extern volatile APB_GPIO FPGA_GPIO0;
 extern volatile APB_GPIO FPGA_GPIO1;
 extern volatile APB_MDIO FMDIO;
 extern volatile APB_RelayController FRELAY;
+extern volatile APB_SPIHostInterface FFRONTSPI;
+extern volatile APB_CrossbarMatrix FMUXSEL;
 
 //SFRs on the FPGA used by both bootloader and application
 //extern volatile APB_SystemInfo* g_sysInfo;

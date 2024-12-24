@@ -19,6 +19,10 @@ SECTIONS
 		KEEP (*(.fmdio))
 		. = ALIGN(1024);
 		KEEP (*(.frelay))
+		. = ALIGN(1024);
+		KEEP (*(.ffrontspi))
+		. = ALIGN(1024);
+		KEEP (*(.fmuxsel))
 
 	} > OCTOSPI_APB1
 

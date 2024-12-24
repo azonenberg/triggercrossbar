@@ -128,6 +128,8 @@ volatile APB_GPIO FPGA_GPIO0 __attribute__((section(".fgpio0")));
 volatile APB_GPIO FPGA_GPIO1 __attribute__((section(".fgpio1")));
 volatile APB_MDIO FMDIO __attribute__((section(".fmdio")));
 volatile APB_RelayController FRELAY __attribute__((section(".frelay")));
+volatile APB_SPIHostInterface FFRONTSPI __attribute__((section(".ffrontspi")));
+volatile APB_CrossbarMatrix FMUXSEL __attribute__((section(".fmuxsel")));
 
 //volatile APB_Curve25519 FCURVE25519 __attribute__((section(".fcurve25519")));
 
