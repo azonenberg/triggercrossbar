@@ -38,7 +38,7 @@
 #include "ManagementPubkeyAuthenticator.h"
 #include "BootloaderSFTPServer.h"
 #include "BootloaderCLISessionContext.h"
-#include "DeviceCryptoEngine.h"
+#include <fpga/AcceleratedCryptoEngine.h>
 
 /**
 	@brief SSH server class for the bridge test
@@ -61,7 +61,7 @@ protected:
 
 	BootloaderCLISessionContext m_context[SSH_TABLE_SIZE];
 
-	DeviceCryptoEngine m_engine[SSH_TABLE_SIZE];
+	AcceleratedCryptoEngine m_engine[SSH_TABLE_SIZE];
 	SFTPConnectionState m_sftpState[SSH_TABLE_SIZE];
 
 	BootloaderSFTPServer m_sftp;

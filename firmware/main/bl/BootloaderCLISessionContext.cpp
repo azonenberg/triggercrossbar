@@ -799,7 +799,7 @@ void BootloaderCLISessionContext::OnShowSSHKeys()
 	m_stream->Printf("Authorized keys:\n");
 	m_stream->Printf("Slot  Nickname                        Fingerprint\n");
 
-	DeviceCryptoEngine tmp;
+	AcceleratedCryptoEngine tmp;
 	char fingerprint[64];
 
 	for(int i=0; i<MAX_SSH_KEYS; i++)
@@ -818,7 +818,7 @@ void BootloaderCLISessionContext::OnShowSSHKeys()
 void BootloaderCLISessionContext::OnShowSSHFingerprint()
 {
 	char buf[64] = {0};
-	DeviceCryptoEngine tmp;
+	AcceleratedCryptoEngine tmp;
 	tmp.GetHostKeyFingerprint(buf, sizeof(buf));
 	m_stream->Printf("ED25519 key fingerprint is SHA256:%s.\n", buf);
 }

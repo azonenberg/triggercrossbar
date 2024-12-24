@@ -38,7 +38,7 @@
 #include "ManagementPubkeyAuthenticator.h"
 #include "ManagementSFTPServer.h"
 #include "CrossbarCLISessionContext.h"
-#include "DeviceCryptoEngine.h"
+#include <fpga/AcceleratedCryptoEngine.h>
 
 /**
 	@brief SSH server class for the bridge test
@@ -61,7 +61,7 @@ protected:
 
 	CrossbarCLISessionContext m_context[SSH_TABLE_SIZE];
 
-	DeviceCryptoEngine m_engine[SSH_TABLE_SIZE];
+	AcceleratedCryptoEngine m_engine[SSH_TABLE_SIZE];
 	SFTPConnectionState m_sftpState[SSH_TABLE_SIZE];
 
 	ManagementSFTPServer m_sftp;

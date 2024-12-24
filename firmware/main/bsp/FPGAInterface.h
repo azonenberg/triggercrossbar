@@ -67,7 +67,7 @@ enum baseaddr_t
 	//BASE_RELAY			= 0x0000'1000,		//APB_RelayController
 	//BASE_FRONT_SPI		= 0x0000'1400,		//APB_SPIHostInterface
 	//BASE_MUXSEL			= 0x0000'1800,		//APB_CrossbarMatrix
-	BASE_25519			= 0x0000'1c00,		//APB_Curve25519
+	//BASE_25519			= 0x0000'1c00,		//APB_Curve25519
 	BASE_IRQ_STAT		= 0x0000'2000,		//APB_StatusRegister
 	BASE_FLASH_SPI		= 0x0000'2400,		//APB_SPIHostInterface
 
@@ -156,30 +156,6 @@ struct APB_CrossbarMatrix
 
 #include <APB_EthernetRxBuffer.h>
 #include <APB_EthernetTxBuffer_10G.h>
-
-struct __attribute__((packed)) APB_Curve25519
-{
-	uint8_t			e[32];
-	uint32_t		status;
-	uint32_t		rd_addr;
-	uint32_t		cmd;
-	uint32_t		field_2a[5];
-	uint32_t		status2;
-	uint32_t		field_42[7];
-	uint8_t			work[32];
-	uint8_t			q0[32];
-	uint8_t			q1[32];
-	uint8_t			field_c0[32];
-	uint8_t			field_e0[32];
-	uint8_t			base_q0[32];
-	uint8_t			field_120[32];
-	uint8_t			data_out[32];
-};
-
-enum crypt_cmd_t
-{
-	CMD_CRYPTO_SCALARMULT = 1
-};
 
 #define FPGA_MEM_BASE 0x9000'0000
 

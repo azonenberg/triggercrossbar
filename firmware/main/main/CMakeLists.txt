@@ -36,6 +36,7 @@ target_link_libraries(main
 	bsp
 	common-embedded-platform-core
 	common-embedded-platform-boilerplate-h735
+	common-embedded-platform-fpga
 	common-embedded-platform-services
 	common-embedded-platform-tcpip
 	embedded-cli

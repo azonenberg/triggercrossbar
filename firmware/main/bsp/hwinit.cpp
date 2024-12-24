@@ -130,12 +130,7 @@ volatile APB_MDIO FMDIO __attribute__((section(".fmdio")));
 volatile APB_RelayController FRELAY __attribute__((section(".frelay")));
 volatile APB_SPIHostInterface FFRONTSPI __attribute__((section(".ffrontspi")));
 volatile APB_CrossbarMatrix FMUXSEL __attribute__((section(".fmuxsel")));
-
-//volatile APB_Curve25519 FCURVE25519 __attribute__((section(".fcurve25519")));
-
-///@brief Curve25519 controller
-volatile APB_Curve25519* g_curve25519 =
-	reinterpret_cast<volatile APB_Curve25519*>(FPGA_MEM_BASE + BASE_25519);
+volatile APB_Curve25519 FCURVE25519 __attribute__((section(".fcurve25519")));
 
 ///@brief Interrupt status
 volatile uint16_t* g_irqStat =

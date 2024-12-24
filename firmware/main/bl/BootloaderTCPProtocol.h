@@ -47,7 +47,7 @@ protected:
 
 	BootloaderSSHTransportServer m_ssh;
 
-	DeviceCryptoEngine m_crypt;
+	AcceleratedCryptoEngine m_crypt;
 };
 
 #endif

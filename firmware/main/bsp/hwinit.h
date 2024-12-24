@@ -124,13 +124,13 @@ extern volatile APB_MDIO FMDIO;
 extern volatile APB_RelayController FRELAY;
 extern volatile APB_SPIHostInterface FFRONTSPI;
 extern volatile APB_CrossbarMatrix FMUXSEL;
+extern volatile APB_Curve25519 FCURVE25519;
 
 //SFRs on the FPGA used by both bootloader and application
 //extern volatile APB_SystemInfo* g_sysInfo;
 extern volatile APB_EthernetRxBuffer* g_ethRxFifo;
 extern volatile APB_EthernetTxBuffer_10G* g_eth1GTxFifo;
 extern volatile APB_EthernetTxBuffer_10G* g_eth10GTxFifo;
-extern volatile APB_Curve25519* g_curve25519;
 extern volatile uint16_t* g_irqStat;
 extern volatile APB_SPIHostInterface* g_flashSpi;
 

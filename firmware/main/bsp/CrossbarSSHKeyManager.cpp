@@ -64,7 +64,7 @@ void CrossbarSSHKeyManager::LoadFromKVS(bool log)
 
 		memcpy(&m_authorizedKeys[i], ptr, sizeof(AuthorizedKey));
 
-		DeviceCryptoEngine tmp;
+		AcceleratedCryptoEngine tmp;
 		char fingerprint[64];
 		if(m_authorizedKeys[i].m_nickname[0] != '\0')
 		{

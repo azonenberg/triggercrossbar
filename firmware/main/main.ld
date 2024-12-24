@@ -23,6 +23,8 @@ SECTIONS
 		KEEP (*(.ffrontspi))
 		. = ALIGN(1024);
 		KEEP (*(.fmuxsel))
+		. = ALIGN(1024);
+		KEEP (*(.fcurve25519))
 
 	} > OCTOSPI_APB1
 

@@ -31,7 +31,7 @@
 #define ManagementDHCPClient_h
 
 #include <staticnet/dhcp/DHCPClient.h>
-#include "DeviceCryptoEngine.h"
+#include <fpga/AcceleratedCryptoEngine.h>
 
 /**
 	@brief UDP handlers for management stack
@@ -58,7 +58,7 @@ protected:
 		return ret;
 	}
 
-	DeviceCryptoEngine m_crypto;
+	AcceleratedCryptoEngine m_crypto;
 };
 
 #endif

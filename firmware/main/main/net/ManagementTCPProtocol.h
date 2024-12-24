@@ -49,7 +49,7 @@ protected:
 	ManagementSSHTransportServer m_ssh;
 	CrossbarSCPIServer m_scpi;
 
-	DeviceCryptoEngine m_crypt;
+	AcceleratedCryptoEngine m_crypt;
 };
 
 #endif
