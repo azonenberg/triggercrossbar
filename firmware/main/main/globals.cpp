@@ -69,10 +69,6 @@ ManagementSSHTransportServer* g_sshd = nullptr;
 
 //TODO: use linker script to locate these rather than this ugly pointer code?
 
-///@brief Relay controller
-volatile APB_RelayController* g_relayController =
-	reinterpret_cast<volatile APB_RelayController*>(FPGA_MEM_BASE + BASE_RELAY);
-
 ///@brief Front panel SPI controller
 volatile APB_SPIHostInterface* g_frontPanelSPI =
 	reinterpret_cast<volatile APB_SPIHostInterface*>(FPGA_MEM_BASE + BASE_FRONT_SPI);

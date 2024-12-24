@@ -11,12 +11,14 @@ SECTIONS
 	{
 		. = ALIGN(1024);
 		KEEP (*(.fdevinfo))
-
 		. = ALIGN(1024);
 		KEEP (*(.fgpio0))
-
 		. = ALIGN(1024);
 		KEEP (*(.fgpio1))
+		. = ALIGN(1024);
+		KEEP (*(.fmdio))
+		. = ALIGN(1024);
+		KEEP (*(.frelay))
 
 	} > OCTOSPI_APB1
 

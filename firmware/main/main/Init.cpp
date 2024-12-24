@@ -45,10 +45,10 @@ void InitRelays()
 	g_log("Setting all relays to input mode\n");
 	for(int chan=0; chan<4; chan++)
 	{
-		g_relayController->toggle = 0x8000 | chan;
+		FRELAY.toggle = 0x8000 | chan;
 
 		//Ping-pong poll the two status registers until we're done
-		while( (0 != g_relayController->stat) && (0 != g_relayController->stat2) )
+		while( (0 != FRELAY.stat) && (0 != FRELAY.stat2) )
 		{}
 	}
 }

@@ -120,10 +120,11 @@ extern const IPv4Address g_defaultGateway;
 extern volatile APB_SystemInfo FDEVINFO;
 extern volatile APB_GPIO FPGA_GPIO0;
 extern volatile APB_GPIO FPGA_GPIO1;
+extern volatile APB_MDIO FMDIO;
+extern volatile APB_RelayController FRELAY;
 
 //SFRs on the FPGA used by both bootloader and application
 //extern volatile APB_SystemInfo* g_sysInfo;
-extern volatile APB_MDIO* g_mdio;
 extern volatile APB_EthernetRxBuffer* g_ethRxFifo;
 extern volatile APB_EthernetTxBuffer_10G* g_eth1GTxFifo;
 extern volatile APB_EthernetTxBuffer_10G* g_eth10GTxFifo;

@@ -126,10 +126,10 @@ volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(
 volatile APB_SystemInfo FDEVINFO __attribute__((section(".fdevinfo")));
 volatile APB_GPIO FPGA_GPIO0 __attribute__((section(".fgpio0")));
 volatile APB_GPIO FPGA_GPIO1 __attribute__((section(".fgpio1")));
+volatile APB_MDIO FMDIO __attribute__((section(".fmdio")));
+volatile APB_RelayController FRELAY __attribute__((section(".frelay")));
 
-///@brief MDIO interface
-volatile APB_MDIO* g_mdio =
-	reinterpret_cast<volatile APB_MDIO*>(FPGA_MEM_BASE + BASE_MDIO);
+//volatile APB_Curve25519 FCURVE25519 __attribute__((section(".fcurve25519")));
 
 ///@brief Curve25519 controller
 volatile APB_Curve25519* g_curve25519 =
@@ -154,7 +154,7 @@ volatile APB_SPIHostInterface* g_flashSpi =
 	reinterpret_cast<volatile APB_SPIHostInterface*>(FPGA_MEM_BASE + BASE_FLASH_SPI);
 
 ///@brief Controller for the MDIO interface
-MDIODevice g_mgmtPhy(g_mdio, 0);
+MDIODevice g_mgmtPhy(&FMDIO, 0);
 
 APB_SpiFlashInterface* g_fpgaFlash = nullptr;
 

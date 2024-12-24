@@ -611,17 +611,17 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 
 		if(!strcmp(args, "IN"))
 		{
-			g_relayController->toggle = 0x8000 | chan;
+			FRELAY.toggle = 0x8000 | chan;
 			g_bidirOut[chan] = false;
 		}
 		else
 		{
-			g_relayController->toggle = 0x0000 | chan;
+			FRELAY.toggle = 0x0000 | chan;
 			g_bidirOut[chan] = true;
 		}
 
 		//Ping-pong poll the two status registers until we're done
-		while( (0 != g_relayController->stat) && (0 != g_relayController->stat2) )
+		while( (0 != FRELAY.stat) && (0 != FRELAY.stat2) )
 		{}
 
 		//Update direction LEDs
