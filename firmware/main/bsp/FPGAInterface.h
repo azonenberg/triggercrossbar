@@ -137,9 +137,15 @@ struct __attribute__((packed)) APB_RelayController
 	uint32_t		stat2;
 };
 
+struct APB_CrossbarChannel
+{
+	uint32_t		muxsel;
+	uint32_t		field_04[7];
+};
+
 struct APB_CrossbarMatrix
 {
-	uint32_t		muxsel[12];
+	APB_CrossbarChannel		channels[12];
 };
 
 #include <APB_EthernetRxBuffer.h>

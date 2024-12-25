@@ -165,14 +165,14 @@ uint8_t GetFrontPanelMode()
 
 void SendFrontPanelByte(uint8_t data)
 {
-	g_apbfpga.BlockingWrite32(&FFRONTSPI.data, data);
+	FFRONTSPI.data = data;
 	StatusRegisterMaskedWait(&FFRONTSPI.status, &FFRONTSPI.status2, 0x1, 0x0);
 }
 
 uint8_t ReadFrontPanelByte()
 {
-	//Send the data byte
-	g_apbfpga.BlockingWrite32(&FFRONTSPI.data, 0x00);
+	//Send a dummy byte
+	FFRONTSPI.data = 0;
 
 	//Return the response once complete
 	StatusRegisterMaskedWait(&FFRONTSPI.status, &FFRONTSPI.status2, 0x1, 0x0);

@@ -38,9 +38,9 @@ import CrossbarTypes::*;
 
 	Register map:
 		0000	muxsel0
-		0002	muxsel1
+		0020	muxsel1
 		..
-		0016	muxsel11
+		0160	muxsel11
  */
 module APB_CrossbarMatrix #(
 	parameter NUM_PORTS = 12
@@ -82,7 +82,7 @@ module APB_CrossbarMatrix #(
 		apb.prdata	= 0;
 		apb.pslverr	= 0;
 
-		portidx		= apb.paddr[apb.ADDR_WIDTH-1:2];
+		portidx		= apb.paddr[apb.ADDR_WIDTH-1:5];
 
 		if(apb.pready) begin
 
@@ -118,8 +118,12 @@ module APB_CrossbarMatrix #(
 		//Normal path
 		else begin
 
-			if(apb.pready && apb.pwrite)
-				muxsel[portidx]	<= apb.pwdata;
+			if(apb.pready && apb.pwrite) begin
+
+				//only actually write if we're going to the low word of the range
+				if(apb.paddr[4:0] == 0)
+					muxsel[portidx]	<= apb.pwdata;
+			end
 
 		end
 
