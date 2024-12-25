@@ -40,10 +40,7 @@ class APBFPGAInterface : public FPGAInterface
 public:
 	APBFPGAInterface();
 
-	virtual void Nop();
-	virtual void BlockingRead(uint32_t addr, uint8_t* data, uint32_t len);
 	virtual void BlockingWrite(uint32_t addr, const uint8_t* data, uint32_t len);
-	virtual void CryptoEngineBlock();
 
 	enum op_t
 	{

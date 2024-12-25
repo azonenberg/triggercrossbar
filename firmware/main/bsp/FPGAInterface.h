@@ -33,18 +33,6 @@
 class FPGAInterface
 {
 public:
-	virtual void Nop()
-	{};
-
-	#ifdef SIMULATION
-	/**
-		@brief Advance simulation time until the crypto engine has finished
-	 */
-	virtual void CryptoEngineBlock()
-	{}
-	#endif
-
-	virtual void BlockingRead(uint32_t addr, uint8_t* data, uint32_t len) = 0;
 	virtual void BlockingWrite(uint32_t addr, const uint8_t* data, uint32_t len) = 0;
 
 	void BlockingWrite32(uint32_t addr, uint32_t data)
