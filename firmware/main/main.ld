@@ -25,6 +25,10 @@ SECTIONS
 		KEEP (*(.fmuxsel))
 		. = ALIGN(1024);
 		KEEP (*(.fcurve25519))
+		. = ALIGN(1024);
+		KEEP (*(.firqstat))
+		. = ALIGN(1024);
+		KEEP (*(.fspi1))
 
 	} > OCTOSPI_APB1
 

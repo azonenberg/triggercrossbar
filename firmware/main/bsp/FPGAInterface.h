@@ -68,8 +68,8 @@ enum baseaddr_t
 	//BASE_FRONT_SPI		= 0x0000'1400,		//APB_SPIHostInterface
 	//BASE_MUXSEL			= 0x0000'1800,		//APB_CrossbarMatrix
 	//BASE_25519			= 0x0000'1c00,		//APB_Curve25519
-	BASE_IRQ_STAT		= 0x0000'2000,		//APB_StatusRegister
-	BASE_FLASH_SPI		= 0x0000'2400,		//APB_SPIHostInterface
+	//BASE_IRQ_STAT		= 0x0000'2000,		//APB_StatusRegister
+	//BASE_FLASH_SPI		= 0x0000'2400,		//APB_SPIHostInterface
 
 	//Root bridge, large-address branch (0x1000 per node)
 	BASE_XG_TX			= 0x0000'8000,		//Management10GTxFifo

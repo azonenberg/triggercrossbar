@@ -1,6 +1,5 @@
 add_library(bsp STATIC
 	APBFPGAInterface.cpp
-	CrossbarSSHKeyManager.cpp
 	ELFFirmwareUpdater.cpp
 	EthernetInit.cpp
 	FPGAFirmwareUpdater.cpp

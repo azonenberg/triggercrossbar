@@ -88,7 +88,7 @@ bool g_sfpFaulted = false;
 bool g_sfpPresent = false;
 
 ///@brief Key manager
-CrossbarSSHKeyManager g_keyMgr;
+SSHKeyManager g_keyMgr;
 
 ///@brief The single supported SSH username
 char g_sshUsername[CLI_USERNAME_MAX] = "";
@@ -131,10 +131,8 @@ volatile APB_RelayController FRELAY __attribute__((section(".frelay")));
 volatile APB_SPIHostInterface FFRONTSPI __attribute__((section(".ffrontspi")));
 volatile APB_CrossbarMatrix FMUXSEL __attribute__((section(".fmuxsel")));
 volatile APB_Curve25519 FCURVE25519 __attribute__((section(".fcurve25519")));
-
-///@brief Interrupt status
-volatile uint16_t* g_irqStat =
-	reinterpret_cast<volatile uint16_t*>(FPGA_MEM_BASE + BASE_IRQ_STAT);
+volatile uint16_t FIRQSTAT __attribute__((section(".firqstat")));
+volatile APB_SPIHostInterface FSPI1 __attribute__((section(".fspi1")));
 
 ///@brief Ethernet RX buffer
 volatile APB_EthernetRxBuffer* g_ethRxFifo =
@@ -145,10 +143,6 @@ volatile APB_EthernetTxBuffer_10G* g_eth1GTxFifo =
 	reinterpret_cast<volatile APB_EthernetTxBuffer_10G*>(FPGA_MEM_BASE + BASE_1G_TX);
 volatile APB_EthernetTxBuffer_10G* g_eth10GTxFifo =
 	reinterpret_cast<volatile APB_EthernetTxBuffer_10G*>(FPGA_MEM_BASE + BASE_XG_TX);
-
-///@brief SPI flash controller
-volatile APB_SPIHostInterface* g_flashSpi =
-	reinterpret_cast<volatile APB_SPIHostInterface*>(FPGA_MEM_BASE + BASE_FLASH_SPI);
 
 ///@brief Controller for the MDIO interface
 MDIODevice g_mgmtPhy(&FMDIO, 0);
@@ -375,7 +369,7 @@ void InitFPGAFlash()
 	g_log("Initializing FPGA flash\n");
 	LogIndenter li(g_log);
 
-	static APB_SpiFlashInterface flash(g_flashSpi, 64);
+	static APB_SpiFlashInterface flash(&FSPI1, 64);
 	g_fpgaFlash = &flash;
 }
 

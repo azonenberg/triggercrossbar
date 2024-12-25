@@ -65,7 +65,7 @@ void SfrMemcpy(volatile void* dst, void* src, uint32_t len);
 #include "FPGAInterface.h"
 #include "APBFPGAInterface.h"
 #include <embedded-utils/APB_SpiFlashInterface.h>
-#include "CrossbarSSHKeyManager.h"
+#include <tcpip/SSHKeyManager.h>
 
 #include <bootloader/BootloaderAPI.h>
 
@@ -94,7 +94,7 @@ extern ManagementDHCPClient* g_dhcpClient;
 extern OctoSPI* g_qspi;
 extern I2C* g_sfpI2C;
 extern bool g_sfpLinkUp;
-extern CrossbarSSHKeyManager g_keyMgr;
+extern SSHKeyManager g_keyMgr;
 extern GPIOPin* g_sfpModAbsPin;
 extern GPIOPin* g_sfpTxDisablePin;
 extern GPIOPin* g_sfpTxFaultPin;
@@ -125,14 +125,14 @@ extern volatile APB_RelayController FRELAY;
 extern volatile APB_SPIHostInterface FFRONTSPI;
 extern volatile APB_CrossbarMatrix FMUXSEL;
 extern volatile APB_Curve25519 FCURVE25519;
+extern volatile uint16_t FIRQSTAT;
+extern volatile APB_SPIHostInterface FSPI1;
 
 //SFRs on the FPGA used by both bootloader and application
 //extern volatile APB_SystemInfo* g_sysInfo;
 extern volatile APB_EthernetRxBuffer* g_ethRxFifo;
 extern volatile APB_EthernetTxBuffer_10G* g_eth1GTxFifo;
 extern volatile APB_EthernetTxBuffer_10G* g_eth10GTxFifo;
-extern volatile uint16_t* g_irqStat;
-extern volatile APB_SPIHostInterface* g_flashSpi;
 
 //Backup SRAM used for communication with bootloader
 extern volatile BootloaderBBRAM* g_bbram;

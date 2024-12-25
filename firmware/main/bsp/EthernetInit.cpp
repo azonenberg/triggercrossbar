@@ -377,7 +377,7 @@ bool CheckForFPGAEvents()
  */
 void PollFPGA()
 {
-	uint16_t fpgastat = *g_irqStat;
+	uint16_t fpgastat = FIRQSTAT;
 
 	//New Ethernet frame ready?
 	if(fpgastat & 1)
