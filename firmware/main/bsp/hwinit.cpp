@@ -261,7 +261,7 @@ void InitQSPI()
 	//FPGA currently requires <= 62.5 MHz due to the RX oversampling used (4x in 250 MHz clock domain)
 	//Dividing by 5 gives 50 MHz and a transfer rate of 200 Mbps
 	//Dividing by 10, but DDR, gives the same throughput and works around an errata (which one??)
-	uint8_t prescale = 15;
+	uint8_t prescale = 10;
 
 	//Configure the OCTOSPI itself
 	//Original code used "instruction", but we want "address" to enable memory mapping
