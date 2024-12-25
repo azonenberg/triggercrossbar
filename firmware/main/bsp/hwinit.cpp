@@ -138,6 +138,8 @@ volatile APB_EthernetTxBuffer_10G FETHTX1 __attribute__((section(".fethtx1")));
 volatile APB_EthernetRxBuffer FETHRX __attribute__((section(".fethrx")));
 volatile APB_BERTConfig FBERT0 __attribute__((section(".fbert0")));
 volatile APB_BERTConfig FBERT1 __attribute__((section(".fbert1")));
+volatile APB_SerdesDRP FDRP0 __attribute__((section(".fdrp0")));
+volatile APB_SerdesDRP FDRP1 __attribute__((section(".fdrp1")));
 
 ///@brief Controller for the MDIO interface
 MDIODevice g_mgmtPhy(&FMDIO, 0);

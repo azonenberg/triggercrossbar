@@ -129,6 +129,8 @@ extern volatile APB_EthernetTxBuffer_10G FETHTX10;
 extern volatile APB_EthernetRxBuffer FETHRX;
 extern volatile APB_BERTConfig FBERT0;
 extern volatile APB_BERTConfig FBERT1;
+extern volatile APB_SerdesDRP FDRP0;
+extern volatile APB_SerdesDRP FDRP1;
 
 //Backup SRAM used for communication with bootloader
 extern volatile BootloaderBBRAM* g_bbram;

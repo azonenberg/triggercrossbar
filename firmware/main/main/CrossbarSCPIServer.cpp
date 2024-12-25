@@ -867,7 +867,7 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 uint16_t CrossbarSCPIServer::SerdesDRPRead(uint8_t lane, uint16_t regid)
 {
 	//Send the command
-	g_apbfpga.BlockingWrite32(&g_bertDRP[lane]->addr, regid);
+	g_bertDRP[lane]->addr = regid;
 
 	//Make sure we're ready
 	StatusRegisterMaskedWait(&g_bertDRP[lane]->status, &g_bertDRP[lane]->status2, 0x1, 0x0);
@@ -879,8 +879,8 @@ uint16_t CrossbarSCPIServer::SerdesDRPRead(uint8_t lane, uint16_t regid)
 
 void CrossbarSCPIServer::SerdesDRPWrite(uint8_t lane, uint16_t regid, uint16_t regval)
 {
-	g_apbfpga.BlockingWrite32(&g_bertDRP[lane]->data, regval);
-	g_apbfpga.BlockingWrite32(&g_bertDRP[lane]->addr, regid | 0x8000);
+	g_bertDRP[lane]->data = regval;
+	g_bertDRP[lane]->addr = regid | 0x8000;
 
 	//wait for write to commit
 	StatusRegisterMaskedWait(&g_bertDRP[lane]->status, &g_bertDRP[lane]->status2, 0x1, 0x0);

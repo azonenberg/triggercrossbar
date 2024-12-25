@@ -67,8 +67,8 @@ enum baseaddr_t
 	//BERT bridge (off large branch, 0x100 per node)
 	//BASE_BERT_LANE0		= 0x0000'b000,		//APB_BertConfig
 	//BASE_BERT_LANE1		= 0x0000'b100,		//APB_BertConfig
-	BASE_DRP_LANE0		= 0x0000'b200,		//APB_SerdesDRP
-	BASE_DRP_LANE1		= 0x0000'b300,		//APB_SerdesDRP
+	//BASE_DRP_LANE0		= 0x0000'b200,		//APB_SerdesDRP
+	//BASE_DRP_LANE1		= 0x0000'b300,		//APB_SerdesDRP
 	BASE_LA_LANE0		= 0x0000'b400,		//LogicAnalyzer
 	BASE_LA_LANE1		= 0x0000'b500,		//LogicAnalyzer
 	BASE_CDRTRIG_LANE0	= 0x0000'b600,		//CDRTrigger
@@ -83,15 +83,6 @@ struct __attribute__((packed)) LogicAnalyzer
 	uint32_t		trig_offset;
 	uint32_t		field_10[4];
 	uint32_t		rx_buf[16];
-};
-
-struct __attribute__((packed)) APB_SerdesDRP
-{
-	uint32_t		addr;
-	uint32_t		data;
-	uint32_t		status;
-	uint32_t		field_0a[7];
-	uint32_t		status2;
 };
 
 struct APB_BERTConfig
@@ -114,6 +105,7 @@ struct APB_BERTConfig
 #include <APB_SPIHostInterface.h>
 #include <APB_MDIO.h>
 #include <APB_GPIO.h>
+#include <APB_SerdesDRP.h>
 
 struct APB_SystemInfo
 {

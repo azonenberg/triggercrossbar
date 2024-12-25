@@ -49,6 +49,10 @@ SECTIONS
 		. = ALIGN(256);
 		KEEP (*(.fbert1))
 		. = ALIGN(256);
+		KEEP (*(.fdrp0))
+		. = ALIGN(256);
+		KEEP (*(.fdrp1))
+		. = ALIGN(256);
 
 	} > OCTOSPI_APB2
 }

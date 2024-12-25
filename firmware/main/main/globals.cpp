@@ -75,11 +75,7 @@ APB_SPIHostInterfaceDriver* g_frontSPI = nullptr;
 volatile APB_BERTConfig* g_bertConfig[2] = { &FBERT0, &FBERT1 };
 
 ///@brief DRP access for BERT channels
-volatile APB_SerdesDRP* g_bertDRP[2] =
-{
-	reinterpret_cast<volatile APB_SerdesDRP*>(FPGA_MEM_BASE + BASE_DRP_LANE0),
-	reinterpret_cast<volatile APB_SerdesDRP*>(FPGA_MEM_BASE + BASE_DRP_LANE1)
-};
+volatile APB_SerdesDRP* g_bertDRP[2] = { &FDRP0, &FDRP1 };
 
 ///@brief Logic analyzers
 volatile LogicAnalyzer* g_logicAnalyzer[2] =
