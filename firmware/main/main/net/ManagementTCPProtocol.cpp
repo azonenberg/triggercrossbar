@@ -33,14 +33,18 @@
 #define SSH_PORT	22
 #define SCPI_PORT	5025
 
+Iperf3Server* g_iperfServer = nullptr;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
 
-ManagementTCPProtocol::ManagementTCPProtocol(IPv4Protocol* ipv4)
+ManagementTCPProtocol::ManagementTCPProtocol(IPv4Protocol* ipv4, UDPProtocol& udp)
 	: TCPProtocol(ipv4)
 	, m_ssh(*this)
 	, m_scpi(*this)
+	, m_iperf(*this, udp)
 {
+	g_iperfServer = &m_iperf;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,7 +52,16 @@ ManagementTCPProtocol::ManagementTCPProtocol(IPv4Protocol* ipv4)
 
 bool ManagementTCPProtocol::IsPortOpen(uint16_t port)
 {
-	return (port == SSH_PORT) || (port == SCPI_PORT);
+	switch(port)
+	{
+		case SSH_PORT:
+		case SCPI_PORT:
+		case IPERF3_PORT:
+			return true;
+
+		default:
+			return false;
+	}
 }
 
 void ManagementTCPProtocol::OnConnectionAccepted(TCPTableEntry* state)
@@ -61,6 +74,10 @@ void ManagementTCPProtocol::OnConnectionAccepted(TCPTableEntry* state)
 
 		case SCPI_PORT:
 			m_scpi.OnConnectionAccepted(state);
+			break;
+
+		case IPERF3_PORT:
+			m_iperf.OnConnectionAccepted(state);
 			break;
 
 		default:
@@ -83,6 +100,11 @@ void ManagementTCPProtocol::OnConnectionClosed(TCPTableEntry* state)
 			m_scpi.OnConnectionClosed(state);
 			break;
 
+		case IPERF3_PORT:
+			m_iperf.OnConnectionClosed(state);
+			break;
+
+
 		default:
 			break;
 	}
@@ -94,6 +116,10 @@ void ManagementTCPProtocol::OnRxData(TCPTableEntry* state, uint8_t* payload, uin
 	{
 		case SSH_PORT:
 			m_ssh.OnRxData(state, payload, payloadLen);
+			break;
+
+		case IPERF3_PORT:
+			m_iperf.OnRxData(state, payload, payloadLen);
 			break;
 
 		case SCPI_PORT:
@@ -111,4 +137,10 @@ uint32_t ManagementTCPProtocol::GenerateInitialSequenceNumber()
 	uint32_t ret;
 	m_crypt.GenerateRandom(reinterpret_cast<uint8_t*>(&ret), sizeof(ret));
 	return ret;
+}
+
+void ManagementTCPProtocol::OnAgingTick10x()
+{
+	TCPProtocol::OnAgingTick10x();
+	m_ssh.OnAgingTick10x();
 }

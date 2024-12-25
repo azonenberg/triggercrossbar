@@ -32,11 +32,14 @@
 
 #include "CrossbarSCPIServer.h"
 #include "../ssh/ManagementSSHTransportServer.h"
+#include <services/Iperf3Server.h>
 
 class ManagementTCPProtocol : public TCPProtocol
 {
 public:
-	ManagementTCPProtocol(IPv4Protocol* ipv4);
+	ManagementTCPProtocol(IPv4Protocol* ipv4, UDPProtocol& udp);
+
+	virtual void OnAgingTick10x() override;
 
 protected:
 	virtual bool IsPortOpen(uint16_t port) override;
@@ -48,8 +51,11 @@ protected:
 
 	ManagementSSHTransportServer m_ssh;
 	CrossbarSCPIServer m_scpi;
+	Iperf3Server m_iperf;
 
 	AcceleratedCryptoEngine m_crypt;
 };
+
+extern Iperf3Server* g_iperfServer;
 
 #endif

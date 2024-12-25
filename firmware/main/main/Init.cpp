@@ -220,8 +220,8 @@ void InitSensors()
 
 void RegisterProtocolHandlers(IPv4Protocol& ipv4)
 {
-	static ManagementTCPProtocol tcp(&ipv4);
 	static ManagementUDPProtocol udp(&ipv4);
+	static ManagementTCPProtocol tcp(&ipv4, udp);
 	ipv4.UseTCP(&tcp);
 	ipv4.UseUDP(&udp);
 	g_dhcpClient = &udp.GetDHCP();

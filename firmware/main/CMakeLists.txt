@@ -38,8 +38,8 @@ include_directories(
 	)
 
 # Number of tasks we support
-add_compile_definitions(MAX_TASKS=10)
-add_compile_definitions(MAX_TIMER_TASKS=10)
+add_compile_definitions(MAX_TASKS=12)
+add_compile_definitions(MAX_TIMER_TASKS=12)
 
 ########################################################################################################################
 # Build all of our other dependencies

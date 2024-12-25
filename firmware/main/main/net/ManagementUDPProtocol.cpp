@@ -61,6 +61,10 @@ void ManagementUDPProtocol::OnRxData(
 {
 	switch(dport)
 	{
+		case IPERF3_PORT:
+			g_iperfServer->OnRxUdpData(srcip, sport, dport, payload, payloadLen);
+			break;
+
 		case DHCP_CLIENT_PORT:
 			m_dhcp.OnRxData(srcip, sport, dport, payload, payloadLen);
 			break;
