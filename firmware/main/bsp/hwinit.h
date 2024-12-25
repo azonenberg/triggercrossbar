@@ -59,9 +59,6 @@
 #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
 void StatusRegisterMaskedWait(volatile uint32_t* a, volatile uint32_t* b, uint32_t mask, uint32_t target);
 
-//Memcpy-like function that uses indirect OCTOSPI register access
-void SfrMemcpy(volatile void* dst, void* src, uint32_t len);
-
 #include "FPGAInterface.h"
 #include "APBFPGAInterface.h"
 #include <embedded-utils/APB_SpiFlashInterface.h>
