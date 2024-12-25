@@ -60,13 +60,13 @@ enum baseaddr_t
 	//BASE_FLASH_SPI		= 0x0000'2400,		//APB_SPIHostInterface
 
 	//Root bridge, large-address branch (0x1000 per node)
-	BASE_XG_TX			= 0x0000'8000,		//Management10GTxFifo
-	BASE_1G_TX			= 0x0000'9000,		//ManagementTxFifo
-	BASE_ETH_RX			= 0x0000'a000,		//ManagementRxFifo
+	//BASE_XG_TX			= 0x0000'8000,		//Management10GTxFifo
+	//BASE_1G_TX			= 0x0000'9000,		//ManagementTxFifo
+	//BASE_ETH_RX			= 0x0000'a000,		//ManagementRxFifo
 
 	//BERT bridge (off large branch, 0x100 per node)
-	BASE_BERT_LANE0		= 0x0000'b000,		//APB_BertConfig
-	BASE_BERT_LANE1		= 0x0000'b100,		//APB_BertConfig
+	//BASE_BERT_LANE0		= 0x0000'b000,		//APB_BertConfig
+	//BASE_BERT_LANE1		= 0x0000'b100,		//APB_BertConfig
 	BASE_DRP_LANE0		= 0x0000'b200,		//APB_SerdesDRP
 	BASE_DRP_LANE1		= 0x0000'b300,		//APB_SerdesDRP
 	BASE_LA_LANE0		= 0x0000'b400,		//LogicAnalyzer
@@ -94,27 +94,26 @@ struct __attribute__((packed)) APB_SerdesDRP
 	uint32_t		status2;
 };
 
-struct __attribute__((packed)) APB_BERTConfig
+struct APB_BERTConfig
 {
 	uint32_t		tx_config;
+	uint32_t		field_04[7];
 	uint32_t		tx_clk;
+	uint32_t		field_24[7];
 	uint32_t		tx_reset;
+	uint32_t		field_44[7];
 	uint32_t		tx_driver;
-	uint32_t		field_10[12];
+	uint32_t		field_64[7];
 	uint32_t		rx_config;
+	uint32_t		field_84[7];
 	uint32_t		rx_clk;
+	uint32_t		field_a4[7];
 	uint32_t		rx_reset;
 };
 
 #include <APB_SPIHostInterface.h>
 #include <APB_MDIO.h>
-
-struct __attribute__((packed)) APB_GPIO
-{
-	uint32_t		out;
-	uint32_t		in;
-	uint32_t		tris;
-};
+#include <APB_GPIO.h>
 
 struct APB_SystemInfo
 {

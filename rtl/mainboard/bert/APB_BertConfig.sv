@@ -63,29 +63,30 @@ module APB_BertConfig(
 	// Register map
 
 	//All resets are set/clear flags, not self clearing
+	//All registers on 0x20 alignment for octospi workaround
 	typedef enum logic[apb.ADDR_WIDTH-1:0]
 	{
 		REG_TX_CONFIG	= 'h00,			//15 = enable
 										//14 = invert
 										//2:0 = PRBS mode
 
-		REG_TX_CLK		= 'h04,			//15 = clock mux (1=QPLL, 0=CPLL)
+		REG_TX_CLK		= 'h20,			//15 = clock mux (1=QPLL, 0=CPLL)
 										//2:0 = clock divide
 
-		REG_TX_RESET	= 'h08,			//0 = full TX reset
+		REG_TX_RESET	= 'h40,			//0 = full TX reset
 
-		REG_TX_DRIVER	= 'h0c,			//3:0 = swing
+		REG_TX_DRIVER	= 'h60,			//3:0 = swing
 										//8:4 = postcursor
 										//13:9 = precursor
 										//TODO: pre/post cursor inversion in 15/14
 
-		REG_RX_CONFIG	= 'h40,			//14 = invert
+		REG_RX_CONFIG	= 'h80,			//14 = invert
 										//2:0 = PRBS mode
 
-		REG_RX_CLK		= 'h44,			//15 = clock mux (1=QPLL, 0=CPLL)
+		REG_RX_CLK		= 'ha0,			//15 = clock mux (1=QPLL, 0=CPLL)
 										//2:0 = clock divide
 
-		REG_RX_RESET	= 'h48			//0 = full RX reset
+		REG_RX_RESET	= 'hc0			//0 = full RX reset
 										//1 = PMA reset
 
 	} regid_t;

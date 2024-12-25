@@ -72,11 +72,7 @@ ManagementSSHTransportServer* g_sshd = nullptr;
 APB_SPIHostInterfaceDriver* g_frontSPI = nullptr;
 
 ///@brief Low speed configuration for BERT channels
-volatile APB_BERTConfig* g_bertConfig[2] =
-{
-	reinterpret_cast<volatile APB_BERTConfig*>(FPGA_MEM_BASE + BASE_BERT_LANE0),
-	reinterpret_cast<volatile APB_BERTConfig*>(FPGA_MEM_BASE + BASE_BERT_LANE1)
-};
+volatile APB_BERTConfig* g_bertConfig[2] = { &FBERT0, &FBERT1 };
 
 ///@brief DRP access for BERT channels
 volatile APB_SerdesDRP* g_bertDRP[2] =

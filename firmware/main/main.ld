@@ -35,14 +35,20 @@ SECTIONS
 	/* Large address branch */
 	.sfr_fpga_apb2  (NOLOAD):
 	{
+		/* Ethernet stuff (0x1000 per node) */
 		. = ALIGN(4096);
-		KEEP (*(.xgtx))
+		KEEP (*(.fethtx10))
 		. = ALIGN(4096);
-		KEEP (*(.gtx))
+		KEEP (*(.fethtx1))
 		. = ALIGN(4096);
-		KEEP (*(.ethrx))
+		KEEP (*(.fethrx))
 		. = ALIGN(4096);
 
 		/* BERT bridge (0x100 per node) */
+		KEEP (*(.fbert0))
+		. = ALIGN(256);
+		KEEP (*(.fbert1))
+		. = ALIGN(256);
+
 	} > OCTOSPI_APB2
 }

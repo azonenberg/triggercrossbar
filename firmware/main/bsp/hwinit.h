@@ -127,12 +127,11 @@ extern volatile APB_CrossbarMatrix FMUXSEL;
 extern volatile APB_Curve25519 FCURVE25519;
 extern volatile uint16_t FIRQSTAT;
 extern volatile APB_SPIHostInterface FSPI1;
-
-//SFRs on the FPGA used by both bootloader and application
-//extern volatile APB_SystemInfo* g_sysInfo;
-extern volatile APB_EthernetRxBuffer* g_ethRxFifo;
-extern volatile APB_EthernetTxBuffer_10G* g_eth1GTxFifo;
-extern volatile APB_EthernetTxBuffer_10G* g_eth10GTxFifo;
+extern volatile APB_EthernetTxBuffer_10G FETHTX1;
+extern volatile APB_EthernetTxBuffer_10G FETHTX10;
+extern volatile APB_EthernetRxBuffer FETHRX;
+extern volatile APB_BERTConfig FBERT0;
+extern volatile APB_BERTConfig FBERT1;
 
 //Backup SRAM used for communication with bootloader
 extern volatile BootloaderBBRAM* g_bbram;

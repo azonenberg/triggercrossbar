@@ -233,7 +233,7 @@ void PollSFP()
 	}
 
 	//Get the SFP link status
-	auto stat = g_eth10GTxFifo->tx_stat;
+	auto stat = FETHTX10.tx_stat;
 	if(stat & 1)
 	{
 		//Link went up?

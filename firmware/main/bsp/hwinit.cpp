@@ -133,23 +133,18 @@ volatile APB_CrossbarMatrix FMUXSEL __attribute__((section(".fmuxsel")));
 volatile APB_Curve25519 FCURVE25519 __attribute__((section(".fcurve25519")));
 volatile uint16_t FIRQSTAT __attribute__((section(".firqstat")));
 volatile APB_SPIHostInterface FSPI1 __attribute__((section(".fspi1")));
-
-///@brief Ethernet RX buffer
-volatile APB_EthernetRxBuffer* g_ethRxFifo =
-	reinterpret_cast<volatile APB_EthernetRxBuffer*>(FPGA_MEM_BASE + BASE_ETH_RX);
-
-///@brief Ethernet TX buffers
-volatile APB_EthernetTxBuffer_10G* g_eth1GTxFifo =
-	reinterpret_cast<volatile APB_EthernetTxBuffer_10G*>(FPGA_MEM_BASE + BASE_1G_TX);
-volatile APB_EthernetTxBuffer_10G* g_eth10GTxFifo =
-	reinterpret_cast<volatile APB_EthernetTxBuffer_10G*>(FPGA_MEM_BASE + BASE_XG_TX);
+volatile APB_EthernetTxBuffer_10G FETHTX10 __attribute__((section(".fethtx10")));
+volatile APB_EthernetTxBuffer_10G FETHTX1 __attribute__((section(".fethtx1")));
+volatile APB_EthernetRxBuffer FETHRX __attribute__((section(".fethrx")));
+volatile APB_BERTConfig FBERT0 __attribute__((section(".fbert0")));
+volatile APB_BERTConfig FBERT1 __attribute__((section(".fbert1")));
 
 ///@brief Controller for the MDIO interface
 MDIODevice g_mgmtPhy(&FMDIO, 0);
 
 APB_SpiFlashInterface* g_fpgaFlash = nullptr;
 
-APBEthernetInterface g_ethIface(g_ethRxFifo, g_eth10GTxFifo);
+APBEthernetInterface g_ethIface(&FETHRX, &FETHTX10);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Task tables
