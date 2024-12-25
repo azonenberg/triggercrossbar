@@ -35,7 +35,7 @@
 #define ManagementSSHTransportServer_h
 
 #include <staticnet/ssh/SSHTransportServer.h>
-#include "ManagementPubkeyAuthenticator.h"
+#include <tcpip/KeyManagerPubkeyAuthenticator.h>
 #include "ManagementSFTPServer.h"
 #include "CrossbarCLISessionContext.h"
 #include <fpga/AcceleratedCryptoEngine.h>
@@ -57,7 +57,7 @@ protected:
 	virtual void OnRxShellData(int id, TCPTableEntry* socket, char* data, uint16_t len);
 	virtual void DoExecRequest(int id, TCPTableEntry* socket, const char* cmd, uint16_t len) override;
 
-	ManagementPubkeyAuthenticator m_auth;
+	KeyManagerPubkeyAuthenticator m_auth;
 
 	CrossbarCLISessionContext m_context[SSH_TABLE_SIZE];
 

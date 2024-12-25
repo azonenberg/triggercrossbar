@@ -35,7 +35,7 @@
 #define BootloaderSSHTransportServer_h
 
 #include <staticnet/ssh/SSHTransportServer.h>
-#include "ManagementPubkeyAuthenticator.h"
+#include <tcpip/KeyManagerPubkeyAuthenticator.h>
 #include "BootloaderSFTPServer.h"
 #include "BootloaderCLISessionContext.h"
 #include <fpga/AcceleratedCryptoEngine.h>
@@ -57,7 +57,7 @@ protected:
 	virtual void OnRxShellData(int id, TCPTableEntry* socket, char* data, uint16_t len);
 	virtual void DoExecRequest(int id, TCPTableEntry* socket, const char* cmd, uint16_t len) override;
 
-	ManagementPubkeyAuthenticator m_auth;
+	KeyManagerPubkeyAuthenticator m_auth;
 
 	BootloaderCLISessionContext m_context[SSH_TABLE_SIZE];
 

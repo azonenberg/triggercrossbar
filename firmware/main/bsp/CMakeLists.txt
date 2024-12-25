@@ -4,7 +4,6 @@ add_library(bsp STATIC
 	EthernetInit.cpp
 	FPGAFirmwareUpdater.cpp
 	ManagementDHCPClient.cpp
-	ManagementPubkeyAuthenticator.cpp
 
 	common-vectors.cpp
 	hwinit.cpp

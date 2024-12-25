@@ -36,6 +36,7 @@
 
 ManagementSSHTransportServer::ManagementSSHTransportServer(TCPProtocol& tcp)
 	: SSHTransportServer(tcp)
+	, m_auth(g_sshUsername, g_keyMgr)
 {
 	g_log("Initializing SSH server\n");
 	LogIndenter li(g_log);
