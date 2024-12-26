@@ -144,7 +144,9 @@ void DoPerfTests()
 	g_log("Barrier overhead: %d\n", overhead);
 
 	static volatile uint64_t axi_testbuf_small[1024] __attribute__((section(".bss"))) __attribute__((aligned(32)));
+	static volatile uint64_t axi_testbuf_small2[1024] __attribute__((section(".bss"))) __attribute__((aligned(32)));
 	static volatile uint64_t dtcm_testbuf_small[1024] __attribute__((section(".tcmbss"))) __attribute__((aligned(32)));
+	static volatile uint64_t dtcm_testbuf_small2[1024] __attribute__((section(".tcmbss"))) __attribute__((aligned(32)));
 
 	//L1D$ is 32 kB
 	//Do an 8 kB test to ensure everything fits
@@ -190,6 +192,39 @@ void DoPerfTests()
 		g_log("DTCM 8 kB cached x8\n");
 		LogIndenter li2(g_log);
 		MemoryPerformanceTester::DoTestX8(reinterpret_cast<volatile uint8_t*>(dtcm_testbuf_small), 8192);
+	}
+
+	//Memcpy between them
+	{
+		g_log("Memcpy 8 kB cached\n");
+
+		asm("dmb");
+		uint32_t start = _DWT.CYCCNT;
+		memcpy((void*)dtcm_testbuf_small2, (const void*)dtcm_testbuf_small, 8192);
+		uint32_t end = _DWT.CYCCNT;
+		uint32_t dt = end-start;
+		g_log("DTCM - DTCM:      %d\n", dt);
+
+		asm("dmb");
+		start = _DWT.CYCCNT;
+		memcpy((void*)axi_testbuf_small2, (const void*)axi_testbuf_small, 8192);
+		end = _DWT.CYCCNT;
+		dt = end-start;
+		g_log("AXI - AXI:        %d\n", dt);
+
+		asm("dmb");
+		start = _DWT.CYCCNT;
+		memcpy((void*)dtcm_testbuf_small2, (const void*)axi_testbuf_small, 8192);
+		end = _DWT.CYCCNT;
+		dt = end-start;
+		g_log("AXI - DTCM:       %d\n", dt);
+
+		asm("dmb");
+		start = _DWT.CYCCNT;
+		memcpy((void*)axi_testbuf_small2, (const void*)dtcm_testbuf_small, 8192);
+		end = _DWT.CYCCNT;
+		dt = end-start;
+		g_log("DTCM - AXI:       %d\n", dt);
 	}
 
 }

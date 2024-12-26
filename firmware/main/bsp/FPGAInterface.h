@@ -41,30 +41,6 @@ public:
 
 enum baseaddr_t
 {
-	//Root bridge, small-address branch (0x400 per node)
-	//BASE_SYSINFO		= 0x0000'0000,		//APB_SystemInfo
-	//BASE_IN_LED_GPIO	= 0x0000'0400,		//APB_GPIO
-	//BASE_OUT_LED_GPIO	= 0x0000'0800,		//APB_GPIO
-	//BASE_MDIO			= 0x0000'0c00,		//APB_MDIO
-	//BASE_RELAY			= 0x0000'1000,		//APB_RelayController
-	//BASE_FRONT_SPI		= 0x0000'1400,		//APB_SPIHostInterface
-	//BASE_MUXSEL			= 0x0000'1800,		//APB_CrossbarMatrix
-	//BASE_25519			= 0x0000'1c00,		//APB_Curve25519
-	//BASE_IRQ_STAT		= 0x0000'2000,		//APB_StatusRegister
-	//BASE_FLASH_SPI		= 0x0000'2400,		//APB_SPIHostInterface
-
-	//Root bridge, large-address branch (0x1000 per node)
-	//BASE_XG_TX			= 0x0000'8000,		//Management10GTxFifo
-	//BASE_1G_TX			= 0x0000'9000,		//ManagementTxFifo
-	//BASE_ETH_RX			= 0x0000'a000,		//ManagementRxFifo
-
-	//BERT bridge (off large branch, 0x100 per node)
-	//BASE_BERT_LANE0		= 0x0000'b000,		//APB_BertConfig
-	//BASE_BERT_LANE1		= 0x0000'b100,		//APB_BertConfig
-	//BASE_DRP_LANE0		= 0x0000'b200,		//APB_SerdesDRP
-	//BASE_DRP_LANE1		= 0x0000'b300,		//APB_SerdesDRP
-	//BASE_LA_LANE0		= 0x0000'b400,		//LogicAnalyzer
-	//BASE_LA_LANE1		= 0x0000'b500,		//LogicAnalyzer
 	BASE_CDRTRIG_LANE0	= 0x0000'b600,		//CDRTrigger
 	BASE_CDRTRIG_LANE1	= 0x0000'b700		//CDRTrigger
 };

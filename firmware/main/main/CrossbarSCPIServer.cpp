@@ -128,6 +128,9 @@ uint8_t g_bertRxPrescale[2] = {5, 5};
 ///@brief Mux selectors
 uint8_t g_muxsel[12] = {0};
 
+///@brief Trigger mux selector
+uint8_t g_triggerMux = 0;
+
 ///@brief Bidir port directions
 bool g_bidirOut[4] = {0};
 
@@ -329,11 +332,6 @@ void LoadChannelConfig()
 		g_triggerTxLevels[chnum] = g_kvs->ReadObject<int>(g_defaultTxLevel, key);
 		g_txDac->SetChannelMillivolts(g_txDacChannels[chnum], g_triggerTxLevels[chnum]);
 	}
-
-	//TODO: actual proper mux config
-	//For now, trigger the LAs on channel 9 (SSG pulse out)
-	FMUXSEL.channels[12].muxsel = 9;
-	FMUXSEL.channels[13].muxsel = 9;
 }
 
 void SaveChannelConfig()
@@ -585,6 +583,20 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 		g_txDac->SetChannelMillivolts(g_txDacChannels[chan], mv);
 
 		g_triggerTxLevels[chan] = mv;
+	}
+
+	//Trigger configuration
+	else if(!strcmp(command, "TRIGMUX"))
+	{
+		if(!args)
+			return;
+
+		int muxsel = atoi(args);
+
+		//For now, both serdes channels have to use the same mux setting
+		g_triggerMux = muxsel;
+		FMUXSEL.channels[12].muxsel = muxsel;
+		FMUXSEL.channels[13].muxsel = muxsel;
 	}
 
 	//Mux selector
@@ -1134,6 +1146,13 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 			buf.Flush();
 		}
 		buf.Printf("\n");
+	}
+
+	//Trigger mux selector
+	else if(!strcmp(command, "TRIGMUX"))
+	{
+		SocketReplyBuffer buf(m_tcp, socket);
+		buf.Printf("%d\n", g_triggerMux);
 	}
 
 	//Mux selector
