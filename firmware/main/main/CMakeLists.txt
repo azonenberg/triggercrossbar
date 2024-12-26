@@ -19,6 +19,8 @@ add_executable(main
 	ssh/ManagementSFTPServer.cpp
 	ssh/ManagementSSHTransportServer.cpp
 
+	MemoryPerformanceTester.S
+
 	globals.cpp
 	mainloop.cpp
 	vectors.cpp)

@@ -348,6 +348,7 @@ module top(
 	// BERT subsystem (2x GTX)
 
 	wire[1:0]	cpll_lock;
+	wire[1:0]	la_trig;
 
 	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) bertBus();
 
@@ -378,7 +379,9 @@ module top(
 
 		.cpll_lock(cpll_lock),
 
-		.apb(bertBus)
+		.apb(bertBus),
+
+		.la_trig(la_trig)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -505,10 +508,20 @@ module top(
 		.apb(crossbarBus),
 
 		.trig_in(trig_in),
-		.trig_out(trig_out),
+		.trig_out({ la_trig, trig_out }),
 
 		.trig_in_led(trig_in_led),
 		.trig_out_led(trig_out_led)
+	);
+
+	//DEBUG vio for looking at triggers
+	vio_0 vio(
+		.clk(clk_250mhz),
+		.probe_in0(la_trig[0]),
+		.probe_in1(la_trig[1]),
+
+		.probe_in2(matrix.muxsel[12]),
+		.probe_in3(matrix.muxsel[13])
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

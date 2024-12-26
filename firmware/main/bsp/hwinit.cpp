@@ -140,13 +140,15 @@ volatile APB_BERTConfig FBERT0 __attribute__((section(".fbert0")));
 volatile APB_BERTConfig FBERT1 __attribute__((section(".fbert1")));
 volatile APB_SerdesDRP FDRP0 __attribute__((section(".fdrp0")));
 volatile APB_SerdesDRP FDRP1 __attribute__((section(".fdrp1")));
+volatile LogicAnalyzer FLA0 __attribute__((section(".fla0")));
+volatile LogicAnalyzer FLA1 __attribute__((section(".fla1")));
 
 ///@brief Controller for the MDIO interface
 MDIODevice g_mgmtPhy(&FMDIO, 0);
 
 APB_SpiFlashInterface* g_fpgaFlash = nullptr;
 
-APBEthernetInterface g_ethIface(&FETHRX, &FETHTX10);
+__attribute__((section(".tcmbss"))) APBEthernetInterface g_ethIface(&FETHRX, &FETHTX10);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Task tables

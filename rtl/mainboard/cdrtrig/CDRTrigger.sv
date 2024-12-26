@@ -380,6 +380,7 @@ module CDRTrigger #(
 	// Debug ILA
 
 	if(DEBUG_LA) begin
+		/*
 		ila_0 ila(
 			.clk(rx_clk),
 			.probe0(rx_8b10b_locked),
@@ -401,6 +402,7 @@ module CDRTrigger #(
 
 			.probe16(trig_out)
 			);
+			*/
 	end
 
 endmodule

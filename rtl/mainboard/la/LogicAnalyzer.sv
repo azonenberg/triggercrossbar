@@ -193,17 +193,15 @@ module LogicAnalyzer #(
 		REG_TRIGGER			= 'h00,		//0		Trigger arm request (write only)
 										//7 	Trigger idle flag (indicates we're in STATE_DISARMED)
 
-		REG_BUF_ADDR		= 'h04,		//Offset of RX_BUF within the capture buffer
-										//For example BUF_ADDR='h42 means APB address 10 maps to 'h42,
-										//address 11 maps to 'h43, etc
+		REG_BUF_ADDR		= 'h20,		//Offset of RX_BUF within the capture buffer
 
-		REG_BUF_SIZE		= 'h08,		//size of the capture memory buffer
+		REG_BUF_SIZE		= 'h40,		//size of the capture memory buffer
 										//(app is free to not read it all, but hardware always runs full depth)
 
-		REG_TRIG_OFFSET		= 'h0c,		//Offset of the trigger (in 32-sample words) within the capture buffer
+		REG_TRIG_OFFSET		= 'h60,		//Offset of the trigger (in 32-sample words) within the capture buffer
 
 
-		REG_RX_BUF			= 'h20		//Capture buffer window (memory mapped)
+		REG_RX_BUF			= 'h80		//Capture buffer window (memory mapped)
 	} regid_t;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -248,8 +246,9 @@ module LogicAnalyzer #(
 	// Prefetch buffer
 
 	logic		prefetch_start;
-	logic[4:0]	prefetch_count = 0;
-	logic		prefetch_valid = 0;
+	logic		prefetch_start_ff	= 0;
+	logic[4:0]	prefetch_count 		= 0;
+	logic		prefetch_valid 		= 0;
 	logic[4:0]	prefetch_count_ff	= 0;
 	logic[4:0]	prefetch_count_ff2	= 0;
 
@@ -318,12 +317,7 @@ module LogicAnalyzer #(
 					REG_TRIG_OFFSET:	apb.prdata = trigger_pos;
 
 					//assume it's a read from RX_BUF
-					default: begin
-						if(apb.paddr[1])
-							apb.prdata = prefetch_rdata[31:16];
-						else
-							apb.prdata = prefetch_rdata[15:0];
-					end
+					default: 			apb.prdata = prefetch_rdata;
 				endcase
 
 			end
@@ -334,7 +328,10 @@ module LogicAnalyzer #(
 				case(apb.paddr)
 					REG_TRIGGER:		arm = 1;
 
-					REG_BUF_ADDR: 		rd_base_addr	= apb.pwdata;
+					REG_BUF_ADDR: begin
+						rd_base_addr	= apb.pwdata;
+						prefetch_start	= 1;
+					end
 
 					REG_TRIG_OFFSET: begin
 					end
@@ -354,6 +351,7 @@ module LogicAnalyzer #(
 		if(!apb.preset_n) begin
 			apb.pready			<= 0;
 			rd_base_addr_ff		<= 0;
+			prefetch_start_ff	<= 0;
 		end
 
 		//Normal path
@@ -362,13 +360,15 @@ module LogicAnalyzer #(
 			mem_rd_en			<= 0;
 			mem_rd_addr			<= 0;
 
+			prefetch_start_ff	<= prefetch_start;
+
 			//Register request flags
 			//address/write data don't need to be registered, they'll be kept stable
 			apb.pready		<= apb_pready_next;
 
 			rd_base_addr_ff	<= rd_base_addr;
 
-			if(prefetch_start) begin
+			if(prefetch_start_ff) begin
 				mem_rd_en		<= 1;
 				mem_rd_addr		<= rd_real_base_addr;
 				prefetch_count	<= 1;

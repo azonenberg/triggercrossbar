@@ -329,6 +329,11 @@ void LoadChannelConfig()
 		g_triggerTxLevels[chnum] = g_kvs->ReadObject<int>(g_defaultTxLevel, key);
 		g_txDac->SetChannelMillivolts(g_txDacChannels[chnum], g_triggerTxLevels[chnum]);
 	}
+
+	//TODO: actual proper mux config
+	//For now, trigger the LAs on channel 9 (SSG pulse out)
+	FMUXSEL.channels[12].muxsel = 9;
+	FMUXSEL.channels[13].muxsel = 9;
 }
 
 void SaveChannelConfig()
@@ -848,8 +853,8 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 	{
 		//TODO: single arm register for both or something?
 		//for now, arm both and hope they both see the same trigger event
-		g_apbfpga.BlockingWrite32(&g_logicAnalyzer[0]->trigger, 1);
-		g_apbfpga.BlockingWrite32(&g_logicAnalyzer[1]->trigger, 1);
+		g_logicAnalyzer[0]->trigger = 1;
+		g_logicAnalyzer[1]->trigger = 1;
 	}
 
 	//Set trigger position
@@ -859,8 +864,8 @@ void CrossbarSCPIServer::DoCommand(const char* subject, const char* command, con
 			return;
 
 		auto pos = atoi(args);
-		g_apbfpga.BlockingWrite32(&g_logicAnalyzer[0]->trig_offset, pos);
-		g_apbfpga.BlockingWrite32(&g_logicAnalyzer[1]->trig_offset, pos);
+		g_logicAnalyzer[0]->trig_offset = pos;
+		g_logicAnalyzer[1]->trig_offset = pos;
 	}
 }
 
@@ -1407,9 +1412,23 @@ void CrossbarSCPIServer::DoQuery(const char* subject, const char* command, TCPTa
 		SocketReplyBuffer buf(m_tcp, socket);
 		for(uint32_t i=0; i<nblocks; i++)
 		{
-			uint32_t base = i*blocksize;
-			g_apbfpga.BlockingWrite32(&g_logicAnalyzer[chan]->buf_addr, base);
+			//If we have no TX buffers left, block and process events until one becomes free
+			while(!g_ethIface.IsTxBufferAvailable())
+			{
+				while(CheckForFPGAEvents())
+				{}
+			}
 
+			uint32_t base = i*blocksize;
+			g_logicAnalyzer[chan]->buf_addr = base;
+
+			//Read and discard another location to force an OCTOSPI cache flush
+			//(without this, we'll read garbage for the first word in every block)
+			//This seems to be necessary despite having written to buf_addr earlier,
+			//apparently writing doesn't force a cache fill
+			(void)g_logicAnalyzer[chan]->trigger;
+
+			//Read the data
 			for(uint32_t j=0; j<blocksize; j++)
 				buf.Printf("%08x,", g_logicAnalyzer[chan]->rx_buf[j]);
 

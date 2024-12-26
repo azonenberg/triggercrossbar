@@ -131,6 +131,8 @@ extern volatile APB_BERTConfig FBERT0;
 extern volatile APB_BERTConfig FBERT1;
 extern volatile APB_SerdesDRP FDRP0;
 extern volatile APB_SerdesDRP FDRP1;
+extern volatile LogicAnalyzer FLA0;
+extern volatile LogicAnalyzer FLA1;
 
 //Backup SRAM used for communication with bootloader
 extern volatile BootloaderBBRAM* g_bbram;

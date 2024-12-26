@@ -78,8 +78,4 @@ volatile APB_BERTConfig* g_bertConfig[2] = { &FBERT0, &FBERT1 };
 volatile APB_SerdesDRP* g_bertDRP[2] = { &FDRP0, &FDRP1 };
 
 ///@brief Logic analyzers
-volatile LogicAnalyzer* g_logicAnalyzer[2] =
-{
-	reinterpret_cast<volatile LogicAnalyzer*>(FPGA_MEM_BASE + BASE_LA_LANE0),
-	reinterpret_cast<volatile LogicAnalyzer*>(FPGA_MEM_BASE + BASE_LA_LANE1)
-};
+volatile LogicAnalyzer* g_logicAnalyzer[2] = { &FLA0, &FLA1 };

@@ -40,10 +40,13 @@
 #include "TwentyHzTimerTask.h"
 #include "TwoHzTimerTask.h"
 #include "TenHzTimerTask.h"
+#include "MemoryPerformanceTester.h"
 
 void LogTemperatures();
 void SendFrontPanelSensor(uint8_t cmd, uint16_t value);
 void InitFrontPanel();
+
+void DoPerfTests();
 
 void App_Init()
 {
@@ -119,10 +122,78 @@ void App_Init()
 	//Initialize the FPGA IRQ pin
 	g_irq.SetPullMode(GPIOPin::PULL_DOWN);
 
+	//DoPerfTests();
+
 	//Assert GPIOA8 (MCU_READY) once firmware is fully initialized
 	static GPIOPin mcuUp(&GPIOA, 8, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW, 0, true);
 	mcuUp = true;
 }
+
+#pragma GCC push_options
+#pragma GCC optimize("-O3")
+__attribute__((section(".tcmtext")))
+void DoPerfTests()
+{
+	g_log("\n");
+	g_log("Performance tests\n");
+	LogIndenter li(g_log);
+	uint32_t a = _DWT.CYCCNT;
+	asm("dmb");
+	uint32_t b = _DWT.CYCCNT;
+	uint32_t overhead = b-a;
+	g_log("Barrier overhead: %d\n", overhead);
+
+	static volatile uint64_t axi_testbuf_small[1024] __attribute__((section(".bss"))) __attribute__((aligned(32)));
+	static volatile uint64_t dtcm_testbuf_small[1024] __attribute__((section(".tcmbss"))) __attribute__((aligned(32)));
+
+	//L1D$ is 32 kB
+	//Do an 8 kB test to ensure everything fits
+
+	{
+		g_log("AXI SRAM 8 kB cached x64\n");
+		LogIndenter li2(g_log);
+		MemoryPerformanceTester::DoTestX64(reinterpret_cast<volatile uint64_t*>(axi_testbuf_small), 1024);
+	}
+	{
+		g_log("AXI SRAM 8 kB cached x32\n");
+		LogIndenter li2(g_log);
+		MemoryPerformanceTester::DoTestX32(reinterpret_cast<volatile uint32_t*>(axi_testbuf_small), 2048);
+	}
+	{
+		g_log("AXI SRAM 8 kB cached x16\n");
+		LogIndenter li2(g_log);
+		MemoryPerformanceTester::DoTestX16(reinterpret_cast<volatile uint16_t*>(axi_testbuf_small), 4096);
+	}
+	{
+		g_log("AXI SRAM 8 kB cached x8\n");
+		LogIndenter li2(g_log);
+		MemoryPerformanceTester::DoTestX8(reinterpret_cast<volatile uint8_t*>(axi_testbuf_small), 8192);
+	}
+
+	//DTCM test
+	{
+		g_log("DTCM 8 kB cached x64\n");
+		LogIndenter li2(g_log);
+		MemoryPerformanceTester::DoTestX64(reinterpret_cast<volatile uint64_t*>(dtcm_testbuf_small), 1024);
+	}
+	{
+		g_log("DTCM 8 kB cached x32\n");
+		LogIndenter li2(g_log);
+		MemoryPerformanceTester::DoTestX32(reinterpret_cast<volatile uint32_t*>(dtcm_testbuf_small), 2048);
+	}
+	{
+		g_log("DTCM 8 kB cached x16\n");
+		LogIndenter li2(g_log);
+		MemoryPerformanceTester::DoTestX16(reinterpret_cast<volatile uint16_t*>(dtcm_testbuf_small), 4096);
+	}
+	{
+		g_log("DTCM 8 kB cached x8\n");
+		LogIndenter li2(g_log);
+		MemoryPerformanceTester::DoTestX8(reinterpret_cast<volatile uint8_t*>(dtcm_testbuf_small), 8192);
+	}
+
+}
+#pragma GCC pop_options
 
 void InitFrontPanel()
 {

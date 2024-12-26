@@ -43,19 +43,20 @@ import CrossbarTypes::*;
 		0160	muxsel11
  */
 module APB_CrossbarMatrix #(
-	parameter NUM_PORTS = 12
+	parameter NUM_PORTS = 12,
+	localparam NUM_PORTS_WITH_LA = NUM_PORTS + 2
 )(
 
 	//The APB bus
-	APB.completer 				apb,
+	APB.completer 						apb,
 
 	//Trigger signals
-	input wire[NUM_PORTS-1:0]	trig_in,
-	output wire[NUM_PORTS-1:0]	trig_out,
+	input wire[NUM_PORTS-1:0]			trig_in,
+	output wire[NUM_PORTS_WITH_LA-1:0]	trig_out,
 
 	//Indicator LEDs
-	output wire[NUM_PORTS-1:0]	trig_in_led,
-	output wire[NUM_PORTS-1:0]	trig_out_led
+	output wire[NUM_PORTS-1:0]			trig_in_led,
+	output wire[NUM_PORTS-1:0]			trig_out_led
 );
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// We only support 32-bit APB, throw synthesis error for anything else
@@ -66,12 +67,12 @@ module APB_CrossbarMatrix #(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Register logic
 
-	muxsel_t[NUM_PORTS-1:0] muxsel;
+	muxsel_t[NUM_PORTS_WITH_LA-1:0] muxsel;
 
 	logic[apb.ADDR_WIDTH-1:0]	portidx;
 
 	initial begin
-		for(integer i=0; i<NUM_PORTS; i++)
+		for(integer i=0; i<NUM_PORTS_WITH_LA; i++)
 			muxsel[i] <= 0;
 	end
 
@@ -91,7 +92,7 @@ module APB_CrossbarMatrix #(
 				apb.pslverr = 1;
 
 			//Throw error if port number is out of range
-			else if(portidx >= NUM_PORTS)
+			else if(portidx >= NUM_PORTS_WITH_LA)
 				apb.pslverr = 1;
 
 			//read
@@ -100,7 +101,7 @@ module APB_CrossbarMatrix #(
 
 			//write fails if we write an out-of-range value
 			else begin
-				if(apb.pwdata > NUM_PORTS)
+				if(apb.pwdata >= NUM_PORTS_WITH_LA)
 					apb.pslverr	 = 1;
 			end
 
@@ -111,7 +112,7 @@ module APB_CrossbarMatrix #(
 
 		//Reset
 		if(!apb.preset_n) begin
-			for(integer i=0; i<NUM_PORTS; i++)
+			for(integer i=0; i<NUM_PORTS_WITH_LA; i++)
 				muxsel[i] <= 0;
 		end
 

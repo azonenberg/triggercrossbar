@@ -1,5 +1,3 @@
-`timescale 1ns/1ps
-`default_nettype none
 /***********************************************************************************************************************
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
@@ -29,73 +27,121 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-import BERTConfig::*;
-
 /**
 	@file
-	@author Andrew D. Zonenberg
-	@brief The actual switch crossbar
-
-	Completely combinatorial
+	@brief Declaration of MemoryPerformanceTester
  */
-module CrossbarMatrix(
-	input wire					clk,
+#ifndef MemoryPerformanceTester_h
+#define MemoryPerformanceTester_h
 
-	input wire[11:0]			trig_in,
-	output logic[13:0]			trig_out,	//trigger channels 12, 13 = LA 0/1
+#include <peripheral/DWT.h>
 
-	input wire muxsel_t[13:0]	muxsel,
+#pragma GCC push_options
+#pragma GCC optimize "-O3"
 
-	output wire[11:0]			trig_in_led,
-	output wire[11:0]			trig_out_led
-);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// The actual muxes
+extern "C" void MemReadTestX8(volatile void* ptr, uint32_t len_words);
+extern "C" void MemReadTestX16(volatile void* ptr, uint32_t len_words);
+extern "C" void MemReadTestX32(volatile void* ptr, uint32_t len_words);
+extern "C" void MemReadTestX64(volatile void* ptr, uint32_t len_words);
 
-	always_comb begin
+extern "C" void MemWriteTestX8(volatile void* ptr, uint32_t len_words);
+extern "C" void MemWriteTestX16(volatile void* ptr, uint32_t len_words);
+extern "C" void MemWriteTestX32(volatile void* ptr, uint32_t len_words);
+extern "C" void MemWriteTestX64(volatile void* ptr, uint32_t len_words);
 
-		for(integer i=0; i<14; i=i+1) begin
-			trig_out[i]	= trig_in[muxsel[i]];
-		end
+class MemoryPerformanceTester
+{
+public:
 
-	end
+	__attribute__((section(".tcmtext")))
+	static void DoTestX8(volatile uint8_t* buf, size_t size)
+	{
+		//Write test
+		asm("dmb");
+		uint32_t start = _DWT.CYCCNT;
+		MemWriteTestX8(buf, size);
+		asm("dmb");
+		uint32_t end = _DWT.CYCCNT;
+		uint32_t dt = end-start;
+		g_log("Fill:      %d\n", dt);
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Pulse stretching for LEDs (no LEDs on CDR LA ports, probably a mistake in retrospect)
+		asm("dmb");
+		start = _DWT.CYCCNT;
+		MemReadTestX8(buf, size);
+		asm("dmb");
+		end = _DWT.CYCCNT;
+		dt = end-start;
+		g_log("Readback:  %d\n", dt);
+	}
 
-	for(genvar g=0; g<12; g=g+1) begin : pstretch
+	__attribute__((section(".tcmtext")))
+	static void DoTestX16(volatile uint16_t* buf, size_t size)
+	{
+		//Write test
+		asm("dmb");
+		uint32_t start = _DWT.CYCCNT;
+		MemWriteTestX16(buf, size);
+		asm("dmb");
+		uint32_t end = _DWT.CYCCNT;
+		uint32_t dt = end-start;
+		g_log("Fill:      %d\n", dt);
 
-		//Synchronize into local clock domain
-		wire	trig_in_sync;
-		ThreeStageSynchronizer #(
-			.IN_REG(0)
-		) sync_trig_in(
-			.clk_in(),
-			.din(trig_in[g]),
-			.clk_out(clk),
-			.dout(trig_in_sync));
+		asm("dmb");
+		start = _DWT.CYCCNT;
+		MemReadTestX16(buf, size);
+		asm("dmb");
+		end = _DWT.CYCCNT;
+		dt = end-start;
+		g_log("Readback:  %d\n", dt);
+	}
 
-		wire	trig_out_sync;
-		ThreeStageSynchronizer #(
-			.IN_REG(0)
-		) sync_trig_out(
-			.clk_in(),
-			.din(trig_out[g]),
-			.clk_out(clk),
-			.dout(trig_out_sync));
+	__attribute__((section(".tcmtext")))
+	static void DoTestX32(volatile uint32_t* buf, size_t size)
+	{
+		//Write test
+		asm("dmb");
+		uint32_t start = _DWT.CYCCNT;
+		MemWriteTestX32(buf, size);
+		asm("dmb");
+		uint32_t end = _DWT.CYCCNT;
+		uint32_t dt = end-start;
+		g_log("Fill:      %d\n", dt);
 
+		asm("dmb");
+		start = _DWT.CYCCNT;
+		MemReadTestX32(buf, size);
+		asm("dmb");
+		end = _DWT.CYCCNT;
+		dt = end-start;
+		g_log("Readback:  %d\n", dt);
+	}
 
-		PulseStretcher stretch_in(
-			.clk(clk),
-			.pulse(trig_in_sync),
-			.stretched(trig_in_led[g]));
+	__attribute__((section(".tcmtext")))
+	static void DoTestX64(volatile uint64_t* buf, size_t size)
+	{
+		//Write test
+		asm("dmb");
+		uint32_t start = _DWT.CYCCNT;
+		MemWriteTestX64(buf, size);
+		asm("dmb");
+		uint32_t end = _DWT.CYCCNT;
+		uint32_t dt = end-start;
+		g_log("Fill:      %d\n", dt);
 
-		PulseStretcher stretch_out(
-			.clk(clk),
-			.pulse(trig_out_sync),
-			.stretched(trig_out_led[g]));
+		asm("dmb");
+		start = _DWT.CYCCNT;
+		MemReadTestX64(buf, size);
+		asm("dmb");
+		end = _DWT.CYCCNT;
+		dt = end-start;
+		g_log("Readback:  %d\n", dt);
+	}
+};
 
-	end
+#pragma GCC diagnostic pop
+#pragma GCC pop_options
 
-endmodule
+#endif

@@ -35,12 +35,6 @@ class FPGAInterface
 public:
 	virtual void BlockingWrite(uint32_t addr, const uint8_t* data, uint32_t len) = 0;
 
-	void BlockingWrite32(uint32_t addr, uint32_t data)
-	{ BlockingWrite(addr, reinterpret_cast<uint8_t*>(&data), sizeof(data)); }
-
-	void BlockingWrite32(volatile void* addr, uint32_t data)
-	{ BlockingWrite32(reinterpret_cast<uint32_t>(addr) & 0xffffff, data); }
-
 	void BlockingWriteN(volatile void* addr, const void* data, uint32_t len)
 	{ BlockingWrite(reinterpret_cast<uint32_t>(const_cast<void*>(addr)) & 0xffffff, (const uint8_t*)data, len); }
 };
@@ -69,20 +63,23 @@ enum baseaddr_t
 	//BASE_BERT_LANE1		= 0x0000'b100,		//APB_BertConfig
 	//BASE_DRP_LANE0		= 0x0000'b200,		//APB_SerdesDRP
 	//BASE_DRP_LANE1		= 0x0000'b300,		//APB_SerdesDRP
-	BASE_LA_LANE0		= 0x0000'b400,		//LogicAnalyzer
-	BASE_LA_LANE1		= 0x0000'b500,		//LogicAnalyzer
+	//BASE_LA_LANE0		= 0x0000'b400,		//LogicAnalyzer
+	//BASE_LA_LANE1		= 0x0000'b500,		//LogicAnalyzer
 	BASE_CDRTRIG_LANE0	= 0x0000'b600,		//CDRTrigger
 	BASE_CDRTRIG_LANE1	= 0x0000'b700		//CDRTrigger
 };
 
-struct __attribute__((packed)) LogicAnalyzer
+struct LogicAnalyzer
 {
 	uint32_t		trigger;
+	uint32_t		field_04[7];
 	uint32_t		buf_addr;
+	uint32_t		field_24[7];
 	uint32_t		buf_size;
+	uint32_t		field_44[7];
 	uint32_t		trig_offset;
-	uint32_t		field_10[4];
-	uint32_t		rx_buf[16];
+	uint32_t		field_64[7];
+	uint32_t		rx_buf[32];
 };
 
 struct APB_BERTConfig
@@ -119,7 +116,7 @@ struct APB_SystemInfo
 	uint32_t		usercode;
 };
 
-struct __attribute__((packed)) APB_RelayController
+struct APB_RelayController
 {
 	uint32_t		toggle;
 	uint32_t		field_04[7];
@@ -136,7 +133,7 @@ struct APB_CrossbarChannel
 
 struct APB_CrossbarMatrix
 {
-	APB_CrossbarChannel		channels[12];
+	APB_CrossbarChannel		channels[14];
 };
 
 #include <APB_EthernetRxBuffer.h>

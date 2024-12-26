@@ -284,18 +284,18 @@ void InitIP()
 		g_ipConfig.m_address.m_octets[3]);
 
 	//ARP cache (shared by all interfaces)
-	static ARPCache cache;
+	__attribute__((section(".tcmbss"))) static ARPCache cache;
 
 	//Per-interface protocol stacks
-	static EthernetProtocol eth(g_ethIface, g_macAddress);
+	__attribute__((section(".tcmbss"))) static EthernetProtocol eth(g_ethIface, g_macAddress);
 	g_ethProtocol = &eth;
-	static ARPProtocol arp(eth, g_ipConfig.m_address, cache);
+	__attribute__((section(".tcmbss"))) static ARPProtocol arp(eth, g_ipConfig.m_address, cache);
 
 	//Global protocol stacks
-	static IPv4Protocol ipv4(eth, g_ipConfig, cache);
-	static ICMPv4Protocol icmpv4(ipv4);
-	static IPv6Protocol ipv6(eth, g_ipv6Config);
-	static ICMPv6Protocol icmpv6(ipv6);
+	__attribute__((section(".tcmbss"))) static IPv4Protocol ipv4(eth, g_ipConfig, cache);
+	__attribute__((section(".tcmbss"))) static ICMPv4Protocol icmpv4(ipv4);
+	__attribute__((section(".tcmbss"))) static IPv6Protocol ipv6(eth, g_ipv6Config);
+	__attribute__((section(".tcmbss"))) static ICMPv6Protocol icmpv6(ipv6);
 
 	//Register protocol handlers with the lower layer
 	eth.UseARP(&arp);

@@ -64,7 +64,10 @@ module BERTSubsystem(
 	APB.completer 				apb,
 
 	//Status outputs
-	output wire[1:0]			cpll_lock
+	output wire[1:0]			cpll_lock,
+
+	//Trigger inputs from the crossbar
+	input wire[1:0]				la_trig
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -555,15 +558,11 @@ module BERTSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Synchronize trigger source from wherever it came from down to each LA's clock domain
 
-	//muxed trigger signals without any CDC
-	wire	la0_trig_muxed = lane0_cdrtrig;
-	wire	la1_trig_muxed = lane0_cdrtrig;
-
 	ThreeStageSynchronizer #(
 		.IN_REG(0)
 	) sync_la0_trig (
 		.clk_in(),
-		.din(la0_trig_muxed),
+		.din(la_trig[0]),
 		.clk_out(lane0_rxclk),
 		.dout(la0_trig)
 	);
@@ -572,7 +571,7 @@ module BERTSubsystem(
 		.IN_REG(0)
 	) sync_la1_trig (
 		.clk_in(),
-		.din(la1_trig_muxed),
+		.din(la_trig[1]),
 		.clk_out(lane1_rxclk),
 		.dout(la1_trig)
 	);

@@ -53,6 +53,12 @@ SECTIONS
 		. = ALIGN(256);
 		KEEP (*(.fdrp1))
 		. = ALIGN(256);
+		KEEP (*(.fla0))
+		. = ALIGN(256);
+		KEEP (*(.fla1))
+		. = ALIGN(256);
+
+		/* TODO CDR trigger needs more address space*/
 
 	} > OCTOSPI_APB2
 }
