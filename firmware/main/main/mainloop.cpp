@@ -122,7 +122,7 @@ void App_Init()
 	//Initialize the FPGA IRQ pin
 	g_irq.SetPullMode(GPIOPin::PULL_DOWN);
 
-	DoPerfTests();
+	//DoPerfTests();
 
 	//Assert GPIOA8 (MCU_READY) once firmware is fully initialized
 	static GPIOPin mcuUp(&GPIOA, 8, GPIOPin::MODE_OUTPUT, GPIOPin::SLEW_SLOW, 0, true);
