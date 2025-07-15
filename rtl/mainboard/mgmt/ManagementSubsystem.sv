@@ -149,7 +149,7 @@ module ManagementSubsystem(
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(1))
 		apb_regslice_root2smol( .upstream(rootDownstreamBus[0]), .downstream(rootDownstreamBusReg[0]) );
 
-	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
+	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(0))
 		apb_regslice_root2big( .upstream(rootDownstreamBus[1]), .downstream(rootDownstreamBusReg[1]) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
