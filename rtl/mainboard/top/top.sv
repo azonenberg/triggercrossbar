@@ -4,7 +4,7 @@
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -387,18 +387,15 @@ module top(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Network interfaces
 
-	wire					mgmt0_rx_clk_buf;
-	EthernetRxBus			mgmt0_rx_bus;
-	EthernetTxBus			mgmt0_tx_bus;
-	wire					mgmt0_tx_ready;
+	AXIStream #(.DATA_WIDTH(32), .ID_WIDTH(0), .DEST_WIDTH(0), .USER_WIDTH(1)) mgmt0_axi_tx();
+	AXIStream #(.DATA_WIDTH(32), .ID_WIDTH(0), .DEST_WIDTH(0), .USER_WIDTH(1)) mgmt0_axi_rx();
 	wire					mgmt0_link_up;
 	lspeed_t				mgmt0_link_speed;
 
-	wire					xg0_mac_rx_clk;
-	wire					xg0_mac_tx_clk;
-	EthernetRxBus			xg0_mac_rx_bus;
-	EthernetTxBus			xg0_mac_tx_bus;
+	AXIStream #(.DATA_WIDTH(32), .ID_WIDTH(0), .DEST_WIDTH(0), .USER_WIDTH(1)) xg0_axi_tx();
+	AXIStream #(.DATA_WIDTH(32), .ID_WIDTH(0), .DEST_WIDTH(0), .USER_WIDTH(1)) xg0_axi_rx();
 	wire					xg0_link_up;
+	wire					xg0_tx_clk;
 
 	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) mdioBus();
 
@@ -431,16 +428,13 @@ module top(
 		.rgmii_tx_en(rgmii_tx_en),
 		.rgmii_txd(rgmii_txd),
 
-		.xg0_mac_rx_clk(xg0_mac_rx_clk),
-		.xg0_mac_rx_bus(xg0_mac_rx_bus),
-		.xg0_mac_tx_clk(xg0_mac_tx_clk),
-		.xg0_mac_tx_bus(xg0_mac_tx_bus),
+		.xg0_tx_clk(xg0_tx_clk),
+		.xg0_axi_tx(xg0_axi_tx),
+		.xg0_axi_rx(xg0_axi_rx),
 		.xg0_link_up(xg0_link_up),
 
-		.mgmt0_rx_clk_buf(mgmt0_rx_clk_buf),
-		.mgmt0_rx_bus(mgmt0_rx_bus),
-		.mgmt0_tx_bus(mgmt0_tx_bus),
-		.mgmt0_tx_ready(mgmt0_tx_ready),
+		.mgmt0_axi_tx(mgmt0_axi_tx),
+		.mgmt0_axi_rx(mgmt0_axi_rx),
 		.mgmt0_link_up(mgmt0_link_up),
 		.mgmt0_link_speed(mgmt0_link_speed),
 
@@ -450,26 +444,6 @@ module top(
 		//APB connections
 		.mdioBus(mdioBus)
 	);
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// RX side muxing for SFP vs RGMII PHY to allow management from either
-
-	wire					eth_link_up;
-	wire EthernetRxBus		eth_rx_bus;
-
-	NetworkRxMuxing rx_mux(
-		.clk_250mhz(clk_250mhz),
-
-		.mgmt0_link_up(mgmt0_link_up),
-		.mgmt0_rx_clk_buf(mgmt0_rx_clk_buf),
-		.mgmt0_rx_bus(mgmt0_rx_bus),
-
-		.xg0_link_up(xg0_link_up),
-		.xg0_mac_rx_clk(xg0_mac_rx_clk),
-		.xg0_mac_rx_bus(xg0_mac_rx_bus),
-
-		.eth_link_up(eth_link_up),
-		.eth_rx_bus(eth_rx_bus));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Curve25519 crypto_scalarmult accelerator (for speeding up SSH key exchange)
@@ -536,13 +510,15 @@ module top(
 		.qspi_dq(qspi_dq),
 		.irq(irq),
 
-		.eth_rx_clk(clk_250mhz),
-		.eth_rx_bus(eth_rx_bus),
-		.eth_link_up(eth_link_up),
-
 		.mgmt0_tx_clk(clk_125mhz),
-		.mgmt0_tx_bus(mgmt0_tx_bus),
-		.mgmt0_tx_ready(mgmt0_tx_ready),
+		.mgmt0_axi_tx(mgmt0_axi_tx),
+		.mgmt0_axi_rx(mgmt0_axi_rx),
+		.mgmt0_link_up(mgmt0_link_up),
+
+		.xg0_tx_clk(xg0_tx_clk),
+		.xg0_axi_tx(xg0_axi_tx),
+		.xg0_axi_rx(xg0_axi_rx),
+		.xg0_link_up(xg0_link_up),
 
 		.relayBus(relayBus),
 		.mdioBus(mdioBus),
@@ -552,12 +528,6 @@ module top(
 		.flashBus(flashBus),
 
 		.relay_state(relay_state),
-
-		.xg0_rx_clk(xg0_mac_rx_clk),
-		.xg0_link_up(xg0_link_up),
-		.xg0_tx_clk(xg0_mac_tx_clk),
-		.xg0_tx_bus(xg0_mac_tx_bus),
-
 		.fan_tach(fan_tach),
 
 		.frontpanel_sck(frontpanel_sck),

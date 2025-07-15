@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -126,7 +126,8 @@ extern volatile uint16_t FIRQSTAT;
 extern volatile APB_SPIHostInterface FSPI1;
 extern volatile APB_EthernetTxBuffer_10G FETHTX1;
 extern volatile APB_EthernetTxBuffer_10G FETHTX10;
-extern volatile APB_EthernetRxBuffer FETHRX;
+extern volatile APB_EthernetRxBuffer FETHRX1;
+extern volatile APB_EthernetRxBuffer FETHRX10;
 extern volatile APB_BERTConfig FBERT0;
 extern volatile APB_BERTConfig FBERT1;
 extern volatile APB_SerdesDRP FDRP0;

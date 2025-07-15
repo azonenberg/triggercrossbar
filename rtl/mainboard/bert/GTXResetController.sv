@@ -4,7 +4,7 @@
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -42,6 +42,7 @@ module GTXResetController #(
 )(
 	//Always-on clock for reset controller
 	input wire			sysclk,
+	input wire			txusrclk2,
 
 	//Transmit side control ports
 	input wire			tx_reset,
@@ -91,13 +92,12 @@ module GTXResetController #(
 		.dout(qpll_lock));
 
 	ThreeStageSynchronizer #(
-		.IN_REG(0)
+		.IN_REG(1)
 	) sync_tx_rst_done (
-		.clk_in(sysclk),
+		.clk_in(txusrclk2),
 		.din(TXRESETDONE),
 		.clk_out(sysclk),
 		.dout(tx_reset_done_int));
-
 
 	ThreeStageSynchronizer #(
 		.IN_REG(0)

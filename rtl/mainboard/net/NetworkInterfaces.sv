@@ -4,7 +4,7 @@
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -85,22 +85,17 @@ module NetworkInterfaces(
 	output logic				rgmii_rst_n = 0,
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Output MAC buses
+	// MAC AXI interfaces
 
-	output wire					xg0_mac_rx_clk,
-	output wire EthernetRxBus	xg0_mac_rx_bus,
-
-	output wire					xg0_mac_tx_clk,
-	input wire EthernetTxBus	xg0_mac_tx_bus,
-
+	output wire					xg0_tx_clk,
 	output wire					xg0_link_up,
+	AXIStream.receiver			xg0_axi_tx,
+	AXIStream.transmitter		xg0_axi_rx,
 
-	output wire					mgmt0_rx_clk_buf,
-	output EthernetRxBus		mgmt0_rx_bus,
-	input EthernetTxBus			mgmt0_tx_bus,
-	output wire					mgmt0_tx_ready,
 	output wire					mgmt0_link_up,
 	output lspeed_t				mgmt0_link_speed,
+	AXIStream.receiver			mgmt0_axi_tx,
+	AXIStream.transmitter		mgmt0_axi_rx,
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Register interfaces for controlling stuff
@@ -127,7 +122,6 @@ module NetworkInterfaces(
 	// 10G SFP+ uplink (xg0)
 
 	wire			xg0_rx_clk;
-	wire			xg0_tx_clk;
 
 	wire			xg0_rx_clk_raw;
 	wire			xg0_tx_clk_raw;
@@ -247,43 +241,83 @@ module NetworkInterfaces(
 		.gt0_gtxtxn_out(sfp_tx_n)
 	);
 
-	XGMACWrapper port_xg0(
+	//TODO: Make AXIS_XGEthernetMACWrapper work for 7 series GTX to simplify this
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// 10G PCS
+
+	wire		xgmii_rx_clk;
+	XgmiiBus 	xgmii_rx_bus;
+
+	wire		xgmii_tx_clk;
+	XgmiiBus	xgmii_tx_bus;
+
+	wire		block_sync_good;
+
+	wire		xg0_link_up_phyclk;
+
+	XGEthernetPCS xg0_pcs(
 		.rx_clk(xg0_rx_clk),
 		.tx_clk(xg0_tx_clk),
 
 		.rx_data_valid(xg0_rx_data_valid),
 		.rx_header_valid(xg0_rx_header_valid),
-		.rx_header(xg0_rx_header),
 		.rx_data(xg0_rx_data),
+		.rx_header(xg0_rx_header),
 		.rx_bitslip(xg0_rx_bitslip),
 
 		.tx_sequence(xg0_tx_sequence),
 		.tx_header(xg0_tx_header),
 		.tx_data(xg0_tx_data),
 
+		.tx_header_valid(),
+		.tx_data_valid(),
+
+		.xgmii_rx_clk(xgmii_rx_clk),
+		.xgmii_rx_bus(xgmii_rx_bus),
+
+		.xgmii_tx_clk(xgmii_tx_clk),
+		.xgmii_tx_bus(xgmii_tx_bus),
+
 		.sfp_los(sfp_rx_los),
-
-		.mac_rx_clk(xg0_mac_rx_clk),
-		.mac_rx_bus(xg0_mac_rx_bus),
-
-		.mac_tx_clk(xg0_mac_tx_clk),
-		.mac_tx_bus(xg0_mac_tx_bus),
-
-		.link_up(xg0_link_up),
+		.block_sync_good(block_sync_good),
+		.link_up(xg0_link_up_phyclk),
 		.remote_fault(xg0_remote_fault)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// 10G MAC
+
+	AXIStream #(.DATA_WIDTH(32), .ID_WIDTH(0), .DEST_WIDTH(0), .USER_WIDTH(1)) xg0_axi_rx_phyclk();
+
+	AXIS_XGEthernetMAC xg0_mac(
+		.xgmii_rx_clk(xgmii_rx_clk),
+		.xgmii_rx_bus(xgmii_rx_bus),
+
+		.xgmii_tx_clk(xgmii_tx_clk),
+		.xgmii_tx_bus(xgmii_tx_bus),
+
+		.link_up(xg0_link_up_phyclk),
+
+		.axi_rx(xg0_axi_rx_phyclk),
+		.axi_tx(xg0_axi_tx)
 	);
 
 	//Debug: LEDs for link status
 	//TODO: activity indicator
 	always_comb begin
-		sfp_led[0]	= xg0_link_up;
+		sfp_led[0]	= xg0_link_up_phyclk;
 		sfp_led[1]	= xg0_remote_fault;
 	end
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// RGMII PHY for mgmt0
 
-	RGMIIMACWrapper #(
+	AXIStream #(.DATA_WIDTH(32), .ID_WIDTH(0), .DEST_WIDTH(0), .USER_WIDTH(1)) mgmt0_axi_rx_phyclk();
+
+	wire mgmt0_link_up_phyclk;
+
+	AXIS_RGMIIMACWrapper #(
 		.CLK_BUF_TYPE("LOCAL"),
 		.PHY_INTERNAL_DELAY_RX(1)
 	) port_mgmt0 (
@@ -298,15 +332,52 @@ module NetworkInterfaces(
 		.rgmii_txd(rgmii_txd),
 		.rgmii_tx_ctl(rgmii_tx_en),
 
-		.mac_rx_clk(mgmt0_rx_clk_buf),
-		.mac_rx_bus(mgmt0_rx_bus),
+		.axi_rx(mgmt0_axi_rx_phyclk),
+		.axi_tx(mgmt0_axi_tx),
 
-		.mac_tx_bus(mgmt0_tx_bus),
-		.mac_tx_ready(mgmt0_tx_ready),
-
-		.link_up(mgmt0_link_up),
+		.link_up(mgmt0_link_up_phyclk),
 		.link_speed(mgmt0_link_speed)
 		);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Cross AXI RX buses for Ethernet into management clock domain
+
+	AXIS_CDC #(
+		.FIFO_DEPTH(1024)
+	) xg0_rx_cdc (
+		.axi_rx(xg0_axi_rx_phyclk),
+
+		.tx_clk(clk_250mhz),
+		.axi_tx(xg0_axi_rx)
+	);
+
+	AXIS_CDC #(
+		.FIFO_DEPTH(1024)
+	) mgmt0_rx_cdc (
+		.axi_rx(mgmt0_axi_rx_phyclk),
+
+		.tx_clk(clk_250mhz),
+		.axi_tx(mgmt0_axi_rx)
+	);
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Shift link state flags into management clock domain
+
+	ThreeStageSynchronizer #(
+		.IN_REG(1)
+	) sync_mgmt0_link_up(
+		.clk_in(mgmt0_axi_rx_phyclk.aclk),
+		.din(mgmt0_link_up_phyclk),
+		.clk_out(clk_250mhz),
+		.dout(mgmt0_link_up));
+
+	ThreeStageSynchronizer #(
+		.IN_REG(1)
+	) sync_xg0_link_up(
+		.clk_in(xg0_axi_rx_phyclk.aclk),
+		.din(xg0_link_up_phyclk),
+		.clk_out(clk_250mhz),
+		.dout(xg0_link_up));
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// MDIO interface to mgmt0

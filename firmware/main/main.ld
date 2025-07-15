@@ -37,11 +37,13 @@ SECTIONS
 	{
 		/* Ethernet stuff (0x1000 per node) */
 		. = ALIGN(4096);
-		KEEP (*(.fethtx10))
+		KEEP (*(.fethrx1))
+		. = ALIGN(4096);
+		KEEP (*(.fethrx10))
 		. = ALIGN(4096);
 		KEEP (*(.fethtx1))
 		. = ALIGN(4096);
-		KEEP (*(.fethrx))
+		KEEP (*(.fethtx10))
 		. = ALIGN(4096);
 
 		/* BERT bridge (0x100 per node) */

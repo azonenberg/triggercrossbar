@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -135,7 +135,8 @@ volatile uint16_t FIRQSTAT __attribute__((section(".firqstat")));
 volatile APB_SPIHostInterface FSPI1 __attribute__((section(".fspi1")));
 volatile APB_EthernetTxBuffer_10G FETHTX10 __attribute__((section(".fethtx10")));
 volatile APB_EthernetTxBuffer_10G FETHTX1 __attribute__((section(".fethtx1")));
-volatile APB_EthernetRxBuffer FETHRX __attribute__((section(".fethrx")));
+volatile APB_EthernetRxBuffer FETHRX1 __attribute__((section(".fethrx1")));
+volatile APB_EthernetRxBuffer FETHRX10 __attribute__((section(".fethrx10")));
 volatile APB_BERTConfig FBERT0 __attribute__((section(".fbert0")));
 volatile APB_BERTConfig FBERT1 __attribute__((section(".fbert1")));
 volatile APB_SerdesDRP FDRP0 __attribute__((section(".fdrp0")));
@@ -148,7 +149,8 @@ MDIODevice g_mgmtPhy(&FMDIO, 0);
 
 APB_SpiFlashInterface* g_fpgaFlash = nullptr;
 
-__attribute__((section(".tcmbss"))) APBEthernetInterface g_ethIface(&FETHRX, &FETHTX10);
+//for now, only use the 10G interface
+__attribute__((section(".tcmbss"))) APBEthernetInterface g_ethIface(&FETHRX1, &FETHTX1);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Task tables
@@ -260,7 +262,7 @@ void InitQSPI()
 	//FPGA currently requires <= 62.5 MHz due to the RX oversampling used (4x in 250 MHz clock domain)
 	//Dividing by 5 gives 50 MHz and a transfer rate of 200 Mbps
 	//Dividing by 10, but DDR, gives the same throughput and works around an errata (which one??)
-	uint8_t prescale = 10;
+	uint8_t prescale = 15;
 
 	//Configure the OCTOSPI itself
 	//Original code used "instruction", but we want "address" to enable memory mapping

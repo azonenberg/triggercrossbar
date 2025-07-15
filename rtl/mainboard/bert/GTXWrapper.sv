@@ -4,7 +4,7 @@
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -726,6 +726,7 @@ module GTXWrapper #(
 		.SYSCLK_PERIOD(SYSCLK_PERIOD)
 	) reset_ctrl (
 		.sysclk(sysclk_in),
+		.txusrclk2(txusrclk2_in),
 
 		.tx_reset(soft_reset_tx_in),
 		.tx_clk_from_qpll(tx_clk_from_qpll),

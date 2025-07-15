@@ -4,7 +4,7 @@
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -47,19 +47,16 @@ module ManagementSubsystem(
 	inout wire[3:0]					qspi_dq,
 	output logic					irq,
 
-	//Management network bus
-	input wire						eth_rx_clk,
-	input wire						mgmt0_tx_clk,
-
-	input wire EthernetRxBus		eth_rx_bus,
-	output EthernetTxBus			mgmt0_tx_bus,
-	input wire						mgmt0_tx_ready,
-	input wire						eth_link_up,
-
-	input wire						xg0_rx_clk,
-	input wire						xg0_link_up,
+	//Management network buses
 	input wire						xg0_tx_clk,
-	output EthernetTxBus			xg0_tx_bus,
+	AXIStream.receiver				xg0_axi_rx,
+	AXIStream.transmitter			xg0_axi_tx,
+	input wire						xg0_link_up,
+
+	input wire						mgmt0_tx_clk,
+	AXIStream.receiver				mgmt0_axi_rx,
+	AXIStream.transmitter			mgmt0_axi_tx,
+	input wire						mgmt0_link_up,
 
 	//APB to external components
 	APB.requester					mdioBus,
@@ -106,40 +103,6 @@ module ManagementSubsystem(
 		.clk(sys_clk),
 		.tach(fan_tach[1]),
 		.rpm(fan1_rpm));
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// FIFO for storing inbound/outbound Ethernet frames
-
-	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) ethRxBus();
-
-	wire	rx_frame_ready;
-
-	APB_EthernetRxBuffer_x32 eth_rx_fifo(
-		.apb(ethRxBus),
-		.eth_rx_bus(eth_rx_bus),
-		.eth_link_up(eth_link_up),
-		.rx_frame_ready(rx_frame_ready)
-	);
-
-	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) gigTxBus();
-	APB_EthernetTxBuffer_x32_1G tx_fifo(
-		.apb(gigTxBus),
-
-		.tx_clk(mgmt0_tx_clk),
-		.link_up_pclk(eth_link_up),
-		.tx_ready(mgmt0_tx_ready),
-		.tx_bus(mgmt0_tx_bus)
-	);
-
-	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) xgTxBus();
-
-	APB_EthernetTxBuffer_x32_10G xg_tx_fifo(
-		.apb(xgTxBus),
-
-		.tx_clk(xg0_tx_clk),
-		.link_up(eth_link_up),
-		.tx_bus(xg0_tx_bus)
-	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// QSPI device bridge to internal legacy bus plus APB
@@ -208,7 +171,7 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Second level bridge for devices with larger amounts of address space (starts at 0x00_8000)
 
-	localparam NUM_BIG_DEVS			= 4;
+	localparam NUM_BIG_DEVS			= 5;
 
 	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) bigDownstreamBus[NUM_BIG_DEVS-1:0]();
 
@@ -307,9 +270,11 @@ module ManagementSubsystem(
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_irq_status( .upstream(smolDownstreamBus[8]), .downstream(irqStatusBus) );
 
+	wire	mgmt0_rx_frame_ready;
+	wire	xg0_rx_frame_ready;
 	APB_StatusRegister irqstat (
 		.apb(irqStatusBus),
-		.status({31'h0, rx_frame_ready})
+		.status({30'h0, mgmt0_rx_frame_ready, xg0_rx_frame_ready})
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -342,27 +307,68 @@ module ManagementSubsystem(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Pipeline registers for external APB endpoints with large address space chunks
 
-	//SFP+ transmit FIFO (0x00_8000)
+	//RGMII RX FIFO (0x00_8000)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(1))
-		apb_regslice_xg_tx( .upstream(bigDownstreamBus[0]), .downstream(xgTxBus) );
+		apb_regslice_1g_rx( .upstream(bigDownstreamBus[0]), .downstream(mgmt0_apb_rx) );
 
-	//RGMII transmit FIFO (0x00_9000)
+	//SFP+ RX FIFO (0x00_9000)
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(1))
-		apb_regslice_1g_tx( .upstream(bigDownstreamBus[1]), .downstream(gigTxBus) );
+		apb_regslice_xg_rx( .upstream(bigDownstreamBus[1]), .downstream(xg0_apb_rx) );
 
-	//Ethernet RX FIFO (0x00_a000)
-	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(1))
-		apb_regslice_eth_rx( .upstream(bigDownstreamBus[2]), .downstream(ethRxBus) );
+	//RGMII TX FIFO (0x00_a000)
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(1))
+		apb_regslice_1g_tx( .upstream(bigDownstreamBus[2]), .downstream(mgmt0_apb_tx) );
 
-	//BERT configuration (00_b000)
-	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(1))
-		apb_regslice_bert_config( .upstream(bigDownstreamBus[3]), .downstream(bertBus) );
+	//SFP+ RX FIFO (0x00_b000)
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(1))
+		apb_regslice_xg_tx( .upstream(bigDownstreamBus[3]), .downstream(xg0_apb_tx) );
+
+	//BERT configuration (00_c000)
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(1))
+		apb_regslice_bert_config( .upstream(bigDownstreamBus[4]), .downstream(bertBus) );
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// FIFO for storing inbound/outbound Ethernet frames
+
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) mgmt0_apb_rx();
+	APB_AXIS_EthernetRxBuffer mgmt0_rx_fifo(
+		.apb(mgmt0_apb_rx),
+		.axi_rx(mgmt0_axi_rx),
+		.eth_link_up(mgmt0_link_up),
+		.rx_frame_ready(mgmt0_rx_frame_ready)
+	);
+
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) xg0_apb_rx();
+	APB_AXIS_EthernetRxBuffer xg0_rx_fifo(
+		.apb(xg0_apb_rx),
+		.axi_rx(xg0_axi_rx),
+		.eth_link_up(xg0_link_up),
+		.rx_frame_ready(xg0_rx_frame_ready)
+	);
+
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) mgmt0_apb_tx();
+	APB_AXIS_EthernetTxBuffer mgmt0_tx_fifo(
+		.apb(mgmt0_apb_tx),
+
+		.tx_clk(mgmt0_tx_clk),
+		.link_up_pclk(mgmt0_link_up),
+		.axi_tx(mgmt0_axi_tx)
+	);
+
+	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(BIG_ADDR_WIDTH), .USER_WIDTH(0)) xg0_apb_tx();
+	APB_AXIS_EthernetTxBuffer xg0_tx_fifo(
+		.apb(xg0_apb_tx),
+
+		.tx_clk(xg0_tx_clk),
+		.link_up_pclk(xg0_link_up),
+		.axi_tx(xg0_axi_tx)
+	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Interrupt pin generation
 
 	always_comb begin
-		irq	= rx_frame_ready;	//TODO other sources OR'd together
+		irq	= mgmt0_rx_frame_ready || xg0_rx_frame_ready;	//TODO other sources OR'd together
 	end
 
 endmodule

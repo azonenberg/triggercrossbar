@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -34,6 +34,8 @@
  */
 #include <core/platform.h>
 #include "hwinit.h"
+
+void PollSFPLink();
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Peripheral init
@@ -232,6 +234,11 @@ void PollSFP()
 		g_log("RX power:      %3d.%d μW\n", rxPowerScaled / 10, rxPowerScaled % 10);
 	}
 
+	PollSFPLink();
+}
+
+void PollSFPLink()
+{
 	//Get the SFP link status
 	auto stat = FETHTX10.tx_stat;
 	if(stat & 1)
@@ -240,6 +247,7 @@ void PollSFP()
 		if(!g_sfpLinkUp)
 		{
 			g_log("Interface xg0: link is up at 10 Gbps\n");
+			g_ethIface.SwapInterfaces(&FETHRX10, &FETHTX10);
 			g_sfpLinkUp = true;
 			OnEthernetLinkStateChanged();
 			g_ethProtocol->OnLinkUp();
@@ -252,6 +260,7 @@ void PollSFP()
 		if(g_sfpLinkUp)
 		{
 			g_log("Interface xg0: link is down\n");
+			g_ethIface.SwapInterfaces(&FETHRX1, &FETHTX1);
 			g_sfpLinkUp = false;
 			OnEthernetLinkStateChanged();
 			g_ethProtocol->OnLinkDown();
@@ -366,6 +375,8 @@ uint16_t GetSFPTemperature()
  */
 bool CheckForFPGAEvents()
 {
+	PollSFPLink();
+
 	if(g_irq)
 		PollFPGA();
 
@@ -379,8 +390,10 @@ void PollFPGA()
 {
 	uint16_t fpgastat = FIRQSTAT;
 
-	//New Ethernet frame ready?
-	if(fpgastat & 1)
+	//New Ethernet frame ready on the active interface?
+	bool mgmt0FrameReady = (fpgastat & 2) == 2;
+	bool xg0FrameReady = (fpgastat & 1) == 1;
+	if( (g_sfpLinkUp && xg0FrameReady) || (!g_sfpLinkUp && mgmt0FrameReady) )
 	{
 		auto frame = g_ethIface.GetRxFrame();
 		if(frame != nullptr)

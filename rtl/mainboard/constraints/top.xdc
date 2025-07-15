@@ -201,152 +201,6 @@ set_property PACKAGE_PIN P16 [get_ports {pmod_dq[2]}]
 set_property PACKAGE_PIN R17 [get_ports {pmod_dq[1]}]
 set_property PACKAGE_PIN R19 [get_ports {pmod_dq[0]}]
 
-########################################################################################################################
-# Clock inputs
-
-create_clock -period 5.000 -name clk_200mhz_p -waveform {0.000 2.500} [get_ports clk_200mhz_p]
-
-create_clock -period 6.400 -name gtx_refclk_156m25_p -waveform {0.000 3.200} [get_ports gtx_refclk_156m25_p]
-create_clock -period 5.000 -name gtx_refclk_200m_p [get_ports gtx_refclk_200m_p]
-create_clock -period 8.000 -name rgmii_rxc -waveform {0.000 4.000} [get_ports rgmii_rxc]
-
-########################################################################################################################
-# GTX recovered / PLL clocks
-
-create_clock -period 3.103 -name bert/lane1_transceiver/lane1_rxclk_raw -waveform {0.000 1.552} [get_pins bert/lane1_transceiver/gtxchan/RXOUTCLK]
-create_clock -period 3.103 -name bert/lane1_transceiver/lane1_txclk_raw -waveform {0.000 1.552} [get_pins bert/lane1_transceiver/gtxchan/TXOUTCLK]
-create_clock -period 3.103 -name bert/lane0_transceiver/lane0_rxclk_raw -waveform {0.000 1.552} [get_pins bert/lane0_transceiver/gtxchan/RXOUTCLK]
-create_clock -period 3.103 -name bert/lane0_transceiver/lane0_txclk_raw -waveform {0.000 1.552} [get_pins bert/lane0_transceiver/gtxchan/TXOUTCLK]
-create_clock -period 3.103 -name prbs_transceiver/cdrtrig_rx_clk_raw -waveform {0.000 1.552} [get_pins prbs_transceiver/gtxchan/RXOUTCLK]
-create_clock -period 3.103 -name prbs_transceiver/prbs_tx_clk_raw -waveform {0.000 1.552} [get_pins prbs_transceiver/gtxchan/TXOUTCLK]
-
-########################################################################################################################
-# IO timing
-
-# Naive constraints of 1.2 / 2.8 assume the data and clock are nominally aligned to center with 1.2ns setup/hold time
-# This does not appear to actually be the case!
-# Actual scope measurements show clock ~912ps after data edge, not 2ns as the datasheet suggests
-
-########################################################################################################################
-# CDC
-
-set_clock_groups -asynchronous -group [get_clocks rgmii_rxc] -group [get_clocks clk_125mhz_raw]
-set_clock_groups -asynchronous -group [get_clocks network/xg_transceiver/inst/sfp_transceiver_i/gt0_sfp_transceiver_i/gtxe2_i/RXOUTCLK] -group [get_clocks clk_250mhz_raw]
-set_clock_groups -asynchronous -group [get_clocks rgmii_rxc] -group [get_clocks clk_250mhz_raw]
-set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks rgmii_rxc]
-set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks rgmii_rxc]
-
-set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks bert/lane1_transceiver/lane1_rxclk_raw]
-set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane1_transceiver/lane1_rxclk_raw]
-set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks bert/lane1_transceiver/lane1_txclk_raw]
-set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane1_transceiver/lane1_txclk_raw]
-set_clock_groups -asynchronous -group [get_clocks bert/lane1_transceiver/lane1_rxclk_raw] -group [get_clocks clk_125mhz_raw]
-set_clock_groups -asynchronous -group [get_clocks bert/lane1_transceiver/lane1_txclk_raw] -group [get_clocks clk_125mhz_raw]
-set_clock_groups -asynchronous -group [get_clocks bert/lane1_transceiver/lane1_rxclk_raw] -group [get_clocks clk_250mhz_raw]
-
-set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks bert/lane0_transceiver/lane0_rxclk_raw]
-set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane0_transceiver/lane0_rxclk_raw]
-set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks bert/lane0_transceiver/lane0_txclk_raw]
-set_clock_groups -asynchronous -group [get_clocks clk_250mhz_raw] -group [get_clocks bert/lane0_transceiver/lane0_txclk_raw]
-set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/lane0_rxclk_raw] -group [get_clocks clk_125mhz_raw]
-set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/lane0_txclk_raw] -group [get_clocks clk_125mhz_raw]
-set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/lane0_rxclk_raw] -group [get_clocks clk_250mhz_raw]
-set_clock_groups -asynchronous -group [get_clocks bert/lane0_transceiver/lane0_txclk_raw] -group [get_clocks clk_250mhz_raw]
-
-set_clock_groups -asynchronous -group [get_clocks prbs_transceiver/cdrtrig_rx_clk_raw] -group [get_clocks clk_125mhz_raw]
-set_clock_groups -asynchronous -group [get_clocks clk_125mhz_raw] -group [get_clocks prbs_transceiver/cdrtrig_rx_clk_raw]
-
-set_clock_groups -asynchronous -group [get_clocks prbs_transceiver/prbs_tx_clk_raw] -group [get_clocks clk_125mhz_raw]
-
-set_clock_groups -asynchronous -group [get_clocks network/xg_transceiver/inst/sfp_transceiver_i/gt0_sfp_transceiver_i/gtxe2_i/RXOUTCLK] -group [get_clocks network/xg_transceiver/inst/sfp_transceiver_i/gt0_sfp_transceiver_i/gtxe2_i/TXOUTCLK]
-set_false_path -from [get_clocks clk_250mhz_raw] -to [get_clocks network/xg_transceiver/inst/sfp_transceiver_i/gt0_sfp_transceiver_i/gtxe2_i/TXOUTCLK]
-
-set_clock_groups -asynchronous -group [get_clocks network/xg_transceiver/inst/sfp_transceiver_i/gt0_sfp_transceiver_i/gtxe2_i/TXOUTCLK] -group [get_clocks clk_250mhz_raw]
-
-########################################################################################################################
-# Floorplanning
-
-create_pblock pblock_crypt25519
-add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519 mgmt/apb_regslice_crypt]]
-resize_pblock [get_pblocks pblock_crypt25519] -add {CLOCKREGION_X0Y0:CLOCKREGION_X1Y0}
-set_property IS_SOFT FALSE [get_pblocks pblock_crypt25519]
-
-create_pblock pblock_port_xg0
-add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/port_xg0/mac network/port_xg0/rx_s2_control_i_1]]
-resize_pblock [get_pblocks pblock_port_xg0] -add {SLICE_X36Y75:SLICE_X53Y99}
-resize_pblock [get_pblocks pblock_port_xg0] -add {DSP48_X2Y30:DSP48_X2Y39}
-resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB18_X2Y30:RAMB18_X2Y39}
-resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB36_X2Y15:RAMB36_X2Y19}
-set_property IS_SOFT FALSE [get_pblocks pblock_port_xg0]
-
-create_pblock pblock_xg0_pcs
-add_cells_to_pblock [get_pblocks pblock_xg0_pcs] [get_cells -quiet [list network/port_xg0/pcs]]
-resize_pblock [get_pblocks pblock_xg0_pcs] -add {SLICE_X44Y90:SLICE_X53Y124}
-resize_pblock [get_pblocks pblock_xg0_pcs] -add {DSP48_X2Y36:DSP48_X2Y49}
-resize_pblock [get_pblocks pblock_xg0_pcs] -add {RAMB18_X2Y36:RAMB18_X3Y39}
-resize_pblock [get_pblocks pblock_xg0_pcs] -add {RAMB36_X2Y18:RAMB36_X3Y19}
-set_property IS_SOFT FALSE [get_pblocks pblock_xg0_pcs]
-
-create_pblock pblock_port_mgmt0
-add_cells_to_pblock [get_pblocks pblock_port_mgmt0] [get_cells -quiet [list network/port_mgmt0]]
-resize_pblock [get_pblocks pblock_port_mgmt0] -add {SLICE_X0Y150:SLICE_X11Y178}
-resize_pblock [get_pblocks pblock_port_mgmt0] -add {DSP48_X0Y60:DSP48_X0Y69}
-resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB18_X0Y60:RAMB18_X0Y69}
-resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB36_X0Y30:RAMB36_X0Y34}
-set_property IS_SOFT FALSE [get_pblocks pblock_port_mgmt0]
-
-create_pblock pblock_qspi
-#add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/tach0 mgmt/tach1]]
-resize_pblock [get_pblocks pblock_qspi] -add {SLICE_X0Y50:SLICE_X19Y99}
-resize_pblock [get_pblocks pblock_qspi] -add {DSP48_X0Y20:DSP48_X0Y39}
-resize_pblock [get_pblocks pblock_qspi] -add {RAMB18_X0Y20:RAMB18_X0Y39}
-resize_pblock [get_pblocks pblock_qspi] -add {RAMB36_X0Y10:RAMB36_X0Y19}
-set_property IS_SOFT FALSE [get_pblocks pblock_qspi]
-
-create_pblock pblock_rgmii_cdc
-add_cells_to_pblock [get_pblocks pblock_rgmii_cdc] [get_cells -quiet [list rx_mux/baset_rx_cdc]]
-resize_pblock [get_pblocks pblock_rgmii_cdc] -add {SLICE_X12Y150:SLICE_X35Y163}
-resize_pblock [get_pblocks pblock_rgmii_cdc] -add {DSP48_X1Y60:DSP48_X1Y63}
-resize_pblock [get_pblocks pblock_rgmii_cdc] -add {RAMB18_X1Y60:RAMB18_X1Y63}
-resize_pblock [get_pblocks pblock_rgmii_cdc] -add {RAMB36_X1Y30:RAMB36_X1Y31}
-set_property IS_SOFT FALSE [get_pblocks pblock_rgmii_cdc]
-
-create_pblock pblock_rx_mux
-add_cells_to_pblock [get_pblocks pblock_rx_mux] [get_cells -quiet [list rx_mux/baser_rx_cdc]]
-resize_pblock [get_pblocks pblock_rx_mux] -add {SLICE_X36Y75:SLICE_X47Y99}
-resize_pblock [get_pblocks pblock_rx_mux] -add {RAMB18_X2Y30:RAMB18_X2Y39}
-resize_pblock [get_pblocks pblock_rx_mux] -add {RAMB36_X2Y15:RAMB36_X2Y19}
-set_property IS_SOFT FALSE [get_pblocks pblock_rx_mux]
-
-########################################################################################################################
-# Boot / configuration
-
-set_property CFGBVS VCCO [current_design]
-set_property CONFIG_VOLTAGE 3.3 [current_design]
-
-set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
-set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
-
-########################################################################################################################
-# JTAG
-
-
-create_pblock pblock_cdrtrig_linecode
-resize_pblock [get_pblocks pblock_cdrtrig_linecode] -add {CLOCKREGION_X1Y3:CLOCKREGION_X1Y3}
-set_property IS_SOFT FALSE [get_pblocks pblock_cdrtrig_linecode]
-
-create_pblock pblock_cdtrtrig_gearboxes
-resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {SLICE_X44Y150:SLICE_X53Y188}
-resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {DSP48_X2Y60:DSP48_X2Y73}
-resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB18_X2Y60:RAMB18_X2Y73}
-resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB36_X2Y30:RAMB36_X2Y36}
-set_property IS_SOFT FALSE [get_pblocks pblock_cdtrtrig_gearboxes]
-
-
-
-
-
-
 set_property IOSTANDARD LVCMOS33 [get_ports {flash_dq[3]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {flash_dq[2]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {flash_dq[1]}]
@@ -370,7 +224,154 @@ set_property DRIVE 8 [get_ports {flash_dq[1]}]
 set_property DRIVE 8 [get_ports {flash_dq[0]}]
 set_property DRIVE 8 [get_ports flash_cs_n]
 
+########################################################################################################################
+# Clock inputs
 
+create_clock -period 5.000 -name clk_200mhz_p -waveform {0.000 2.500} [get_ports clk_200mhz_p]
+create_clock -period 6.400 -name gtx_refclk_156m25_p -waveform {0.000 3.200} [get_ports gtx_refclk_156m25_p]
+create_clock -period 5.000 -name gtx_refclk_200m_p [get_ports gtx_refclk_200m_p]
+create_clock -period 8.000 -name rgmii_rxc -waveform {0.000 4.000} [get_ports rgmii_rxc]
+
+########################################################################################################################
+# GTX recovered / PLL clocks
+
+create_clock -period 3.103 -name bert/lane1_transceiver/lane1_rxclk_raw -waveform {0.000 1.552} [get_pins bert/lane1_transceiver/gtxchan/RXOUTCLK]
+create_clock -period 3.103 -name bert/lane1_transceiver/lane1_txclk_raw -waveform {0.000 1.552} [get_pins bert/lane1_transceiver/gtxchan/TXOUTCLK]
+create_clock -period 3.103 -name bert/lane0_transceiver/lane0_rxclk_raw -waveform {0.000 1.552} [get_pins bert/lane0_transceiver/gtxchan/RXOUTCLK]
+create_clock -period 3.103 -name bert/lane0_transceiver/lane0_txclk_raw -waveform {0.000 1.552} [get_pins bert/lane0_transceiver/gtxchan/TXOUTCLK]
+create_clock -period 3.103 -name prbs_transceiver/cdrtrig_rx_clk_raw -waveform {0.000 1.552} [get_pins prbs_transceiver/gtxchan/RXOUTCLK]
+create_clock -period 3.103 -name prbs_transceiver/prbs_tx_clk_raw -waveform {0.000 1.552} [get_pins prbs_transceiver/gtxchan/TXOUTCLK]
+
+create_generated_clock -name clk_250mhz -source [get_pins clk_main/rgmii_mmcm/CLKIN1] -master_clock [get_clocks clk_200mhz_p] [get_pins clk_main/rgmii_mmcm/CLKOUT4]
+
+########################################################################################################################
+# IO timing
+
+# Naive constraints of 1.2 / 2.8 assume the data and clock are nominally aligned to center with 1.2ns setup/hold time
+# This does not appear to actually be the case!
+# Actual scope measurements show clock ~912ps after data edge, not 2ns as the datasheet suggests
+
+########################################################################################################################
+# CDC
+
+set tmp_i_i0 [get_cells -hierarchical -filter { NAME =~  "*sync*" && NAME =~  "*reg_a_ff*" }]
+set tmp_i_i1 [get_cells -hierarchical -filter { NAME =~  "*sync*" && NAME =~  "*reg_b*" }]
+set tmp_i_i2 [get_cells -hierarchical -filter { NAME =~  "*sync*" && NAME =~  "*tx_a_reg*" }]
+set tmp_i_i3 [get_cells -hierarchical -filter { NAME =~  "*sync*" && NAME =~  "*dout1_reg*" }]
+set tmp_i_i4 [get_cells -hierarchical -filter { NAME =~  "*sync*" && NAME =~  "*a_ff*" }]
+set tmp_i_i5 [get_cells -hierarchical -filter { NAME =~  "*sync*" && NAME =~  "*dout0_reg*" }]
+set tmp_i_i6 [get_cells -hierarchical -filter { NAME =~  "*fifomem*" && NAME =~  "*portb_dout_raw_reg*" }]
+set tmp_i_i8 [get_cells -hierarchical -filter { NAME =~  "*apb_cdc*" && NAME =~  "*downstream*" }]
+set tmp_i_i9 [get_cells -hierarchical -filter { NAME =~  "*apb_cdc*" && NAME =~  "*upstream*" }]
+
+# TODO update comment with what sync this is
+set_max_delay -datapath_only -from $tmp_i_i0 -to $tmp_i_i1 4.00
+set_bus_skew -from $tmp_i_i0 -to $tmp_i_i1 4.00
+
+# TODO update comment with what sync this is
+set_max_delay -datapath_only -from $tmp_i_i2 -to $tmp_i_i3 4.00
+set_bus_skew -from $tmp_i_i2 -to $tmp_i_i3 4.00
+
+# TODO update comment with what sync this is
+set_max_delay -datapath_only -from $tmp_i_i4 -to $tmp_i_i1 4.00
+set_bus_skew -from $tmp_i_i4 -to $tmp_i_i1 4.00
+
+# ThreeStageSynchronizer
+set_max_delay -datapath_only -from $tmp_i_i5 -to $tmp_i_i3 4.00
+set_bus_skew -from $tmp_i_i5 -to $tmp_i_i3 4.00
+
+# APB_CDC
+set_max_delay -datapath_only -from [get_clocks clk_250mhz] -to $tmp_i_i8 4.00
+set_bus_skew -from [get_clocks clk_250mhz] -to $tmp_i_i8 4.00
+
+set_max_delay -datapath_only -from $tmp_i_i9 -to [get_clocks clk_250mhz] 4.00
+set_bus_skew -from $tmp_i_i9 -to [get_clocks clk_250mhz] 4.00
+
+# dual clock BRAMs in CDC FIFOs
+set tmp_i_i7 [get_cells -hierarchical -filter { NAME =~  "*fifomem*" }]
+set_false_path -from [get_clocks clk_250mhz] -through $tmp_i_i7 -to $tmp_i_i6
+
+########################################################################################################################
+# Synchronized trigger is a timing ignore
+
+set muxsel [get_cells -hierarchical -filter { NAME =~  "*matrix*" && NAME =~  "*muxsel_reg*" }]
+set latrig [get_cells -hierarchical -filter { NAME =~  "*bert*" && NAME =~  "*sync_*" && NAME =~  "*dout1_reg*" }]
+set_false_path -from $muxsel -to $latrig
+
+########################################################################################################################
+# Floorplanning
+
+create_pblock pblock_crypt25519
+add_cells_to_pblock [get_pblocks pblock_crypt25519] [get_cells -quiet [list crypt25519 mgmt/apb_regslice_crypt]]
+resize_pblock [get_pblocks pblock_crypt25519] -add {CLOCKREGION_X0Y0:CLOCKREGION_X1Y0}
+set_property IS_SOFT FALSE [get_pblocks pblock_crypt25519]
+
+create_pblock pblock_port_xg0
+add_cells_to_pblock [get_pblocks pblock_port_xg0] [get_cells -quiet [list network/xg0_mac network/xg0_rx_cdc]]
+resize_pblock [get_pblocks pblock_port_xg0] -add {SLICE_X36Y75:SLICE_X53Y99}
+resize_pblock [get_pblocks pblock_port_xg0] -add {DSP48_X2Y30:DSP48_X2Y39}
+resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB18_X2Y30:RAMB18_X2Y39}
+resize_pblock [get_pblocks pblock_port_xg0] -add {RAMB36_X2Y15:RAMB36_X2Y19}
+set_property IS_SOFT FALSE [get_pblocks pblock_port_xg0]
+
+create_pblock pblock_xg0_pcs
+add_cells_to_pblock [get_pblocks pblock_xg0_pcs] [get_cells -quiet [list network/xg0_pcs]]
+resize_pblock [get_pblocks pblock_xg0_pcs] -add {SLICE_X44Y90:SLICE_X53Y124}
+resize_pblock [get_pblocks pblock_xg0_pcs] -add {DSP48_X2Y36:DSP48_X2Y49}
+resize_pblock [get_pblocks pblock_xg0_pcs] -add {RAMB18_X2Y36:RAMB18_X3Y39}
+resize_pblock [get_pblocks pblock_xg0_pcs] -add {RAMB36_X2Y18:RAMB36_X3Y19}
+set_property IS_SOFT FALSE [get_pblocks pblock_xg0_pcs]
+
+create_pblock pblock_port_mgmt0
+add_cells_to_pblock [get_pblocks pblock_port_mgmt0] [get_cells -quiet [list network/port_mgmt0 network/mgmt0_rx_cdc]]
+resize_pblock [get_pblocks pblock_port_mgmt0] -add {SLICE_X0Y150:SLICE_X11Y178}
+resize_pblock [get_pblocks pblock_port_mgmt0] -add {DSP48_X0Y60:DSP48_X0Y69}
+resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB18_X0Y60:RAMB18_X0Y69}
+resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB36_X0Y30:RAMB36_X0Y34}
+set_property IS_SOFT FALSE [get_pblocks pblock_port_mgmt0]
+
+create_pblock pblock_qspi
+#add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/tach0 mgmt/tach1]]
+resize_pblock [get_pblocks pblock_qspi] -add {SLICE_X0Y50:SLICE_X19Y99}
+resize_pblock [get_pblocks pblock_qspi] -add {DSP48_X0Y20:DSP48_X0Y39}
+resize_pblock [get_pblocks pblock_qspi] -add {RAMB18_X0Y20:RAMB18_X0Y39}
+resize_pblock [get_pblocks pblock_qspi] -add {RAMB36_X0Y10:RAMB36_X0Y19}
+set_property IS_SOFT FALSE [get_pblocks pblock_qspi]
+
+create_pblock pblock_bert_cdc
+resize_pblock [get_pblocks pblock_bert_cdc] -add {SLICE_X36Y125:SLICE_X53Y149}
+add_cells_to_pblock [get_pblocks pblock_bert_cdc] [get_cells -quiet [list bert/lane0_apb_cdc bert/lane0_apb_config_cdc bert/lane1_apb_cdc bert/lane1_apb_config_cdc]]
+set_property IS_SOFT FALSE [get_pblocks pblock_bert_cdc]
+
+create_pblock pblock_bert_la
+resize_pblock [get_pblocks pblock_bert_la] -add {SLICE_X0Y140:SLICE_X53Y199}
+resize_pblock [get_pblocks pblock_bert_la] -add {RAMB18_X0Y56:RAMB18_X2Y79}
+resize_pblock [get_pblocks pblock_bert_la] -add {RAMB36_X0Y28:RAMB36_X2Y39}
+add_cells_to_pblock [get_pblocks pblock_bert_la] [get_cells -quiet [list bert/lane0_la]]
+set_property IS_SOFT FALSE [get_pblocks pblock_bert_la]
+
+create_pblock pblock_cdrtrig_linecode
+resize_pblock [get_pblocks pblock_cdrtrig_linecode] -add {CLOCKREGION_X1Y3:CLOCKREGION_X1Y3}
+set_property IS_SOFT FALSE [get_pblocks pblock_cdrtrig_linecode]
+
+create_pblock pblock_cdtrtrig_gearboxes
+resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {SLICE_X44Y150:SLICE_X53Y188}
+resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {DSP48_X2Y60:DSP48_X2Y73}
+resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB18_X2Y60:RAMB18_X2Y73}
+resize_pblock [get_pblocks pblock_cdtrtrig_gearboxes] -add {RAMB36_X2Y30:RAMB36_X2Y36}
+set_property IS_SOFT FALSE [get_pblocks pblock_cdtrtrig_gearboxes]
+
+########################################################################################################################
+# Boot / configuration
+
+set_property CFGBVS VCCO [current_design]
+set_property CONFIG_VOLTAGE 3.3 [current_design]
+
+set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
+set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]
+
+########################################################################################################################
+# JTAG
 
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
 set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
