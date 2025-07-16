@@ -342,14 +342,10 @@ module NetworkInterfaces(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Cross AXI RX buses for Ethernet into management clock domain
 
-	//Pipeline stage before the CDC since some signals coming out of the MAC are combinatorial with tight timing
-	//AXIStream #(.DATA_WIDTH(32), .ID_WIDTH(0), .DEST_WIDTH(0), .USER_WIDTH(1)) xg0_axi_rx_phyclk_pipe();
-	//AXIS_PipelineStage xg0_rx_pipe ( .axi_rx(xg0_axi_rx_phyclk), .axi_tx(xg0_axi_rx_phyclk_pipe));
-
 	AXIS_CDC #(
 		.FIFO_DEPTH(1024)
 	) xg0_rx_cdc (
-		.axi_rx(xg0_axi_rx_phyclk/*_pipe*/),
+		.axi_rx(xg0_axi_rx_phyclk),
 
 		.tx_clk(clk_250mhz),
 		.axi_tx(xg0_axi_rx)
@@ -367,6 +363,7 @@ module NetworkInterfaces(
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Shift link state flags into management clock domain
 
+	(* keep_hierarchy = "yes" *)
 	ThreeStageSynchronizer #(
 		.IN_REG(1)
 	) sync_mgmt0_link_up(
@@ -375,6 +372,7 @@ module NetworkInterfaces(
 		.clk_out(clk_250mhz),
 		.dout(mgmt0_link_up));
 
+	(* keep_hierarchy = "yes" *)
 	ThreeStageSynchronizer #(
 		.IN_REG(1)
 	) sync_xg0_link_up(

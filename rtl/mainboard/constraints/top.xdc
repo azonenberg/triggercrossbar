@@ -331,8 +331,9 @@ resize_pblock [get_pblocks pblock_port_mgmt0] -add {RAMB36_X0Y30:RAMB36_X0Y34}
 set_property IS_SOFT FALSE [get_pblocks pblock_port_mgmt0]
 
 create_pblock pblock_qspi
-#add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/tach0 mgmt/tach1]]
-resize_pblock [get_pblocks pblock_qspi] -add {SLICE_X0Y50:SLICE_X19Y99}
+add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/bridge mgmt/tach0 mgmt/tach1]]
+add_cells_to_pblock [get_pblocks pblock_qspi] [get_cells -quiet [list mgmt/apb_regslice_bert_config]]
+resize_pblock [get_pblocks pblock_qspi] -add {SLICE_X0Y50:SLICE_X23Y99}
 resize_pblock [get_pblocks pblock_qspi] -add {DSP48_X0Y20:DSP48_X0Y39}
 resize_pblock [get_pblocks pblock_qspi] -add {RAMB18_X0Y20:RAMB18_X0Y39}
 resize_pblock [get_pblocks pblock_qspi] -add {RAMB36_X0Y10:RAMB36_X0Y19}

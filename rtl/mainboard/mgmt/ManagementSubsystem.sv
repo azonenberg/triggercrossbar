@@ -149,7 +149,7 @@ module ManagementSubsystem(
 	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(1))
 		apb_regslice_root2smol( .upstream(rootDownstreamBus[0]), .downstream(rootDownstreamBusReg[0]) );
 
-	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(0))
+	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(0))
 		apb_regslice_root2big( .upstream(rootDownstreamBus[1]), .downstream(rootDownstreamBusReg[1]) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -308,23 +308,23 @@ module ManagementSubsystem(
 	// Pipeline registers for external APB endpoints with large address space chunks
 
 	//RGMII RX FIFO (0x00_8000)
-	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(1))
+	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(1))
 		apb_regslice_1g_rx( .upstream(bigDownstreamBus[0]), .downstream(mgmt0_apb_rx) );
 
 	//SFP+ RX FIFO (0x00_9000)
-	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(1))
+	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(1))
 		apb_regslice_xg_rx( .upstream(bigDownstreamBus[1]), .downstream(xg0_apb_rx) );
 
 	//RGMII TX FIFO (0x00_a000)
-	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(1))
+	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(1))
 		apb_regslice_1g_tx( .upstream(bigDownstreamBus[2]), .downstream(mgmt0_apb_tx) );
 
 	//SFP+ RX FIFO (0x00_b000)
-	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(1))
+	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(1))
 		apb_regslice_xg_tx( .upstream(bigDownstreamBus[3]), .downstream(xg0_apb_tx) );
 
 	//BERT configuration (00_c000)
-	APBRegisterSlice #(.UP_REG(1), .DOWN_REG(1))
+	APBRegisterSlice #(.UP_REG(0), .DOWN_REG(1))
 		apb_regslice_bert_config( .upstream(bigDownstreamBus[4]), .downstream(bertBus) );
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
