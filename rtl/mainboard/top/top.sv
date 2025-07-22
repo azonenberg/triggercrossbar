@@ -182,12 +182,6 @@ module top(
 
 	wire	cclk;
 
-	//DQ2 / WP and DQ3 / HOLD aren't used for now, tie high
-	assign flash_dq[3:2] = 2'b11;
-
-	//Drive DQ1 / SO to high-Z
-	assign flash_dq[1] = 1'bz;
-
 	//STARTUP block
 	wire	ring_clk;
 	STARTUPE2 startup(
@@ -206,15 +200,29 @@ module top(
 		.EOS()
 		);
 
-	//SPI bus controller
+	wire[3:0] flash_dq_out;
+	wire[3:0] flash_dq_in;
+	wire[3:0] flash_dq_tris;
+
+	for(genvar g=0; g<4; g=g+1) begin : flash_iobufs
+		IOBUF iobuf(
+			.I(flash_dq_out[g]),
+			.O(flash_dq_in[g]),
+			.T(flash_dq_tris[g]),
+			.IO(flash_dq[g]));
+
+	end
+
+	//QSPI bus controller
 	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) flashBus();
-	APB_SPIHostInterface flash_spi(
+	APB_QSPIHostInterface flash_spi(
 		.apb(flashBus),
 
-		.spi_sck(cclk),
-		.spi_mosi(flash_dq[0]),
-		.spi_miso(flash_dq[1]),
-		.spi_cs_n(flash_cs_n)
+		.qspi_sck(cclk),
+		.qspi_dq_out(flash_dq_out),
+		.qspi_dq_in(flash_dq_in),
+		.qspi_dq_tris(flash_dq_tris),
+		.qspi_cs_n(flash_cs_n)
 	);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -450,7 +458,9 @@ module top(
 
 	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) cryptBus();
 
-	APB_Curve25519 crypt25519(
+	APB_Curve25519 #(
+		.REGFILE_OUT_REG(1)
+	) crypt25519 (
 		.apb(cryptBus)
 	);
 
