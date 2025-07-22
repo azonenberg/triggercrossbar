@@ -56,7 +56,6 @@ class MemoryPerformanceTester
 {
 public:
 
-	__attribute__((section(".tcmtext")))
 	static void DoTestX8(volatile uint8_t* buf, size_t size)
 	{
 		//Write test
@@ -77,7 +76,6 @@ public:
 		g_log("Readback:  %d\n", dt);
 	}
 
-	__attribute__((section(".tcmtext")))
 	static void DoTestX16(volatile uint16_t* buf, size_t size)
 	{
 		//Write test
@@ -98,7 +96,6 @@ public:
 		g_log("Readback:  %d\n", dt);
 	}
 
-	__attribute__((section(".tcmtext")))
 	static void DoTestX32(volatile uint32_t* buf, size_t size)
 	{
 		//Write test
@@ -119,7 +116,6 @@ public:
 		g_log("Readback:  %d\n", dt);
 	}
 
-	__attribute__((section(".tcmtext")))
 	static void DoTestX64(volatile uint64_t* buf, size_t size)
 	{
 		//Write test
