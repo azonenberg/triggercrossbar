@@ -284,44 +284,41 @@ module ManagementBridge(
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Debug ILA
-	/*
-	ila_1 ila(
+
+	ila_0 ila(
 		.clk(clk),
 
-		.probe0(start),
-		.probe1(stop),
-		.probe2(insn_valid),
-		.probe3(opcode),
-		.probe4(addr),
-		.probe5(wr_en_raw),
-		.probe6(wr_data),
-		.probe7(rd_mode),
-		.probe8(rd_en_raw),
-		.probe9(rd_valid_muxed),
-		.probe10(rd_data_muxed),
+		.probe0(apb.psel),
+		.probe1(apb.penable),
+		.probe2(apb.pwdata),
+		.probe3(apb.prdata),
+		.probe4(apb.paddr),
+		.probe5(apb.pready),
+		.probe6(apb.pwrite),
 
-		.probe11(apb.psel),
-		.probe12(apb.penable),
-		.probe13(apb.pwdata),
-		.probe14(apb.prdata),
-		.probe15(apb.paddr),
-		.probe16(apb.pready),
+		.probe7(qspi_cs_n),
+		.probe8(qspi.dq_in),
+		.probe9(qspi.dq_out),
+		.probe10(qspi.dq_oe),
+		.probe11(qspi.sck_sync),
+		.probe12(qspi.sck_rising),
+		.probe13(qspi.sck_falling),
 
-		.probe17(apb_pwdata_lo),
-		.probe18(rd_data_ff),
-		.probe19(apb.pwrite),
+		.probe14(apb_penable_ff),
+		.probe15(wr_addr),
 
-		.probe20(qspi_cs_n),
-		.probe21(qspi.dq_in),
-		.probe22(qspi.dq_out),
-		.probe23(qspi.dq_oe),
-		.probe24(qspi.sck_sync),
-		.probe25(qspi.sck_rising),
-		.probe26(qspi.sck_falling),
+		.probe16(rd_mode),
+		.probe17(insn_valid),
+		.probe18(opcode),
+		.probe19(first),
+		.probe20(rd_data_ff),
+		.probe21(stop),
+		.probe22(wr_en_raw),
+		.probe23(rd_en_raw),
+		.probe24(rd_valid_muxed),
+		.probe25(rd_data_muxed),
 
-		.probe27(apb_penable_ff),
-		.probe28(wr_addr)
+		.probe26(apb_write_half_valid),
+		.probe27(apb_paddr_ff)
 	);
-	*/
-
 endmodule

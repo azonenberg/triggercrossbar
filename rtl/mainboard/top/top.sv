@@ -459,7 +459,8 @@ module top(
 	APB #(.DATA_WIDTH(32), .ADDR_WIDTH(SMOL_ADDR_WIDTH), .USER_WIDTH(0)) cryptBus();
 
 	APB_Curve25519 #(
-		.REGFILE_OUT_REG(1)
+		.REGFILE_OUT_REG(0),
+		.MULT_AREA_OPT(0)
 	) crypt25519 (
 		.apb(cryptBus)
 	);

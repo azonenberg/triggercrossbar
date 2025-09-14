@@ -368,7 +368,10 @@ module ManagementSubsystem(
 	// Interrupt pin generation
 
 	always_comb begin
-		irq	= mgmt0_rx_frame_ready || xg0_rx_frame_ready;	//TODO other sources OR'd together
+		if(xg0_link_up)
+			irq = xg0_rx_frame_ready;
+		else
+			irq	= mgmt0_rx_frame_ready;
 	end
 
 endmodule

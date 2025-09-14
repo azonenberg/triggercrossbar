@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * trigger-crossbar                                                                                                     *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -63,6 +63,9 @@ STM32NTPClient* g_ntpClient = nullptr;
 
 ///@brief The SSH server
 ManagementSSHTransportServer* g_sshd = nullptr;
+
+///@brief The battery-backed RAM used to store state across power cycles
+volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory mapped SFRs on the FPGA

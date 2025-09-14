@@ -60,7 +60,7 @@ void App_Init()
 
 	//Set up the quad SPI and connect to the FPGA
 	InitQSPI();
-	InitFPGA();
+	InitFPGAForQSPI();
 	InitRelays();
 
 	//Get our MAC address

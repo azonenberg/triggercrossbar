@@ -68,7 +68,7 @@ void StatusRegisterMaskedWait(volatile uint32_t* a, volatile uint32_t* b, uint32
 
 void App_Init();
 void InitQSPI();
-void InitFPGA();
+void InitFPGAForQSPI();
 void InitFPGAFlash();
 void InitI2C();
 void InitEthernet();
@@ -98,9 +98,6 @@ extern GPIOPin* g_sfpTxFaultPin;
 extern bool g_sfpFaulted;
 extern bool g_sfpPresent;
 extern GPIOPin g_irq;
-
-extern uint8_t g_fpgaSerial[8];
-extern uint32_t g_usercode;
 
 extern const char* g_defaultSshUsername;
 extern const char* g_usernameObjectID;
@@ -134,9 +131,6 @@ extern volatile APB_SerdesDRP FDRP0;
 extern volatile APB_SerdesDRP FDRP1;
 extern volatile LogicAnalyzer FLA0;
 extern volatile LogicAnalyzer FLA1;
-
-//Backup SRAM used for communication with bootloader
-extern volatile BootloaderBBRAM* g_bbram;
 
 void UART4_Handler();
 

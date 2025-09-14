@@ -105,17 +105,8 @@ bool g_usingDHCP = false;
 ///@brief The DHCP client
 ManagementDHCPClient* g_dhcpClient = nullptr;
 
-///@brief USERCODE of the FPGA (build timestamp)
-uint32_t g_usercode = 0;
-
-///@brief FPGA die serial number
-uint8_t g_fpgaSerial[8] = {0};
-
 ///@brief IRQ line to the FPGA
 GPIOPin g_irq(&GPIOH, 6, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
-
-///@brief The battery-backed RAM used to store state across power cycles
-volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Memory mapped SFRs on the FPGA
@@ -234,6 +225,7 @@ void InitQSPI()
 	g_log("Initializing QSPI interface\n");
 
 	//Configure the I/O manager
+	RCCHelper::Enable(&OCTOSPIM);
 	OctoSPIManager::ConfigureMux(false);
 	OctoSPIManager::ConfigurePort(
 		1,							//Configuring port 1
@@ -295,7 +287,7 @@ void InitQSPI()
 /**
 	@brief Bring up the control interface to the FPGA
  */
-void InitFPGA()
+void InitFPGAForQSPI()
 {
 	g_log("Initializing FPGA\n");
 	LogIndenter li(g_log);
@@ -305,6 +297,8 @@ void InitFPGA()
 	static GPIOPin fpgaDone(&GPIOF, 6, GPIOPin::MODE_INPUT, GPIOPin::SLEW_SLOW);
 	while(!fpgaDone)
 	{}
+
+	//TODO: port this to use APB_DeviceInfo_7series and separate block for other system health states
 
 	//Read the FPGA IDCODE and serial number
 	//Retry until we get a nonzero result indicating FPGA is up
@@ -364,7 +358,6 @@ void InitFPGA()
 
 	InitFPGAFlash();
 }
-
 void InitFPGAFlash()
 {
 	g_log("Initializing FPGA flash\n");
